@@ -1,6 +1,35 @@
-// Saint Central — design tokens (cream theme, the reference default)
+// Saint Central — design tokens. Cream is the reference default; navy and forest
+// are alternates the user can pick from on the Me page.
 
-export const THEME = {
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+export type Theme = {
+  name: string;
+  bg: string;
+  bgSoft: string;
+  surface: string;
+  ink: string;
+  inkSoft: string;
+  muted: string;
+  line: string;
+  cardDark: string;
+  cardDarkInk: string;
+  accent: string;
+  accentSoft: string;
+  pillBg: string;
+  pillInk: string;
+};
+
+const CREAM: Theme = {
+  name: 'Cream',
   bg: '#F5EFE6',
   bgSoft: '#EDE5D7',
   surface: '#FBF7EF',
@@ -16,7 +45,106 @@ export const THEME = {
   pillInk: '#A4582C',
 };
 
-export type Theme = typeof THEME;
+const NAVY: Theme = {
+  name: 'Navy',
+  bg: '#0F1A33',
+  bgSoft: '#172645',
+  surface: '#1C2D52',
+  ink: '#EAEFFA',
+  inkSoft: '#BCC9E2',
+  muted: '#7A88A8',
+  line: 'rgba(234,239,250,0.12)',
+  cardDark: '#0A1224',
+  cardDarkInk: '#EAEFFA',
+  accent: '#D4A574',
+  accentSoft: '#9F7B54',
+  pillBg: '#1C2D52',
+  pillInk: '#D4A574',
+};
+
+const FOREST: Theme = {
+  name: 'Forest',
+  bg: '#EDF1E5',
+  bgSoft: '#DCE3CF',
+  surface: '#F5F8EC',
+  ink: '#1F3A2E',
+  inkSoft: '#3D5A4A',
+  muted: '#7A8B72',
+  line: 'rgba(31,58,46,0.10)',
+  cardDark: '#3A584A',
+  cardDarkInk: '#EDF1E5',
+  accent: '#8B5A3C',
+  accentSoft: '#C5A88B',
+  pillBg: '#E1E7D2',
+  pillInk: '#5A4030',
+};
+
+export const THEMES = {
+  cream: CREAM,
+  navy: NAVY,
+  forest: FOREST,
+} as const;
+
+export type ThemeName = keyof typeof THEMES;
+export const THEME_ORDER: ThemeName[] = ['cream', 'navy', 'forest'];
+
+// `THEME` is the legacy static reference. We mutate it in place so any code that
+// reads `THEME.x` at render time picks up the active theme on re-render. Module-
+// level StyleSheet.create snapshots are stale once switched — those screens use
+// `useThemedStyles` to recompute on theme change.
+export const THEME: Theme = { ...CREAM };
+
+const STORAGE_KEY = 'saint.theme';
+
+type ThemeCtx = {
+  name: ThemeName;
+  theme: Theme;
+  setTheme: (name: ThemeName) => void;
+};
+
+const ThemeContext = createContext<ThemeCtx>({
+  name: 'cream',
+  theme: CREAM,
+  setTheme: () => {},
+});
+
+export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [name, setName] = useState<ThemeName>('cream');
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then(stored => {
+        if (stored && stored in THEMES) {
+          const next = stored as ThemeName;
+          Object.assign(THEME, THEMES[next]);
+          setName(next);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const setTheme = useCallback((next: ThemeName) => {
+    Object.assign(THEME, THEMES[next]);
+    setName(next);
+    AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+  }, []);
+
+  const value = useMemo<ThemeCtx>(
+    () => ({ name, theme: THEMES[name], setTheme }),
+    [name, setTheme],
+  );
+
+  return React.createElement(ThemeContext.Provider, { value }, children);
+};
+
+export const useTheme = () => useContext(ThemeContext);
+
+export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
+  const { theme } = useTheme();
+  return useMemo(() => factory(theme), [theme, factory]);
+}
 
 export const FONTS = {
   display: 'PlayfairDisplay_500Medium',

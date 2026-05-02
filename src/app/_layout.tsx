@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { THEME } from '@/components/saint/theme';
+import { SaintThemeProvider, THEME } from '@/components/saint/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 
 function RootStack() {
@@ -42,9 +42,11 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
-      <AuthProvider>
-        <RootStack />
-      </AuthProvider>
+      <SaintThemeProvider>
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
+      </SaintThemeProvider>
     </ThemeProvider>
   );
 }

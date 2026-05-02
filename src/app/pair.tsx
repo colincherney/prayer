@@ -28,7 +28,7 @@ import {
   SparkleIcon,
   UserIcon,
 } from '@/components/saint/Icons';
-import { FONTS, THEME } from '@/components/saint/theme';
+import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 type Phase = 'intent' | 'searching' | 'paired' | 'praying' | 'blessing';
@@ -39,6 +39,7 @@ const PARTNER_LOC = 'A friend in Ohio';
 
 export default function PairingScreen() {
   const fontsLoaded = useSaintFonts();
+  const { theme: THEME } = useTheme();
   const [phase, setPhase] = useState<Phase>('intent');
   const [intent, setIntent] = useState('');
   const [searchProgress, setSearchProgress] = useState(0);
@@ -93,7 +94,10 @@ const IntentPhase: React.FC<{ intent: string; setIntent: (s: string) => void; on
   intent,
   setIntent,
   onNext,
-}) => (
+}) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
   <SafeAreaView style={styles.safe} edges={['top']}>
     <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
     <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
@@ -146,10 +150,13 @@ const IntentPhase: React.FC<{ intent: string; setIntent: (s: string) => void; on
       </View>
     </ScrollView>
   </SafeAreaView>
-);
+  );
+};
 
 /* -------------------- Phase 2: searching -------------------- */
 const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const ripples = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
 
   useEffect(() => {
@@ -209,7 +216,10 @@ const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
 };
 
 /* -------------------- Phase 3: paired exchange -------------------- */
-const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent, onBegin }) => (
+const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent, onBegin }) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
   <SafeAreaView style={styles.safe} edges={['top']}>
     <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
     <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
@@ -257,10 +267,13 @@ const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent
       </View>
     </ScrollView>
   </SafeAreaView>
-);
+  );
+};
 
 /* -------------------- Phase 4: praying together -------------------- */
 const PrayingPhase: React.FC<{ timer: number; onEnd: () => void }> = ({ timer, onEnd }) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const breathe = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -320,7 +333,10 @@ const PrayingPhase: React.FC<{ timer: number; onEnd: () => void }> = ({ timer, o
 };
 
 /* -------------------- Phase 5: blessing -------------------- */
-const BlessingPhase: React.FC<{ onAgain: () => void; onDone: () => void }> = ({ onAgain, onDone }) => (
+const BlessingPhase: React.FC<{ onAgain: () => void; onDone: () => void }> = ({ onAgain, onDone }) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
   <SafeAreaView style={styles.safe} edges={['top']}>
     <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
     <View style={styles.blessRoot}>
@@ -354,9 +370,10 @@ const BlessingPhase: React.FC<{ onAgain: () => void; onDone: () => void }> = ({ 
       </View>
     </View>
   </SafeAreaView>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
   howCard: {
     backgroundColor: THEME.pillBg,

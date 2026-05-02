@@ -22,7 +22,7 @@ import {
   PrayingIcon,
   ShieldIcon,
 } from '@/components/saint/Icons';
-import { FONTS, THEME } from '@/components/saint/theme';
+import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -43,6 +43,8 @@ const URGENCY_LABELS = ['No urgency', 'Gentle', 'Heavy', 'Urgent'];
 export default function SubmitPrayerScreen() {
   const fontsLoaded = useSaintFonts();
   const { session } = useAuth();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [step, setStep] = useState<'compose' | 'confirm'>('compose');
   const [text, setText] = useState('');
   const [category, setCategory] = useState('family');
@@ -308,7 +310,7 @@ export default function SubmitPrayerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
   backBtn: {
     width: 40,

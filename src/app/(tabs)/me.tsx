@@ -17,7 +17,15 @@ import {
   PrayingIcon,
   ShieldIcon,
 } from '@/components/saint/Icons';
-import { FONTS, THEME } from '@/components/saint/theme';
+import {
+  FONTS,
+  Theme,
+  ThemeName,
+  THEME_ORDER,
+  THEMES,
+  useTheme,
+  useThemedStyles,
+} from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -48,35 +56,68 @@ const StatTile: React.FC<{ value: number; label: string; accent?: boolean }> = (
   value,
   label,
   accent,
-}) => (
-  <View
-    style={[
-      styles.statTile,
-      {
-        backgroundColor: accent ? THEME.cardDark : THEME.surface,
-        borderColor: accent ? THEME.cardDark : THEME.line,
-      },
-    ]}>
-    <Text
+}) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View
       style={[
-        styles.statValue,
-        { color: accent ? THEME.cardDarkInk : THEME.ink },
+        styles.statTile,
+        {
+          backgroundColor: accent ? THEME.cardDark : THEME.surface,
+          borderColor: accent ? THEME.cardDark : THEME.line,
+        },
       ]}>
-      {value}
-    </Text>
-    <Text
-      style={[
-        styles.statLabel,
-        { color: accent ? THEME.cardDarkInk : THEME.ink, opacity: accent ? 0.78 : 0.65 },
-      ]}>
-      {label}
-    </Text>
-  </View>
-);
+      <Text
+        style={[
+          styles.statValue,
+          { color: accent ? THEME.cardDarkInk : THEME.ink },
+        ]}>
+        {value}
+      </Text>
+      <Text
+        style={[
+          styles.statLabel,
+          { color: accent ? THEME.cardDarkInk : THEME.ink, opacity: accent ? 0.78 : 0.65 },
+        ]}>
+        {label}
+      </Text>
+    </View>
+  );
+};
+
+const ThemePicker: React.FC = () => {
+  const { name, setTheme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.themeRow}>
+      {THEME_ORDER.map(key => {
+        const t = THEMES[key];
+        const active = key === name;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => setTheme(key as ThemeName)}
+            style={[
+              styles.themeSwatch,
+              { borderColor: active ? t.accent : t.line, backgroundColor: t.bg },
+            ]}>
+            <View style={[styles.themeDotMain, { backgroundColor: t.cardDark }]} />
+            <View style={[styles.themeDotAccent, { backgroundColor: t.accent }]} />
+            <Text style={[styles.themeName, { color: t.ink }]}>{t.name}</Text>
+            {active ? <View style={[styles.themeCheck, { backgroundColor: t.accent }]} /> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
 export default function MeScreen() {
   const fontsLoaded = useSaintFonts();
   const { session, isGuest, signOut } = useAuth();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState<Stats>({ offered: 0, shared: 0, sent: 0, received: 0 });
   const [myPrayers, setMyPrayers] = useState<MyPrayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -246,6 +287,11 @@ export default function MeScreen() {
               </View>
             )}
 
+            <SectionLabel style={{ paddingHorizontal: 22 }}>Theme</SectionLabel>
+            <View style={{ paddingHorizontal: 22 }}>
+              <ThemePicker />
+            </View>
+
             <View style={styles.signOutWrap}>
               <Pressable onPress={onSignOut} style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}>
                 <Text style={styles.signOutText}>Sign out</Text>
@@ -261,7 +307,7 @@ export default function MeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
   title: {
     fontFamily: FONTS.display,
@@ -396,5 +442,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.muted,
     marginTop: 10,
+  },
+  themeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  themeSwatch: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    gap: 8,
+    position: 'relative',
+  },
+  themeDotMain: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  themeDotAccent: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  themeName: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  themeCheck: {
+    position: 'absolute',
+    bottom: 8,
+    width: 18,
+    height: 3,
+    borderRadius: 2,
   },
 });

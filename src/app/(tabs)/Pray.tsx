@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/saint/Common';
 import { HeartIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
-import { FONTS, THEME } from '@/components/saint/theme';
+import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 type CardProps = {
@@ -26,6 +26,8 @@ type CardProps = {
 };
 
 const LauncherCard: React.FC<CardProps> = ({ variant = 'light', icon, eyebrow, title, desc, verse, onPress }) => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const dark = variant === 'dark';
   const accent = variant === 'accent';
   const bg = accent ? THEME.accent : dark ? THEME.cardDark : THEME.surface;
@@ -67,6 +69,8 @@ const LauncherCard: React.FC<CardProps> = ({ variant = 'light', icon, eyebrow, t
 
 export default function PrayLauncherScreen() {
   const fontsLoaded = useSaintFonts();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
   return (
@@ -111,7 +115,7 @@ export default function PrayLauncherScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
   cards: { paddingHorizontal: 22, gap: 12 },
   card: {

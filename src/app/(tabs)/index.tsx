@@ -18,11 +18,13 @@ import {
   ScriptureTicker,
   Squiggle,
 } from '@/components/saint/Common';
-import { FONTS, THEME, VERSES } from '@/components/saint/theme';
+import { FONTS, useThemedStyles, useTheme, VERSES } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 export default function HomeScreen() {
   const fontsLoaded = useSaintFonts();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -141,7 +143,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: import('@/components/saint/theme').Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg, paddingBottom: 90 },
   pillRow: {
     paddingHorizontal: 22,
@@ -261,3 +263,4 @@ const styles = StyleSheet.create({
   cardFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   cardSparkles: { flexDirection: 'row', alignItems: 'center', gap: 3, opacity: 0.4 },
 });
+
