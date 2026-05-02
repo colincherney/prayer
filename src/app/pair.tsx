@@ -1,8 +1,11 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Easing,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -23,38 +26,99 @@ import {
 import {
   ArrowIcon,
   HeartIcon,
-  MicIcon,
   PrayingIcon,
+  ShieldIcon,
   SparkleIcon,
   UserIcon,
 } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import { relativeTime } from '@/lib/time';
 
 type Phase = 'intent' | 'searching' | 'paired' | 'praying' | 'blessing';
 
-const PARTNER_INTENT =
-  'Carrying my father — his health, his fear, his stubborn faith. Lord meet him where he is.';
-const PARTNER_LOC = 'A friend in Ohio';
+type Partner = { body: string; ageLabel: string };
+
+const ANONYMOUS_LABEL = 'An anonymous soul';
 
 export default function PairingScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
+  const { session } = useAuth();
   const [phase, setPhase] = useState<Phase>('intent');
   const [intent, setIntent] = useState('');
   const [searchProgress, setSearchProgress] = useState(0);
   const [timer, setTimer] = useState(120);
+  const [partner, setPartner] = useState<Partner | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // searching animation + auto-advance
+  // Searching: smooth progress fill (0 → 100 over ~2.5s) running alongside the
+  // network call. Transition to 'paired' only after BOTH the bar reaches 100
+  // AND the call resolves — so the loader is never cut off mid-fill.
   useEffect(() => {
     if (phase !== 'searching') return;
-    const tick = setInterval(() => setSearchProgress(p => Math.min(100, p + 4)), 100);
-    const done = setTimeout(() => setPhase('paired'), 2800);
-    return () => {
+    let cancelled = false;
+
+    const fillDuration = 2500;
+    const startedAt = Date.now();
+    setSearchProgress(0);
+
+    const tick = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - startedAt) / fillDuration) * 100);
+      setSearchProgress(pct);
+      if (pct >= 100) clearInterval(tick);
+    }, 30);
+
+    const callPromise = supabase.functions.invoke('submit-pair-intent', {
+      body: { body: intent.trim() },
+    });
+    const fillPromise = new Promise<void>(resolve => setTimeout(resolve, fillDuration));
+
+    Promise.all([callPromise, fillPromise]).then(([res]) => {
+      if (cancelled) return;
       clearInterval(tick);
-      clearTimeout(done);
+      setSearchProgress(100);
+
+      const { data, error } = res;
+      if (error) {
+        setIntentError(error.message || 'Could not find a partner. Try again.');
+        setSubmitting(false);
+        setPhase('intent');
+        return;
+      }
+      if (data?.ok === false) {
+        setIntentError(
+          data.reason === 'moderation_blocked'
+            ? "This intention doesn't fit our community guidelines. Try rewording it."
+            : 'Something went wrong — please try again.',
+        );
+        setSubmitting(false);
+        setPhase('intent');
+        return;
+      }
+      const p = data?.partner;
+      if (!p?.body) {
+        setIntentError('No partner available right now. Try again in a moment.');
+        setSubmitting(false);
+        setPhase('intent');
+        return;
+      }
+      setPartner({
+        body: p.body as string,
+        ageLabel: p.created_at ? `Shared ${relativeTime(p.created_at as string)}` : ANONYMOUS_LABEL,
+      });
+      setSubmitting(false);
+      setPhase('paired');
+    });
+
+    return () => {
+      cancelled = true;
+      clearInterval(tick);
     };
-  }, [phase]);
+  }, [phase, intent]);
 
   useEffect(() => {
     if (phase !== 'praying') return;
@@ -73,34 +137,69 @@ export default function PairingScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
-  if (phase === 'intent') return <IntentPhase intent={intent} setIntent={setIntent} onNext={() => setPhase('searching')} />;
+  const onFindPartner = () => {
+    if (!intent.trim() || submitting) return;
+    if (!session) {
+      setIntentError('You must be signed in to be paired.');
+      return;
+    }
+    setIntentError(null);
+    setSubmitting(true);
+    setPhase('searching');
+  };
+
+  if (phase === 'intent')
+    return (
+      <IntentPhase
+        intent={intent}
+        setIntent={setIntent}
+        onNext={onFindPartner}
+        error={intentError}
+        submitting={submitting}
+      />
+    );
   if (phase === 'searching') return <SearchingPhase progress={searchProgress} />;
-  if (phase === 'paired')
+  if (phase === 'paired' && partner)
     return (
       <PairedPhase
         intent={intent}
+        partner={partner}
         onBegin={() => {
           setTimer(120);
           setPhase('praying');
         }}
       />
     );
-  if (phase === 'praying') return <PrayingPhase timer={timer} onEnd={() => setPhase('blessing')} />;
-  return <BlessingPhase onAgain={() => setPhase('intent')} onDone={() => router.dismissAll()} />;
+  if (phase === 'praying' && partner)
+    return <PrayingPhase timer={timer} partner={partner} onEnd={() => setPhase('blessing')} />;
+  return <BlessingPhase onAgain={() => {
+    setPartner(null);
+    setIntent('');
+    setPhase('intent');
+  }} onDone={() => router.dismissAll()} />;
 }
 
 /* -------------------- Phase 1: write intent -------------------- */
-const IntentPhase: React.FC<{ intent: string; setIntent: (s: string) => void; onNext: () => void }> = ({
-  intent,
-  setIntent,
-  onNext,
-}) => {
+const IntentPhase: React.FC<{
+  intent: string;
+  setIntent: (s: string) => void;
+  onNext: () => void;
+  error?: string | null;
+  submitting?: boolean;
+}> = ({ intent, setIntent, onNext, error, submitting }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
     <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
-    <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 140 }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled">
       <ScreenHeader
         title="Pray Right Now"
         subtitle="You'll be paired with one anonymous soul."
@@ -130,17 +229,20 @@ const IntentPhase: React.FC<{ intent: string; setIntent: (s: string) => void; on
           />
           <View style={styles.intentFoot}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <MicIcon size={13} color={THEME.inkSoft} />
-              <Text style={styles.intentFootText}>Speak instead</Text>
+              <ShieldIcon size={11} color={THEME.muted} />
+              <Text style={styles.intentFootText}>Not saved to your account</Text>
             </View>
             <Text style={styles.intentFootText}>{intent.length}/240</Text>
           </View>
         </View>
 
+        {error ? <Text style={styles.intentError}>{error}</Text> : null}
         <PrimaryButton
-          label="Find a prayer partner"
-          rightIcon={<ArrowIcon size={16} color="#FFF" />}
-          disabled={!intent.trim()}
+          label={submitting ? '' : 'Find a prayer partner'}
+          rightIcon={
+            submitting ? <ActivityIndicator color="#FFF" /> : <ArrowIcon size={16} color="#FFF" />
+          }
+          disabled={!intent.trim() || !!submitting}
           onPress={onNext}
           style={{ marginTop: 24 }}
         />
@@ -149,6 +251,7 @@ const IntentPhase: React.FC<{ intent: string; setIntent: (s: string) => void; on
         </Text>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   </SafeAreaView>
   );
 };
@@ -216,7 +319,11 @@ const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
 };
 
 /* -------------------- Phase 3: paired exchange -------------------- */
-const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent, onBegin }) => {
+const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => void }> = ({
+  intent,
+  partner,
+  onBegin,
+}) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
@@ -237,11 +344,11 @@ const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent
               <UserIcon size={20} color={THEME.muted} />
             </View>
             <View>
-              <Text style={styles.partnerLoc}>{PARTNER_LOC}</Text>
+              <Text style={styles.partnerLoc}>{partner.ageLabel}</Text>
               <Text style={styles.partnerLabel}>YOUR PARTNER</Text>
             </View>
           </View>
-          <Text style={styles.partnerBody}>&ldquo;{PARTNER_INTENT}&rdquo;</Text>
+          <Text style={styles.partnerBody}>&ldquo;{partner.body}&rdquo;</Text>
         </View>
 
         {/* You card */}
@@ -271,7 +378,11 @@ const PairedPhase: React.FC<{ intent: string; onBegin: () => void }> = ({ intent
 };
 
 /* -------------------- Phase 4: praying together -------------------- */
-const PrayingPhase: React.FC<{ timer: number; onEnd: () => void }> = ({ timer, onEnd }) => {
+const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => void }> = ({
+  timer,
+  partner,
+  onEnd,
+}) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const breathe = useRef(new Animated.Value(0)).current;
@@ -310,7 +421,7 @@ const PrayingPhase: React.FC<{ timer: number; onEnd: () => void }> = ({ timer, o
           <Pill bg="rgba(255,255,255,0.1)" fg={THEME.cardDarkInk} icon={<SparkleIcon size={11} color={THEME.cardDarkInk} />}>
             Praying together
           </Pill>
-          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{PARTNER_LOC}</Text>
+          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{partner.ageLabel}</Text>
         </View>
 
         <View style={styles.prayingMid}>
@@ -321,7 +432,9 @@ const PrayingPhase: React.FC<{ timer: number; onEnd: () => void }> = ({ timer, o
           <View style={styles.timerTrack}>
             <View style={[styles.timerFill, { width: `${pct}%` }]} />
           </View>
-          <Text style={styles.partnerSnippet}>&ldquo;{PARTNER_INTENT.slice(0, 80)}…&rdquo;</Text>
+          <Text style={styles.partnerSnippet}>
+            &ldquo;{partner.body.length > 80 ? `${partner.body.slice(0, 80)}…` : partner.body}&rdquo;
+          </Text>
         </View>
 
         <Pressable onPress={onEnd} style={styles.endEarly}>
@@ -415,6 +528,13 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderTopColor: THEME.line,
   },
   intentFootText: { fontSize: 12, color: THEME.inkSoft, fontFamily: FONTS.body },
+  intentError: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: THEME.accent,
+    marginTop: 18,
+    textAlign: 'center',
+  },
   endVerse: {
     fontFamily: FONTS.displayItalic,
     fontStyle: 'italic',
