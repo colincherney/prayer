@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -164,36 +164,38 @@ const WallOfLights: React.FC<{
   onJump: (i: number) => void;
 }> = ({ total, prayedIds, ids, currentIndex, onJump }) => (
   <View style={styles.wall}>
-    {ids.map((id, i) => {
-      const lit = prayedIds.has(id);
-      const isCurrent = i === currentIndex;
-      return (
-        <Pressable key={id} onPress={() => onJump(i)} style={styles.wallSlot} hitSlop={6}>
-          {/* tiny candle */}
-          <View
-            style={[
-              styles.tinyCandle,
-              {
-                backgroundColor: isCurrent ? NIGHT.ink : 'rgba(241,231,210,0.32)',
-                opacity: lit || isCurrent ? 1 : 0.55,
-              },
-            ]}
-          />
-          {/* tiny flame */}
-          <View
-            style={[
-              styles.tinyFlame,
-              {
-                backgroundColor: lit ? NIGHT.flame : 'transparent',
-                shadowColor: lit ? NIGHT.flame : 'transparent',
-                shadowOpacity: lit ? 0.8 : 0,
-                shadowRadius: lit ? 6 : 0,
-              },
-            ]}
-          />
-        </Pressable>
-      );
-    })}
+    <View style={styles.wallRow}>
+      {ids.map((id, i) => {
+        const lit = prayedIds.has(id);
+        const isCurrent = i === currentIndex;
+        return (
+          <Pressable key={id} onPress={() => onJump(i)} style={styles.wallSlot} hitSlop={6}>
+            {/* tiny candle */}
+            <View
+              style={[
+                styles.tinyCandle,
+                {
+                  backgroundColor: isCurrent ? NIGHT.ink : 'rgba(241,231,210,0.32)',
+                  opacity: lit || isCurrent ? 1 : 0.55,
+                },
+              ]}
+            />
+            {/* tiny flame */}
+            <View
+              style={[
+                styles.tinyFlame,
+                {
+                  backgroundColor: lit ? NIGHT.flame : 'transparent',
+                  shadowColor: lit ? NIGHT.flame : 'transparent',
+                  shadowOpacity: lit ? 0.8 : 0,
+                  shadowRadius: lit ? 6 : 0,
+                },
+              ]}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
     <Text style={styles.wallCount}>
       {prayedIds.size}/{total}
     </Text>
@@ -208,6 +210,8 @@ export default function PrayForOthersScreen() {
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [exhausted, setExhausted] = useState(false);
 
   const [index, setIndex] = useState(0);
   const [prayedIds, setPrayedIds] = useState<Set<string>>(new Set());
@@ -224,10 +228,10 @@ export default function PrayForOthersScreen() {
   const cardLift = useRef(new Animated.Value(0)).current;
   const glowIntensity = useRef(new Animated.Value(0.55)).current;
 
-  // Fetch the feed of approved prayers, excluding my own and any I've already prayed for.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  // Fetch the feed of approved prayers, excluding my own, any I've already
+  // prayed for, and any IDs already shown earlier this session.
+  const loadFeed = useCallback(
+    async (excludeIds: Set<string>) => {
       setLoadingFeed(true);
       setFeedError(null);
       const me = session?.user?.id;
@@ -236,42 +240,72 @@ export default function PrayForOthersScreen() {
         .select('id, body, category, created_at, user_id, prayer_interactions(action, user_id)')
         .eq('approved', 'y')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(200);
       if (me) query = query.neq('user_id', me);
 
       const { data, error } = await query;
-      if (cancelled) return;
       if (error) {
         setFeedError(error.message);
         setRequests([]);
-      } else {
-        const mapped = (data ?? [])
-          .map(p => {
-            const interactions =
-              (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
-            const alreadyPrayed = me
-              ? interactions.some(i => i.user_id === me && i.action === 'prayed')
-              : false;
-            return {
-              id: p.id as string,
-              text: (p.body as string) ?? '',
-              category: (p.category as string | null) ?? 'Other',
-              age: relativeTime(p.created_at as string),
-              prayedCount: interactions.filter(i => i.action === 'prayed').length,
-              alreadyPrayed,
-            };
-          })
-          .filter(p => !p.alreadyPrayed)
-          .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
-          .slice(0, 30);
-        setRequests(mapped);
+        setLoadingFeed(false);
+        return;
       }
+
+      const mapped = (data ?? [])
+        .map(p => {
+          const interactions =
+            (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
+          const alreadyPrayed = me
+            ? interactions.some(i => i.user_id === me && i.action === 'prayed')
+            : false;
+          return {
+            id: p.id as string,
+            text: (p.body as string) ?? '',
+            category: (p.category as string | null) ?? 'Other',
+            age: relativeTime(p.created_at as string),
+            prayedCount: interactions.filter(i => i.action === 'prayed').length,
+            alreadyPrayed,
+          };
+        })
+        .filter(p => !p.alreadyPrayed && !excludeIds.has(p.id))
+        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
+        .slice(0, 10);
+
+      setRequests(mapped);
+      setIndex(0);
+      setPrayedIds(new Set());
+      setNotesSent(new Set());
+      setNoteOpen(false);
+      setNote('');
+      setSeenIds(prev => {
+        const next = new Set(prev);
+        mapped.forEach(p => next.add(p.id));
+        return next;
+      });
+      setExhausted(mapped.length === 0);
       setLoadingFeed(false);
+    },
+    [session?.user?.id],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (cancelled) return;
+      setSeenIds(new Set());
+      setExhausted(false);
+      await loadFeed(new Set());
     })();
     return () => {
       cancelled = true;
     };
+    // loadFeed intentionally omitted: re-running on identity change would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  const onLoadMore = () => {
+    loadFeed(seenIds);
+  };
 
   const req = requests[index];
   const lit = req ? prayedIds.has(req.id) : false;
@@ -602,6 +636,21 @@ export default function PrayForOthersScreen() {
                   <Text style={styles.completeVerse}>
                     &ldquo;Bear one another&apos;s burdens, and so fulfill the law of Christ.&rdquo; — Galatians 6:2
                   </Text>
+                  {!exhausted && (
+                    <Pressable
+                      onPress={onLoadMore}
+                      disabled={loadingFeed}
+                      style={({ pressed }) => [
+                        styles.loadMoreBtn,
+                        (pressed || loadingFeed) && { opacity: 0.6 },
+                      ]}>
+                      {loadingFeed ? (
+                        <ActivityIndicator size="small" color={NIGHT.flame} />
+                      ) : (
+                        <Text style={styles.loadMoreBtnText}>Show 10 more →</Text>
+                      )}
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -958,16 +1007,19 @@ const styles = StyleSheet.create({
 
   /* Wall */
   wall: {
+    paddingHorizontal: 22,
+    paddingTop: 14,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: NIGHT.line,
+    marginHorizontal: 22,
+    alignItems: 'center',
+  },
+  wallRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'center',
     gap: 14,
-    paddingHorizontal: 22,
-    paddingTop: 14,
-    paddingBottom: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: NIGHT.line,
-    marginHorizontal: 22,
   },
   wallSlot: {
     alignItems: 'center',
@@ -986,12 +1038,26 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
   },
   wallCount: {
-    position: 'absolute',
-    right: 22,
-    bottom: 6,
+    marginTop: 8,
     fontFamily: FONTS.bodySemi,
     fontSize: 10,
     letterSpacing: 1.4,
     color: NIGHT.muted,
+  },
+  loadMoreBtn: {
+    marginTop: 14,
+    alignSelf: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 9999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: NIGHT.flame,
+    backgroundColor: 'rgba(245,192,101,0.10)',
+  },
+  loadMoreBtnText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12.5,
+    letterSpacing: 0.6,
+    color: NIGHT.flame,
   },
 });
