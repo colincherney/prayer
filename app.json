@@ -1,13 +1,15 @@
 {
   "expo": {
     "name": "Saint Central",
-    "slug": "com.saintcentral.app",
+    "slug": "saint-central",
     "version": "5.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "prayer",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.saintcentral.app",
+      "buildNumber": "1",
       "icon": "./assets/expo.icon"
     },
     "android": {
