@@ -11,27 +11,45 @@ type ModerationResult =
   | { ok: true }
   | { ok: false; reason: string };
 
-const MODERATION_SYSTEM_PROMPT = `You are a content moderator for Saint Central, an anonymous Christian prayer app. This text is a short note of encouragement being sent to someone who shared a prayer request. Lean permissive: when in doubt, allow.
+const MODERATION_SYSTEM_PROMPT = `You are a content moderator for Saint Central, an anonymous Christian prayer app. The user is sending a short note of encouragement IN RESPONSE to someone else's prayer request. You will receive both the original prayer and the reply.
+
+Evaluate the reply IN THE CONTEXT of the prayer it is responding to. Phrases that look harmless on their own may be harmful in context. For example: "please do" or "go ahead" or "do it" might be unremarkable in many contexts, but as a reply to "I want to hurt myself" they encourage self-harm and MUST be blocked.
 
 ALLOW (do not block, even if uncomfortable):
-- Sincere encouragement, scripture, declarations of faith
+- Sincere encouragement, scripture, declarations of faith, prayers
 - Acknowledgement of grief, suffering, doubt, despair
-- Gentle pushback or honesty (e.g. "I've felt that too")
-- Strong emotional language; mentions of self-harm or addiction in a supportive context
+- "I've been there too" / solidarity / shared witness
+- Gentle, non-condemning honesty
+- Mentions of self-harm or addiction in a clearly supportive direction
 
-BLOCK only:
+BLOCK:
+- Anything that encourages, endorses, agrees with, dismisses, mocks, or makes light of self-harm, suicide, or violence — even subtly, even one or two words
 - Hate speech targeting any group by identity (race, religion, sexuality, gender, nationality, etc.)
-- Threats, harassment, or shaming directed at the recipient
+- Threats, harassment, mocking, or shaming directed at the prayer's writer
 - Explicit sexual content; ANY sexual content involving minors
 - Specific methods or instructions for self-harm, suicide, or harming others
 - Spam, advertising, recruiting (e.g. "join my church"), or content unrelated to encouragement
 - Doxxing or private information about a third party
 
+Be especially strict about agreement with self-harm intent. If the prayer expresses any urge to self-harm and the reply could reasonably be read as agreement, encouragement, or invitation — block it.
+
 Respond with strict JSON only: {"allow": true} OR {"allow": false, "reason": "<one short phrase>"}.`;
 
-async function moderate(text: string): Promise<ModerationResult> {
+async function moderate(prayerBody: string, replyText: string): Promise<ModerationResult> {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+
+  const userMessage = [
+    'Original prayer request:',
+    '"""',
+    prayerBody,
+    '"""',
+    '',
+    'Reply being submitted:',
+    '"""',
+    replyText,
+    '"""',
+  ].join('\n');
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -46,7 +64,7 @@ async function moderate(text: string): Promise<ModerationResult> {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: MODERATION_SYSTEM_PROMPT },
-        { role: 'user', content: text },
+        { role: 'user', content: userMessage },
       ],
     }),
   });
@@ -120,22 +138,44 @@ Deno.serve(async (req) => {
   if (!content) return json({ error: 'content_required' }, 400);
   if (content.length > 500) return json({ error: 'content_too_long' }, 400);
 
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+
+  const { data: prayerRow, error: prayerErr } = await admin
+    .from('prayers')
+    .select('body')
+    .eq('id', prayerId)
+    .maybeSingle();
+
+  if (prayerErr) {
+    console.error('prayer lookup failed', prayerErr);
+    return json({ error: prayerErr.message }, 500);
+  }
+  if (!prayerRow) {
+    return json({ error: 'prayer_not_found' }, 404);
+  }
+
   let modResult;
   try {
-    modResult = await moderate(content);
+    modResult = await moderate(prayerRow.body ?? '', content);
   } catch (e) {
     console.error('moderation failed', e);
     return json({ error: 'moderation_unavailable' }, 502);
   }
 
   if (!modResult.ok) {
-    console.warn('moderation blocked:', modResult.reason, '— sample:', content.slice(0, 120));
+    console.warn(
+      'moderation blocked:',
+      modResult.reason,
+      '— prayer:',
+      (prayerRow.body ?? '').slice(0, 80),
+      '— reply:',
+      content.slice(0, 80),
+    );
     return json({ ok: false, reason: 'moderation_blocked' });
   }
 
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
   const { data, error } = await admin
     .from('reflections')
     .insert({
