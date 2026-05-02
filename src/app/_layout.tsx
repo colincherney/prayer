@@ -1,11 +1,14 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { SaintThemeProvider, THEME } from '@/components/saint/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootStack() {
   const { session, loading } = useAuth();
