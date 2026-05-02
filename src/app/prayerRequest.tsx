@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -22,6 +23,8 @@ import {
 } from '@/components/saint/Icons';
 import { FONTS, THEME } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = [
   { id: 'health', label: 'Health' },
@@ -38,13 +41,48 @@ const URGENCY_LABELS = ['No urgency', 'Gentle', 'Heavy', 'Urgent'];
 
 export default function SubmitPrayerScreen() {
   const fontsLoaded = useSaintFonts();
+  const { session } = useAuth();
   const [step, setStep] = useState<'compose' | 'confirm'>('compose');
   const [text, setText] = useState('');
   const [category, setCategory] = useState('family');
   const [urgency, setUrgency] = useState(1);
   const [share, setShare] = useState<'public' | 'private'>('public');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
+
+  const onSubmit = async () => {
+    if (!text.trim() || busy) return;
+    setError(null);
+
+    if (share === 'private') {
+      setStep('confirm');
+      return;
+    }
+    if (!session) {
+      setError('You must be signed in to share a prayer.');
+      return;
+    }
+
+    setBusy(true);
+    const body = text.trim();
+    const title = body.split('\n')[0].slice(0, 80);
+    const categoryLabel = CATEGORIES.find(c => c.id === category)?.label ?? null;
+    const { error: e } = await supabase.from('prayers').insert({
+      user_id: session.user.id,
+      title,
+      body,
+      category: categoryLabel,
+      approved: 'y',
+    });
+    setBusy(false);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setStep('confirm');
+  };
 
   if (step === 'confirm') {
     return (
@@ -212,11 +250,15 @@ export default function SubmitPrayerScreen() {
             })}
           </View>
 
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           <PrimaryButton
-            label="Offer this prayer"
-            disabled={!submittable}
-            onPress={() => setStep('confirm')}
-            rightIcon={<ArrowIcon size={16} color="#FFF" />}
+            label={busy ? '' : 'Offer this prayer'}
+            disabled={!submittable || busy}
+            onPress={onSubmit}
+            rightIcon={
+              busy ? <ActivityIndicator color="#FFF" /> : <ArrowIcon size={16} color="#FFF" />
+            }
             style={{ marginTop: 28 }}
           />
         </View>
@@ -310,6 +352,13 @@ const styles = StyleSheet.create({
   },
   shareTitle: { fontFamily: FONTS.display, fontSize: 18, marginTop: 8, marginBottom: 4 },
   shareDesc: { fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 16 },
+  errorText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: THEME.accent,
+    marginTop: 18,
+    textAlign: 'center',
+  },
   confirmRoot: { flex: 1, justifyContent: 'space-between', paddingTop: 60 },
   confirmInner: {
     flex: 1,

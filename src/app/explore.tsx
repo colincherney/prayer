@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,79 +22,17 @@ import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
 import { FONTS } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import { relativeTime } from '@/lib/time';
 
 type PrayerRequest = {
-  id: number;
-  category: 'Family' | 'Grief' | 'Work' | 'Health' | 'Gratitude' | 'Faith';
-  urgency: 0 | 1 | 2 | 3;
+  id: string;
+  category: string;
   prayedCount: number;
   age: string;
   text: string;
-  location: string;
 };
-
-const SAMPLE_REQUESTS: PrayerRequest[] = [
-  {
-    id: 1,
-    category: 'Family',
-    urgency: 2,
-    prayedCount: 47,
-    age: '12m ago',
-    text:
-      "My mother starts chemotherapy on Monday. Please pray for her strength, for the doctors' hands, and for our family's faith to hold steady.",
-    location: 'Anonymous · Ohio',
-  },
-  {
-    id: 2,
-    category: 'Grief',
-    urgency: 3,
-    prayedCount: 128,
-    age: '2h ago',
-    text:
-      "Lost my brother last week. The silence in our home is so loud. I'm trying to keep faith but I'm so tired.",
-    location: 'Anonymous · Texas',
-  },
-  {
-    id: 3,
-    category: 'Work',
-    urgency: 1,
-    prayedCount: 19,
-    age: '4h ago',
-    text:
-      "Job interview tomorrow morning. I've been unemployed for seven months. Please pray for clarity and peace.",
-    location: 'Anonymous · Oregon',
-  },
-  {
-    id: 4,
-    category: 'Health',
-    urgency: 2,
-    prayedCount: 73,
-    age: '6h ago',
-    text:
-      'Awaiting biopsy results this week. Praying for healing and for the courage to accept whatever comes.',
-    location: 'Anonymous · Florida',
-  },
-  {
-    id: 5,
-    category: 'Gratitude',
-    urgency: 0,
-    prayedCount: 211,
-    age: '1d ago',
-    text:
-      "Thank you Lord — daughter's surgery went well. Sharing this so others can take heart in their own waiting.",
-    location: 'Anonymous · Illinois',
-  },
-  {
-    id: 6,
-    category: 'Family',
-    urgency: 2,
-    prayedCount: 34,
-    age: '1d ago',
-    text:
-      "My marriage feels like it's slipping. Pray for both of us — for tenderness, patience, and the will to choose love again.",
-    location: 'Anonymous · Vermont',
-  },
-];
 
 const NIGHT = {
   bg: '#0B1020',
@@ -218,8 +158,8 @@ const Candle: React.FC<{ lit: boolean; flicker: Animated.Value; lightUp: Animate
 /* -------------------- Wall of lights (session progress) -------------------- */
 const WallOfLights: React.FC<{
   total: number;
-  prayedIds: Set<number>;
-  ids: number[];
+  prayedIds: Set<string>;
+  ids: string[];
   currentIndex: number;
   onJump: (i: number) => void;
 }> = ({ total, prayedIds, ids, currentIndex, onJump }) => (
@@ -263,12 +203,19 @@ const WallOfLights: React.FC<{
 /* -------------------- Screen -------------------- */
 export default function PrayForOthersScreen() {
   const fontsLoaded = useSaintFonts();
+  const { session } = useAuth();
+
+  const [requests, setRequests] = useState<PrayerRequest[]>([]);
+  const [loadingFeed, setLoadingFeed] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   const [index, setIndex] = useState(0);
-  const [prayedIds, setPrayedIds] = useState<Set<number>>(new Set());
-  const [notesSent, setNotesSent] = useState<Set<number>>(new Set());
+  const [prayedIds, setPrayedIds] = useState<Set<string>>(new Set());
+  const [notesSent, setNotesSent] = useState<Set<string>>(new Set());
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
+  const [noteSending, setNoteSending] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
 
   // Animations
   const flicker = useRef(new Animated.Value(0.5)).current;
@@ -277,7 +224,56 @@ export default function PrayForOthersScreen() {
   const cardLift = useRef(new Animated.Value(0)).current;
   const glowIntensity = useRef(new Animated.Value(0.55)).current;
 
-  const req = SAMPLE_REQUESTS[index];
+  // Fetch the feed of approved prayers, excluding my own and any I've already prayed for.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingFeed(true);
+      setFeedError(null);
+      const me = session?.user?.id;
+      let query = supabase
+        .from('prayers')
+        .select('id, body, category, created_at, user_id, prayer_interactions(action, user_id)')
+        .eq('approved', 'y')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (me) query = query.neq('user_id', me);
+
+      const { data, error } = await query;
+      if (cancelled) return;
+      if (error) {
+        setFeedError(error.message);
+        setRequests([]);
+      } else {
+        const mapped = (data ?? [])
+          .map(p => {
+            const interactions =
+              (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
+            const alreadyPrayed = me
+              ? interactions.some(i => i.user_id === me && i.action === 'prayed')
+              : false;
+            return {
+              id: p.id as string,
+              text: (p.body as string) ?? '',
+              category: (p.category as string | null) ?? 'Other',
+              age: relativeTime(p.created_at as string),
+              prayedCount: interactions.filter(i => i.action === 'prayed').length,
+              alreadyPrayed,
+            };
+          })
+          .filter(p => !p.alreadyPrayed)
+          .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
+          .slice(0, 30);
+        setRequests(mapped);
+      }
+      setLoadingFeed(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  const req = requests[index];
   const lit = req ? prayedIds.has(req.id) : false;
 
   // Flicker loop — runs always, but only visible when flame is lit
@@ -370,17 +366,39 @@ export default function PrayForOthersScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: NIGHT.bg }} />;
 
-  const onPray = () => {
-    if (!req) return;
+  const onPray = async () => {
+    if (!req || !session) return;
+    // Optimistic light
     setPrayedIds(prev => {
       const next = new Set(prev);
       next.add(req.id);
       return next;
     });
+    setRequests(prev =>
+      prev.map(r => (r.id === req.id ? { ...r, prayedCount: r.prayedCount + 1 } : r)),
+    );
+    const { error } = await supabase.from('prayer_interactions').insert({
+      prayer_id: req.id,
+      user_id: session.user.id,
+      action: 'prayed',
+    });
+    if (error) {
+      // Roll back on failure
+      setPrayedIds(prev => {
+        const next = new Set(prev);
+        next.delete(req.id);
+        return next;
+      });
+      setRequests(prev =>
+        prev.map(r =>
+          r.id === req.id ? { ...r, prayedCount: Math.max(0, r.prayedCount - 1) } : r,
+        ),
+      );
+    }
   };
 
   const onContinue = () => {
-    const nextIdx = index + 1 < SAMPLE_REQUESTS.length ? index + 1 : index;
+    const nextIdx = index + 1 < requests.length ? index + 1 : index;
     if (nextIdx === index) return; // last card — handled by completion CTA
     advance(nextIdx);
   };
@@ -390,8 +408,23 @@ export default function PrayForOthersScreen() {
     advance(i);
   };
 
-  const onSendNote = () => {
-    if (!req || !note.trim()) return;
+  const onSendNote = async () => {
+    if (!req || !note.trim() || !session || noteSending) return;
+    Keyboard.dismiss();
+    setNoteSending(true);
+    setNoteError(null);
+    const content = note.trim();
+    const { error } = await supabase.from('reflections').insert({
+      prayer_id: req.id,
+      user_id: session.user.id,
+      content,
+    });
+    setNoteSending(false);
+    if (error) {
+      setNoteError(error.message);
+      return;
+    }
+    setNote('');
     setNotesSent(prev => {
       const next = new Set(prev);
       next.add(req.id);
@@ -400,8 +433,9 @@ export default function PrayForOthersScreen() {
     setNoteOpen(false);
   };
 
-  const isLast = index === SAMPLE_REQUESTS.length - 1;
-  const allDone = prayedIds.size === SAMPLE_REQUESTS.length;
+  const total = requests.length;
+  const isLast = total > 0 && index === total - 1;
+  const allDone = total > 0 && prayedIds.size === total;
   const noteSent = req ? notesSent.has(req.id) : false;
 
   return (
@@ -421,12 +455,30 @@ export default function PrayForOthersScreen() {
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.kicker}>A QUIET VIGIL</Text>
             <Text style={styles.indexLabel}>
-              {index + 1} <Text style={{ color: NIGHT.muted }}>/ {SAMPLE_REQUESTS.length}</Text>
+              {total > 0 ? index + 1 : 0}{' '}
+              <Text style={{ color: NIGHT.muted }}>/ {total}</Text>
             </Text>
           </View>
           <View style={styles.topBarSpacer} />
         </View>
 
+        {loadingFeed ? (
+          <View style={styles.centerFill}>
+            <ActivityIndicator color={NIGHT.flame} />
+          </View>
+        ) : !req ? (
+          <View style={styles.centerFill}>
+            <Text style={styles.emptyTitle}>
+              {feedError ? 'Couldn’t load prayers' : 'Stillness tonight.'}
+            </Text>
+            <Text style={styles.emptyBody}>
+              {feedError
+                ? feedError
+                : 'No requests are waiting right now. Be the first to share what weighs on your heart.'}
+            </Text>
+          </View>
+        ) : (
+          <>
         {/* Body */}
         <Animated.View
           style={[
@@ -443,14 +495,9 @@ export default function PrayForOthersScreen() {
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
               <View style={styles.metaDot} />
               <Text style={styles.metaText}>{req.age.toUpperCase()}</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.metaText}>
-                URGENCY {req.urgency === 0 ? 'CALM' : req.urgency === 1 ? 'GENTLE' : req.urgency === 2 ? 'WEIGHTED' : 'URGENT'}
-              </Text>
             </View>
 
             <Text style={styles.prayer}>&ldquo;{req.text}&rdquo;</Text>
-            <Text style={styles.attribution}>— {req.location}</Text>
 
             <View style={styles.companionRow}>
               <View style={styles.tinyDot} />
@@ -499,20 +546,30 @@ export default function PrayForOthersScreen() {
                     <Text style={styles.noteCounter}>{note.length}/140</Text>
                     <Pressable
                       onPress={onSendNote}
-                      disabled={!note.trim()}
+                      disabled={!note.trim() || noteSending}
                       style={[
                         styles.sendNoteBtn,
-                        { backgroundColor: note.trim() ? NIGHT.flame : NIGHT.line },
+                        {
+                          backgroundColor:
+                            note.trim() && !noteSending ? NIGHT.flame : NIGHT.line,
+                        },
                       ]}>
-                      <Text
-                        style={[
-                          styles.sendNoteText,
-                          { color: note.trim() ? '#1A130A' : NIGHT.muted },
-                        ]}>
-                        Send anonymously
-                      </Text>
+                      {noteSending ? (
+                        <ActivityIndicator size="small" color="#1A130A" />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.sendNoteText,
+                            { color: note.trim() ? '#1A130A' : NIGHT.muted },
+                          ]}>
+                          Send anonymously
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
+                  {noteError ? (
+                    <Text style={styles.noteErrorText}>{noteError}</Text>
+                  ) : null}
                 </View>
               )}
               {noteSent && (
@@ -534,7 +591,7 @@ export default function PrayForOthersScreen() {
                   <Text style={styles.completeText}>
                     {allDone
                       ? 'You held up every heart in this room tonight. Thank you.'
-                      : `You lit ${prayedIds.size} of ${SAMPLE_REQUESTS.length}. Walk back through any candle below to stay longer.`}
+                      : `You lit ${prayedIds.size} of ${total}. Walk back through any candle below to stay longer.`}
                   </Text>
                   <Text style={styles.completeVerse}>
                     &ldquo;Bear one another&apos;s burdens, and so fulfill the law of Christ.&rdquo; — Galatians 6:2
@@ -547,12 +604,14 @@ export default function PrayForOthersScreen() {
 
         {/* Wall of lights */}
         <WallOfLights
-          total={SAMPLE_REQUESTS.length}
+          total={total}
           prayedIds={prayedIds}
-          ids={SAMPLE_REQUESTS.map(r => r.id)}
+          ids={requests.map(r => r.id)}
           currentIndex={index}
           onJump={onJump}
         />
+          </>
+        )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -687,13 +746,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.1,
   },
-  attribution: {
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: NIGHT.ink,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  emptyBody: {
     fontFamily: FONTS.displayItalic,
     fontStyle: 'italic',
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 21,
     color: NIGHT.inkSoft,
     textAlign: 'center',
-    marginTop: 14,
   },
   companionRow: {
     flexDirection: 'row',
@@ -807,8 +879,21 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   noteCounter: { fontSize: 11, color: NIGHT.muted, fontFamily: FONTS.body },
-  sendNoteBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999 },
+  sendNoteBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    minWidth: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sendNoteText: { fontFamily: FONTS.bodySemi, fontSize: 12 },
+  noteErrorText: {
+    fontFamily: FONTS.body,
+    fontSize: 11.5,
+    color: NIGHT.flameSoft,
+    marginTop: 8,
+  },
   noteSent: {
     flexDirection: 'row',
     alignItems: 'center',
