@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StatusBar,
@@ -194,9 +195,40 @@ export default function MeScreen() {
     }, [session]),
   );
 
+  const [deleting, setDeleting] = useState(false);
+
   const onSignOut = async () => {
     await signOut();
     router.replace('/auth');
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently removes your account, your prayers, the notes you sent, and the prayers others sent in response. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { data, error } = await supabase.functions.invoke('delete-account');
+            if (error || data?.ok === false) {
+              setDeleting(false);
+              Alert.alert(
+                'Could not delete account',
+                error?.message || data?.error || 'Please try again in a moment.',
+              );
+              return;
+            }
+            await signOut();
+            setDeleting(false);
+            router.replace('/auth');
+          },
+        },
+      ],
+    );
   };
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -299,6 +331,19 @@ export default function MeScreen() {
               {session?.user?.email ? (
                 <Text style={styles.signOutFootnote}>Signed in as {session.user.email}</Text>
               ) : null}
+              <Pressable
+                onPress={onDeleteAccount}
+                disabled={deleting}
+                style={({ pressed }) => [
+                  styles.deleteBtn,
+                  (pressed || deleting) && { opacity: 0.6 },
+                ]}>
+                {deleting ? (
+                  <ActivityIndicator size="small" color={THEME.accent} />
+                ) : (
+                  <Text style={styles.deleteText}>Delete account</Text>
+                )}
+              </Pressable>
             </View>
           </>
         )}
@@ -442,6 +487,21 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     fontSize: 11,
     color: THEME.muted,
     marginTop: 10,
+  },
+  deleteBtn: {
+    marginTop: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 9999,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12.5,
+    letterSpacing: 0.5,
+    color: THEME.accent,
   },
   themeRow: {
     flexDirection: 'row',
