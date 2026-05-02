@@ -9,8 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.saintcentral.app",
-      "buildNumber": "1",
-      "icon": "./assets/expo.icon"
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
