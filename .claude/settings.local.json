@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/design_extract)",
+      "Read(//tmp/design_extract/**)",
+      "Bash(tar -xzf /home/colin/.claude/projects/-mnt-c-Users-colin-Desktop-new-prayer-prayer/8656a1a8-1f27-446e-9b5b-d9fe4a19cbde/tool-results/webfetch-1777691920853-epht88.bin)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
