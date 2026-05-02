@@ -13,21 +13,11 @@ export function AnimatedSplashOverlay() {
   if (!visible) return null;
 
   const splashKeyframe = new Keyframe({
-    0: {
-      transform: [{ scale: INITIAL_SCALE_FACTOR }],
-      opacity: 1,
-    },
-    20: {
-      opacity: 1,
-    },
-    70: {
-      opacity: 0,
-      easing: Easing.elastic(0.7),
-    },
+    0: { opacity: 1 },
+    60: { opacity: 1 },
     100: {
       opacity: 0,
-      transform: [{ scale: 1 }],
-      easing: Easing.elastic(0.7),
+      easing: Easing.out(Easing.cubic),
     },
   });
 
@@ -39,8 +29,14 @@ export function AnimatedSplashOverlay() {
           scheduleOnRN(setVisible, false);
         }
       })}
-      style={styles.backgroundSolidColor}
-    />
+      style={styles.splashFill}
+      pointerEvents="none">
+      <Image
+        source={require('@/assets/images/splash.png')}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="cover"
+      />
+    </Animated.View>
   );
 }
 
@@ -125,6 +121,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   backgroundSolidColor: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#208AEF',
+    zIndex: 1000,
+  },
+  splashFill: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#208AEF',
     zIndex: 1000,

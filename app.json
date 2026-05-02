@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "prayer",
-    "slug": "prayer",
+    "name": "Saint Central",
+    "slug": "com.saintcentral.app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -28,11 +28,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "image": "./assets/images/splash.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#208AEF"
         }
       ],
       "expo-font",
