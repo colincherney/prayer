@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StatusBar,
@@ -49,6 +50,7 @@ export default function SubmitPrayerScreen() {
   const [share, setShare] = useState<'public' | 'private'>('public');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sensitive, setSensitive] = useState<string | null>(null);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
@@ -69,18 +71,23 @@ export default function SubmitPrayerScreen() {
     const body = text.trim();
     const title = body.split('\n')[0].slice(0, 80);
     const categoryLabel = CATEGORIES.find(c => c.id === category)?.label ?? null;
-    const { error: e } = await supabase.from('prayers').insert({
-      user_id: session.user.id,
-      title,
-      body,
-      category: categoryLabel,
-      approved: 'y',
+    const { data, error: e } = await supabase.functions.invoke('submit-prayer', {
+      body: { body, title, category: categoryLabel },
     });
     setBusy(false);
     if (e) {
       setError(e.message);
       return;
     }
+    if (data?.ok === false) {
+      setError(
+        data.reason === 'moderation_blocked'
+          ? "This prayer doesn't fit our community guidelines. Try rewording and submit again."
+          : 'Something went wrong — please try again.',
+      );
+      return;
+    }
+    setSensitive(typeof data?.sensitive === 'string' ? data.sensitive : null);
     setStep('confirm');
   };
 
@@ -108,6 +115,40 @@ export default function SubmitPrayerScreen() {
               </Text>
               <Text style={[styles.confirmVerse, { fontSize: 12, marginTop: 4 }]}>— Psalm 46:10</Text>
             </View>
+
+            {sensitive === 'self-harm' && (
+              <View style={styles.crisisPanel}>
+                <Text style={styles.crisisHeading}>You are not alone.</Text>
+                <Text style={styles.crisisBody}>
+                  What you shared sounds heavy. If you&apos;d like to speak with
+                  someone right now, you don&apos;t have to wait.
+                </Text>
+                <View style={{ gap: 8, marginTop: 14 }}>
+                  <Pressable
+                    onPress={() => Linking.openURL('tel:988')}
+                    style={({ pressed }) => [
+                      styles.crisisBtn,
+                      pressed && { opacity: 0.7 },
+                    ]}>
+                    <Text style={styles.crisisBtnLabel}>Call 988</Text>
+                    <Text style={styles.crisisBtnSub}>
+                      Suicide &amp; Crisis Lifeline
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => Linking.openURL('sms:741741?body=HOME')}
+                    style={({ pressed }) => [
+                      styles.crisisBtn,
+                      pressed && { opacity: 0.7 },
+                    ]}>
+                    <Text style={styles.crisisBtnLabel}>
+                      Text HOME to 741741
+                    </Text>
+                    <Text style={styles.crisisBtnSub}>Crisis Text Line</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
           <PrimaryButton
             label="Return home"
@@ -358,6 +399,50 @@ const styles = StyleSheet.create({
     color: THEME.accent,
     marginTop: 18,
     textAlign: 'center',
+  },
+  crisisPanel: {
+    marginTop: 28,
+    width: '100%',
+    backgroundColor: THEME.pillBg,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+  },
+  crisisHeading: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 18,
+    color: THEME.pillInk,
+    textAlign: 'center',
+  },
+  crisisBody: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: THEME.inkSoft,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  crisisBtn: {
+    backgroundColor: THEME.surface,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    alignItems: 'center',
+  },
+  crisisBtnLabel: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 14,
+    color: THEME.ink,
+  },
+  crisisBtnSub: {
+    fontFamily: FONTS.body,
+    fontSize: 11.5,
+    color: THEME.muted,
+    marginTop: 2,
   },
   confirmRoot: { flex: 1, justifyContent: 'space-between', paddingTop: 60 },
   confirmInner: {

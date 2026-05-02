@@ -414,14 +414,20 @@ export default function PrayForOthersScreen() {
     setNoteSending(true);
     setNoteError(null);
     const content = note.trim();
-    const { error } = await supabase.from('reflections').insert({
-      prayer_id: req.id,
-      user_id: session.user.id,
-      content,
+    const { data, error } = await supabase.functions.invoke('submit-reflection', {
+      body: { prayer_id: req.id, content },
     });
     setNoteSending(false);
     if (error) {
       setNoteError(error.message);
+      return;
+    }
+    if (data?.ok === false) {
+      setNoteError(
+        data.reason === 'moderation_blocked'
+          ? 'Couldn’t send — try rewording your note.'
+          : 'Couldn’t send. Try again.',
+      );
       return;
     }
     setNote('');
