@@ -36,6 +36,7 @@ function RootStack() {
       <Stack.Screen name="explore" options={{ presentation: 'card' }} />
       <Stack.Screen name="prayerRequest" options={{ presentation: 'card' }} />
       <Stack.Screen name="pair" options={{ presentation: 'card' }} />
+      <Stack.Screen name="myPrayers" options={{ presentation: 'card' }} />
     </Stack>
   );
 }

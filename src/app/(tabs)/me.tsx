@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Pill, SectionLabel } from '@/components/saint/Common';
 import {
-  HeartIcon,
+  ArrowIcon,
   PrayingIcon,
   ShieldIcon,
 } from '@/components/saint/Icons';
@@ -32,26 +32,16 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { relativeTime } from '@/lib/time';
 
-type Reflection = {
-  id: string;
-  content: string;
-  age: string;
-};
-
-type MyPrayer = {
-  id: string;
-  text: string;
-  age: string;
-  prayedCount: number;
-  reflections: Reflection[];
-};
-
 type Stats = {
   offered: number;
   shared: number;
   sent: number;
   received: number;
 };
+
+type LatestPrayer = {
+  age: string;
+} | null;
 
 const StatTile: React.FC<{ value: number; label: string; accent?: boolean }> = ({
   value,
@@ -120,7 +110,7 @@ export default function MeScreen() {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState<Stats>({ offered: 0, shared: 0, sent: 0, received: 0 });
-  const [myPrayers, setMyPrayers] = useState<MyPrayer[]>([]);
+  const [latest, setLatest] = useState<LatestPrayer>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -130,7 +120,7 @@ export default function MeScreen() {
       (async () => {
         setLoading(true);
         const userId = session.user.id;
-        const [offered, shared, sent, prayersRes] = await Promise.all([
+        const [offered, shared, sent, received, latestRow] = await Promise.all([
           supabase
             .from('prayer_interactions')
             .select('id', { count: 'exact', head: true })
@@ -145,48 +135,30 @@ export default function MeScreen() {
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId),
           supabase
+            .from('reflections')
+            .select('id, prayers!inner(user_id)', { count: 'exact', head: true })
+            .eq('prayers.user_id', userId),
+          supabase
             .from('prayers')
-            .select(
-              'id, body, created_at, prayer_interactions(action), reflections(id, content, created_at)',
-            )
+            .select('created_at')
             .eq('user_id', userId)
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
         ]);
         if (cancelled) return;
 
-        const prayers: MyPrayer[] = (prayersRes.data ?? []).map(p => {
-          const rawReflections =
-            (p.reflections as { id: string; content: string; created_at: string }[] | null) ?? [];
-          const reflections = rawReflections
-            .slice()
-            .sort(
-              (a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-            )
-            .map(r => ({
-              id: r.id,
-              content: r.content,
-              age: relativeTime(r.created_at),
-            }));
-          return {
-            id: p.id as string,
-            text: (p.body as string) ?? '',
-            age: relativeTime(p.created_at as string),
-            prayedCount: ((p.prayer_interactions as { action: string }[] | null) ?? []).filter(
-              i => i.action === 'prayed',
-            ).length,
-            reflections,
-          };
-        });
-        const received = prayers.reduce((acc, p) => acc + p.reflections.length, 0);
-
-        setMyPrayers(prayers);
         setStats({
           offered: offered.count ?? 0,
           shared: shared.count ?? 0,
           sent: sent.count ?? 0,
-          received,
+          received: received.count ?? 0,
         });
+        setLatest(
+          latestRow.data?.created_at
+            ? { age: relativeTime(latestRow.data.created_at as string) }
+            : null,
+        );
         setLoading(false);
       })();
       return () => {
@@ -270,54 +242,33 @@ export default function MeScreen() {
             </View>
 
             <SectionLabel style={{ paddingHorizontal: 22 }}>Your requests</SectionLabel>
-            {myPrayers.length === 0 ? (
-              <View style={{ paddingHorizontal: 22 }}>
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyText}>
-                    You haven&apos;t shared a prayer yet. When you do, it&apos;ll be held
-                    here.
+            <View style={{ paddingHorizontal: 22 }}>
+              <Pressable
+                onPress={() => router.push('/myPrayers')}
+                style={({ pressed }) => [
+                  styles.requestsCta,
+                  pressed && { opacity: 0.85 },
+                ]}>
+                <View style={styles.requestsCtaIcon}>
+                  <PrayingIcon size={18} color={THEME.cardDarkInk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.requestsCtaTitle}>
+                    {stats.shared === 0
+                      ? 'No prayers yet'
+                      : `${stats.shared} ${stats.shared === 1 ? 'prayer' : 'prayers'} held`}
+                  </Text>
+                  <Text style={styles.requestsCtaSub}>
+                    {stats.shared === 0
+                      ? 'When you share one, it will be held here.'
+                      : latest
+                      ? `Most recent · ${latest.age} · open the calendar to revisit`
+                      : 'Open to reflect on each one.'}
                   </Text>
                 </View>
-              </View>
-            ) : (
-              <View style={{ paddingHorizontal: 22, gap: 10 }}>
-                {myPrayers.map(r => (
-                  <View key={r.id} style={styles.requestCard}>
-                    <View style={styles.requestTop}>
-                      <Text style={[styles.requestStatus, { color: THEME.muted }]}>
-                        ACTIVE · {r.age.toUpperCase()}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <PrayingIcon size={13} color={THEME.muted} />
-                        <Text style={styles.countText}>{r.prayedCount}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.requestBody}>&ldquo;{r.text}&rdquo;</Text>
-                    {r.reflections.length > 0 && (
-                      <View style={styles.notesBlock}>
-                        <View style={styles.notesHeading}>
-                          <HeartIcon size={13} color={THEME.accent} />
-                          <Text style={styles.notesText}>
-                            {r.reflections.length}{' '}
-                            {r.reflections.length === 1 ? 'note' : 'notes'} of encouragement
-                          </Text>
-                        </View>
-                        <View style={{ marginTop: 10, gap: 8 }}>
-                          {r.reflections.map(n => (
-                            <View key={n.id} style={styles.noteCard}>
-                              <Text style={styles.noteContent}>&ldquo;{n.content}&rdquo;</Text>
-                              <Text style={styles.noteAge}>
-                                Anonymous · {n.age}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
+                <ArrowIcon size={16} color={THEME.muted} />
+              </Pressable>
+            </View>
 
             <SectionLabel style={{ paddingHorizontal: 22 }}>Theme</SectionLabel>
             <View style={{ paddingHorizontal: 22 }}>
@@ -406,63 +357,38 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.8,
   },
   statLabel: { fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
-  requestCard: {
-    backgroundColor: THEME.surface,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.line,
-  },
-  requestTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  requestStatus: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.2 },
-  countText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
-  requestBody: { fontFamily: FONTS.display, fontSize: 16, lineHeight: 22, color: THEME.ink },
-  notesBlock: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: THEME.line,
-  },
-  notesHeading: {
+
+  requestsCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  notesText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.inkSoft },
-  noteCard: {
-    backgroundColor: THEME.bgSoft,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  noteContent: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
-    fontSize: 14,
-    lineHeight: 20,
-    color: THEME.ink,
-  },
-  noteAge: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: THEME.muted,
-    marginTop: 6,
-  },
-  emptyCard: {
+    gap: 14,
     backgroundColor: THEME.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.line,
   },
-  emptyText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
-    fontSize: 14,
-    lineHeight: 20,
-    color: THEME.inkSoft,
-    textAlign: 'center',
+  requestsCtaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.cardDark,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  requestsCtaTitle: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 14,
+    color: THEME.ink,
+  },
+  requestsCtaSub: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: THEME.muted,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+
   signOutWrap: {
     paddingHorizontal: 22,
     marginTop: 32,
