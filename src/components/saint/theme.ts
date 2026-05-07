@@ -79,14 +79,32 @@ const FOREST: Theme = {
   pillInk: '#5A4030',
 };
 
+const PINK: Theme = {
+  name: 'Pink',
+  bg: '#FBE9EC',
+  bgSoft: '#F4D6DC',
+  surface: '#FEF3F5',
+  ink: '#3B1F2A',
+  inkSoft: '#5C3744',
+  muted: '#9C7884',
+  line: 'rgba(59,31,42,0.10)',
+  cardDark: '#5A3340',
+  cardDarkInk: '#FBE9EC',
+  accent: '#C04668',
+  accentSoft: '#E8A2B4',
+  pillBg: '#F4D6DC',
+  pillInk: '#8E2A4A',
+};
+
 export const THEMES = {
   cream: CREAM,
   navy: NAVY,
   forest: FOREST,
+  pink: PINK,
 } as const;
 
 export type ThemeName = keyof typeof THEMES;
-export const THEME_ORDER: ThemeName[] = ['cream', 'navy', 'forest'];
+export const THEME_ORDER: ThemeName[] = ['cream', 'navy', 'forest', 'pink'];
 
 // `THEME` is the legacy static reference. We mutate it in place so any code that
 // reads `THEME.x` at render time picks up the active theme on re-render. Module-
