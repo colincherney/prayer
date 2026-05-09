@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -29,8 +30,24 @@ import {
 } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import {
+  DEFAULT_PREFS,
+  loadPrefs,
+  type NotificationPrefs,
+  registerForPushNotifications,
+  savePushToken,
+  updatePrefs,
+} from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { relativeTime } from '@/lib/time';
+
+const REMINDER_HOURS = [6, 7, 8, 9, 12, 17, 19, 21];
+
+const formatHour = (h: number) => {
+  const period = h < 12 ? 'AM' : 'PM';
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${display}${period}`;
+};
 
 type Stats = {
   offered: number;
@@ -112,6 +129,7 @@ export default function MeScreen() {
   const [stats, setStats] = useState<Stats>({ offered: 0, shared: 0, sent: 0, received: 0 });
   const [latest, setLatest] = useState<LatestPrayer>(null);
   const [loading, setLoading] = useState(true);
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
 
   useFocusEffect(
     useCallback(() => {
@@ -159,12 +177,46 @@ export default function MeScreen() {
             ? { age: relativeTime(latestRow.data.created_at as string) }
             : null,
         );
+
+        const loaded = await loadPrefs(userId);
+        if (!cancelled) setPrefs(loaded);
+
         setLoading(false);
       })();
       return () => {
         cancelled = true;
       };
     }, [session]),
+  );
+
+  const togglePref = useCallback(
+    async (key: keyof NotificationPrefs, value: boolean | number | null) => {
+      if (!session) return;
+      const next = { ...prefs, [key]: value } as NotificationPrefs;
+      setPrefs(next);
+
+      // If enabling anything, make sure we have a token registered.
+      if (typeof value === 'boolean' && value === true) {
+        const token = await registerForPushNotifications();
+        if (!token) {
+          Alert.alert(
+            'Notifications are off',
+            'Enable notifications for Saint Central in your device settings to receive reminders.',
+          );
+          setPrefs((p) => ({ ...p, [key]: false }));
+          return;
+        }
+        await savePushToken(session.user.id, token);
+      }
+
+      try {
+        await updatePrefs(session.user.id, { [key]: value } as Partial<NotificationPrefs>);
+      } catch (e) {
+        console.warn('updatePrefs failed', e);
+        setPrefs(prefs); // revert
+      }
+    },
+    [prefs, session],
   );
 
   const [deleting, setDeleting] = useState(false);
@@ -268,6 +320,82 @@ export default function MeScreen() {
                 </View>
                 <ArrowIcon size={16} color={THEME.muted} />
               </Pressable>
+            </View>
+
+            <SectionLabel style={{ paddingHorizontal: 22 }}>Notifications</SectionLabel>
+            <View style={{ paddingHorizontal: 22, gap: 10 }}>
+              <View style={styles.prefRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.prefTitle}>Notes of encouragement</Text>
+                  <Text style={styles.prefSub}>
+                    When someone leaves a note on a prayer you shared.
+                  </Text>
+                </View>
+                <Switch
+                  value={prefs.comments_enabled}
+                  onValueChange={(v) => togglePref('comments_enabled', v)}
+                  trackColor={{ true: THEME.accent, false: THEME.line }}
+                />
+              </View>
+
+              <View style={styles.prefRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.prefTitle}>People praying for you</Text>
+                  <Text style={styles.prefSub}>
+                    A gentle update an hour or two after you share, with how many have prayed.
+                  </Text>
+                </View>
+                <Switch
+                  value={prefs.social_proof_enabled}
+                  onValueChange={(v) => togglePref('social_proof_enabled', v)}
+                  trackColor={{ true: THEME.accent, false: THEME.line }}
+                />
+              </View>
+
+              <View style={styles.prefRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.prefTitle}>Daily reminder</Text>
+                  <Text style={styles.prefSub}>
+                    A quiet nudge each day to pause and pray.
+                  </Text>
+                </View>
+                <Switch
+                  value={prefs.daily_reminder_enabled}
+                  onValueChange={(v) => togglePref('daily_reminder_enabled', v)}
+                  trackColor={{ true: THEME.accent, false: THEME.line }}
+                />
+              </View>
+
+              {prefs.daily_reminder_enabled ? (
+                <View style={styles.hourPickerWrap}>
+                  <Text style={styles.prefSub}>Remind me at</Text>
+                  <View style={styles.hourRow}>
+                    {REMINDER_HOURS.map((h) => {
+                      const active = prefs.daily_reminder_hour === h;
+                      return (
+                        <Pressable
+                          key={h}
+                          onPress={() => togglePref('daily_reminder_hour', h)}
+                          style={[
+                            styles.hourChip,
+                            {
+                              backgroundColor: active ? THEME.cardDark : THEME.surface,
+                              borderColor: active ? THEME.cardDark : THEME.line,
+                            },
+                          ]}>
+                          <Text
+                            style={[
+                              styles.hourChipText,
+                              { color: active ? THEME.cardDarkInk : THEME.ink },
+                            ]}>
+                            {formatHour(h)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
 
             <SectionLabel style={{ paddingHorizontal: 22 }}>Theme</SectionLabel>
@@ -467,5 +595,51 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     width: 18,
     height: 3,
     borderRadius: 2,
+  },
+
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.surface,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+  },
+  prefTitle: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 14,
+    color: THEME.ink,
+  },
+  prefSub: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    lineHeight: 16,
+    color: THEME.muted,
+    marginTop: 3,
+  },
+  hourPickerWrap: {
+    backgroundColor: THEME.surface,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    gap: 10,
+  },
+  hourRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  hourChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  hourChipText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12.5,
+    letterSpacing: 0.4,
   },
 });

@@ -1,5 +1,57 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const PUSH_CHUNK = 100;
+
+type ExpoMessage = {
+  to: string;
+  title?: string;
+  body?: string;
+  data?: Record<string, unknown>;
+  sound?: 'default' | null;
+  channelId?: string;
+};
+
+async function sendExpoPush(messages: ExpoMessage[]): Promise<{ invalidTokens: string[] }> {
+  const invalidTokens: string[] = [];
+  for (let i = 0; i < messages.length; i += PUSH_CHUNK) {
+    const batch = messages.slice(i, i + PUSH_CHUNK);
+    let res: Response;
+    try {
+      res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batch),
+      });
+    } catch (e) {
+      console.error('expo push fetch failed', e);
+      continue;
+    }
+    if (!res.ok) {
+      console.error('expo push error', res.status, await res.text());
+      continue;
+    }
+    const json = await res.json().catch(() => null);
+    const data: Array<{ status: string; details?: { error?: string } }> = Array.isArray(json?.data)
+      ? json.data
+      : [];
+    data.forEach((ticket, idx) => {
+      if (
+        ticket.status === 'error' &&
+        (ticket.details?.error === 'DeviceNotRegistered' ||
+          ticket.details?.error === 'InvalidCredentials')
+      ) {
+        invalidTokens.push(batch[idx].to);
+      }
+    });
+  }
+  return { invalidTokens };
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -144,7 +196,7 @@ Deno.serve(async (req) => {
 
   const { data: prayerRow, error: prayerErr } = await admin
     .from('prayers')
-    .select('body')
+    .select('body, user_id, title')
     .eq('id', prayerId)
     .maybeSingle();
 
@@ -189,6 +241,45 @@ Deno.serve(async (req) => {
   if (error) {
     console.error('insert failed', error);
     return json({ error: error.message }, 500);
+  }
+
+  // Fire-and-forget: notify the prayer author of the new note (skip self).
+  if (prayerRow.user_id && prayerRow.user_id !== user.id) {
+    try {
+      const { data: prefs } = await admin
+        .from('notification_preferences')
+        .select('comments_enabled')
+        .eq('user_id', prayerRow.user_id)
+        .maybeSingle();
+      const enabled = prefs?.comments_enabled !== false; // default ON
+
+      if (enabled) {
+        const { data: tokens } = await admin
+          .from('push_tokens')
+          .select('token')
+          .eq('user_id', prayerRow.user_id);
+
+        if (tokens && tokens.length > 0) {
+          const preview = content.slice(0, 100);
+          const titleHint = (prayerRow.title ?? '').trim();
+          const messages: ExpoMessage[] = tokens.map((t) => ({
+            to: t.token,
+            title: 'Someone left you encouragement',
+            body: titleHint ? `On "${titleHint.slice(0, 60)}": ${preview}` : preview,
+            sound: 'default',
+            data: { type: 'reflection', prayer_id: prayerId, reflection_id: data.id },
+            channelId: 'default',
+          }));
+
+          const { invalidTokens } = await sendExpoPush(messages);
+          if (invalidTokens.length > 0) {
+            await admin.from('push_tokens').delete().in('token', invalidTokens);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('comment push failed (non-fatal)', e);
+    }
   }
 
   return json({ ok: true, id: data.id });
