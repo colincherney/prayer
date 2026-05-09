@@ -166,5 +166,30 @@ Deno.serve(async (req) => {
     return json({ error: error.message }, 500);
   }
 
+  // Seed synthetic engagement schedule. Each prayer gets a "popularity" target
+  // sampled uniformly in [MIN_TOTAL, MAX_TOTAL]; that many rows are scattered
+  // randomly across the 6h window. A pg_cron job drains rows whose due_at passes.
+  const WINDOW_MS = 6 * 60 * 60 * 1000;
+  const MIN_TOTAL = 16;
+  const MAX_TOTAL = 97;
+  const target = MIN_TOTAL + Math.floor(Math.random() * (MAX_TOTAL - MIN_TOTAL + 1));
+  const startMs = Date.now();
+  const scheduleRows: { prayer_id: string; due_at: string }[] = [];
+  for (let i = 0; i < target; i++) {
+    // Triangular distribution peaked at 0.5 of the window: slow start, mid-window peak, taper.
+    const t = (Math.random() + Math.random()) / 2;
+    const dueAt = new Date(startMs + Math.floor(t * WINDOW_MS));
+    scheduleRows.push({ prayer_id: data.id, due_at: dueAt.toISOString() });
+  }
+  if (scheduleRows.length > 0) {
+    const { error: schedErr } = await admin
+      .from('prayer_interaction_schedule')
+      .insert(scheduleRows);
+    if (schedErr) {
+      // Non-fatal: prayer is already posted. Log and continue.
+      console.error('schedule seed failed', schedErr);
+    }
+  }
+
   return json({ ok: true, id: data.id, sensitive: modResult.sensitive });
 });
