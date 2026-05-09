@@ -2,14 +2,14 @@
   "expo": {
     "name": "Saint Central",
     "slug": "saint-central",
-    "version": "5.0.0",
+    "version": "5.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "prayer",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.saintcentral.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
