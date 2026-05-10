@@ -81,6 +81,15 @@ Deno.serve(async (req) => {
   const minCutoff = new Date(Date.now() - MAX_AGE_MIN * 60_000).toISOString();
   const maxCutoff = new Date(Date.now() - MIN_AGE_MIN * 60_000).toISOString();
 
+  // Cleanup: prayers older than MAX_AGE_MIN with 0 interactions are no longer
+  // re-evaluated (they fall out of the window below). Mark them notified so
+  // they leave the partial index `prayers_social_proof_pending_idx`.
+  await admin
+    .from('prayers')
+    .update({ social_proof_notified_at: new Date().toISOString() })
+    .is('social_proof_notified_at', null)
+    .lt('created_at', minCutoff);
+
   const { data: prayers, error: pErr } = await admin
     .from('prayers')
     .select('id, user_id, title, body')
@@ -97,17 +106,24 @@ Deno.serve(async (req) => {
   if (!prayers || prayers.length === 0) return json({ ok: true, sent: 0 });
 
   const messages: ExpoMessage[] = [];
-  const sentPrayerIds: string[] = [];
+  // Prayers we've decided to stop re-evaluating: either we sent a push, or
+  // there's no point retrying (user opted out, no tokens, count error).
+  // Prayers with 0 interactions are intentionally left unmarked so the next
+  // cron run can pick them up once the synthetic-engagement schedule has
+  // drained more rows into prayer_interactions.
+  const concludedPrayerIds: string[] = [];
+  let skippedNoCount = 0;
 
   for (const p of prayers) {
-    sentPrayerIds.push(p.id);
-
     const { data: prefs } = await admin
       .from('notification_preferences')
       .select('social_proof_enabled')
       .eq('user_id', p.user_id)
       .maybeSingle();
-    if (prefs && prefs.social_proof_enabled === false) continue;
+    if (prefs && prefs.social_proof_enabled === false) {
+      concludedPrayerIds.push(p.id);
+      continue;
+    }
 
     const { count, error: cErr } = await admin
       .from('prayer_interactions')
@@ -117,10 +133,14 @@ Deno.serve(async (req) => {
       .neq('user_id', p.user_id);
     if (cErr) {
       console.error('interaction count failed', p.id, cErr);
+      concludedPrayerIds.push(p.id);
       continue;
     }
     const n = count ?? 0;
-    if (n < 1) continue;
+    if (n < 1) {
+      skippedNoCount++;
+      continue;
+    }
 
     const { data: tokens, error: tErr } = await admin
       .from('push_tokens')
@@ -128,9 +148,13 @@ Deno.serve(async (req) => {
       .eq('user_id', p.user_id);
     if (tErr) {
       console.error('token lookup failed', p.user_id, tErr);
+      concludedPrayerIds.push(p.id);
       continue;
     }
-    if (!tokens || tokens.length === 0) continue;
+    if (!tokens || tokens.length === 0) {
+      concludedPrayerIds.push(p.id);
+      continue;
+    }
 
     const title = n === 1
       ? '1 person is praying for you'
@@ -149,22 +173,37 @@ Deno.serve(async (req) => {
         channelId: 'default',
       });
     }
+    concludedPrayerIds.push(p.id);
   }
 
-  if (sentPrayerIds.length > 0) {
+  if (concludedPrayerIds.length > 0) {
     const { error: uErr } = await admin
       .from('prayers')
       .update({ social_proof_notified_at: new Date().toISOString() })
-      .in('id', sentPrayerIds);
+      .in('id', concludedPrayerIds);
     if (uErr) console.error('mark notified failed', uErr);
   }
 
-  if (messages.length === 0) return json({ ok: true, sent: 0, processed: sentPrayerIds.length });
+  if (messages.length === 0) {
+    return json({
+      ok: true,
+      sent: 0,
+      processed: prayers.length,
+      concluded: concludedPrayerIds.length,
+      retry_later: skippedNoCount,
+    });
+  }
 
   const { invalidTokens } = await sendExpoPush(messages);
   if (invalidTokens.length > 0) {
     await admin.from('push_tokens').delete().in('token', invalidTokens);
   }
 
-  return json({ ok: true, sent: messages.length, processed: sentPrayerIds.length });
+  return json({
+    ok: true,
+    sent: messages.length,
+    processed: prayers.length,
+    concluded: concludedPrayerIds.length,
+    retry_later: skippedNoCount,
+  });
 });

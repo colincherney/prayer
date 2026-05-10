@@ -151,8 +151,10 @@ Deno.serve(async (req) => {
     return json({ error: tErr.message }, 500);
   }
 
+  const usersWithTokens = new Set<string>();
   const messages: ExpoMessage[] = [];
   for (const t of tokens ?? []) {
+    usersWithTokens.add(t.user_id);
     const prompt = PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
     messages.push({
       to: t.token,
@@ -164,7 +166,13 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Stamp before sending so concurrent cron runs (every 5 min) don't double-fire.
+  // Only stamp users we actually have tokens for: a user without tokens stays
+  // eligible so they'll be reminded once they register a device. The trade-off
+  // is that a transient Expo failure may cost today's reminder for affected
+  // users, but they'll naturally roll forward to tomorrow.
   for (const userId of dueUserIds) {
+    if (!usersWithTokens.has(userId)) continue;
     const { error: uErr } = await admin
       .from('notification_preferences')
       .update({ daily_reminder_last_sent_date: dueDateByUser[userId] })
@@ -172,12 +180,26 @@ Deno.serve(async (req) => {
     if (uErr) console.error('stamp failed', userId, uErr);
   }
 
-  if (messages.length === 0) return json({ ok: true, sent: 0, due: dueUserIds.length });
+  if (messages.length === 0) {
+    return json({
+      ok: true,
+      sent: 0,
+      due: dueUserIds.length,
+      no_tokens: dueUserIds.length - usersWithTokens.size,
+    });
+  }
 
   const { invalidTokens } = await sendExpoPush(messages);
   if (invalidTokens.length > 0) {
     await admin.from('push_tokens').delete().in('token', invalidTokens);
   }
 
-  return json({ ok: true, sent: messages.length, due: dueUserIds.length });
+  return json({
+    ok: true,
+    sent: messages.length,
+    due: dueUserIds.length,
+    users_messaged: usersWithTokens.size,
+    no_tokens: dueUserIds.length - usersWithTokens.size,
+    invalid_tokens_purged: invalidTokens.length,
+  });
 });

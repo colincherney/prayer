@@ -82,18 +82,14 @@ export async function savePushToken(userId: string, token: string) {
   const platform: 'ios' | 'android' | 'web' =
     Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
-  const { error: tErr } = await supabase
-    .from('push_tokens')
-    .upsert(
-      {
-        user_id: userId,
-        token,
-        platform,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'token' },
-    );
-  if (tErr) console.warn('push_tokens upsert failed', tErr);
+  // Goes through the register_push_token RPC (SECURITY DEFINER) so a token
+  // already owned by a previous user on this device can be re-claimed —
+  // a plain upsert would 42501 against the per-user RLS UPDATE policy.
+  const { error: tErr } = await supabase.rpc('register_push_token', {
+    p_token: token,
+    p_platform: platform,
+  });
+  if (tErr) console.warn('register_push_token failed', tErr);
 
   // Ensure a prefs row exists so cron jobs can read defaults; capture timezone.
   const tz = detectTimezone();
