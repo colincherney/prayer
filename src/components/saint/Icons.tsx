@@ -27,6 +27,27 @@ export const PenIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor'
   </Svg>
 );
 
+export const BellIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor' }) => (
+  <Svg width={size} height={size} viewBox="0 0 18 18">
+    <Path
+      d="M9 2.5 C 6.5 2.5, 5 4.5, 5 7 V 10 L 3.5 12.5 H 14.5 L 13 10 V 7 C 13 4.5, 11.5 2.5, 9 2.5 Z"
+      stroke={color}
+      strokeWidth={1.4}
+      strokeLinejoin="round"
+      strokeLinecap="round"
+      fill="none"
+    />
+    <Path
+      d="M7.5 14 C 7.5 15, 8.2 15.5, 9 15.5 C 9.8 15.5, 10.5 15, 10.5 14"
+      stroke={color}
+      strokeWidth={1.4}
+      strokeLinejoin="round"
+      strokeLinecap="round"
+      fill="none"
+    />
+  </Svg>
+);
+
 export const FlameIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor' }) => (
   <Svg width={size} height={size} viewBox="0 0 18 18">
     <Path

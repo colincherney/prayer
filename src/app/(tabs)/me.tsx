@@ -1,6 +1,5 @@
-import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +7,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -17,48 +15,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pill, SectionLabel } from '@/components/saint/Common';
 import {
   ArrowIcon,
+  BellIcon,
   PrayingIcon,
   ShieldIcon,
+  SparkleIcon,
 } from '@/components/saint/Icons';
 import {
   FONTS,
   Theme,
-  ThemeName,
-  THEME_ORDER,
-  THEMES,
   useTheme,
   useThemedStyles,
 } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import {
-  type AppIconChoice,
-  getCurrentAppIcon,
-  setAppIconChoice,
-} from '@/lib/appIcon';
 import { useAuth } from '@/lib/auth';
-import {
-  DEFAULT_PREFS,
-  loadPrefs,
-  type NotificationPrefs,
-  registerForPushNotifications,
-  savePushToken,
-  updatePrefs,
-} from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { relativeTime } from '@/lib/time';
-
-const APP_ICONS: { key: AppIconChoice; label: string; image: number }[] = [
-  { key: 'default', label: 'Default', image: require('../../../assets/images/icon.png') },
-  { key: 'pink', label: 'Pink', image: require('../../../assets/images/icon-pink.png') },
-];
-
-const REMINDER_HOURS = [6, 7, 8, 9, 12, 17, 19, 21];
-
-const formatHour = (h: number) => {
-  const period = h < 12 ? 'AM' : 'PM';
-  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${display}${period}`;
-};
 
 type Stats = {
   offered: number;
@@ -105,91 +76,6 @@ const StatTile: React.FC<{ value: number; label: string; accent?: boolean }> = (
   );
 };
 
-const ThemePicker: React.FC = () => {
-  const { name, setTheme } = useTheme();
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <View style={styles.themeRow}>
-      {THEME_ORDER.map(key => {
-        const t = THEMES[key];
-        const active = key === name;
-        return (
-          <Pressable
-            key={key}
-            onPress={() => setTheme(key as ThemeName)}
-            style={[
-              styles.themeSwatch,
-              { borderColor: active ? t.accent : t.line, backgroundColor: t.bg },
-            ]}>
-            <View style={[styles.themeDotMain, { backgroundColor: t.cardDark }]} />
-            <View style={[styles.themeDotAccent, { backgroundColor: t.accent }]} />
-            <Text style={[styles.themeName, { color: t.ink }]}>{t.name}</Text>
-            {active ? <View style={[styles.themeCheck, { backgroundColor: t.accent }]} /> : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-};
-
-const AppIconPicker: React.FC = () => {
-  const { theme: THEME } = useTheme();
-  const styles = useThemedStyles(makeStyles);
-  const [active, setActive] = useState<AppIconChoice>('default');
-  const [pending, setPending] = useState<AppIconChoice | null>(null);
-
-  useEffect(() => {
-    setActive(getCurrentAppIcon());
-  }, []);
-
-  const onSelect = useCallback(async (choice: AppIconChoice) => {
-    if (pending || choice === active) return;
-    setPending(choice);
-    const ok = await setAppIconChoice(choice);
-    setPending(null);
-    if (!ok) {
-      Alert.alert(
-        'Couldn’t change icon',
-        'Make sure the app was installed from a build that includes this version. Try reopening the app.',
-      );
-      return;
-    }
-    setActive(choice);
-  }, [active, pending]);
-
-  return (
-    <View style={styles.iconRow}>
-      {APP_ICONS.map(({ key, label, image }) => {
-        const isActive = active === key;
-        const isPending = pending === key;
-        return (
-          <Pressable
-            key={key}
-            onPress={() => onSelect(key)}
-            disabled={pending !== null}
-            style={[
-              styles.iconSwatch,
-              {
-                borderColor: isActive ? THEME.accent : THEME.line,
-                backgroundColor: THEME.surface,
-                opacity: pending && !isPending ? 0.5 : 1,
-              },
-            ]}>
-            <Image source={image} style={styles.iconImage} contentFit="cover" />
-            <Text style={[styles.iconLabel, { color: THEME.ink }]}>{label}</Text>
-            {isActive ? <View style={[styles.iconCheck, { backgroundColor: THEME.accent }]} /> : null}
-            {isPending ? (
-              <View style={styles.iconPendingOverlay}>
-                <ActivityIndicator size="small" color={THEME.accent} />
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-};
-
 export default function MeScreen() {
   const fontsLoaded = useSaintFonts();
   const { session, isGuest, signOut } = useAuth();
@@ -198,7 +84,6 @@ export default function MeScreen() {
   const [stats, setStats] = useState<Stats>({ offered: 0, shared: 0, sent: 0, received: 0 });
   const [latest, setLatest] = useState<LatestPrayer>(null);
   const [loading, setLoading] = useState(true);
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
 
   useFocusEffect(
     useCallback(() => {
@@ -246,46 +131,12 @@ export default function MeScreen() {
             ? { age: relativeTime(latestRow.data.created_at as string) }
             : null,
         );
-
-        const loaded = await loadPrefs(userId);
-        if (!cancelled) setPrefs(loaded);
-
         setLoading(false);
       })();
       return () => {
         cancelled = true;
       };
     }, [session]),
-  );
-
-  const togglePref = useCallback(
-    async (key: keyof NotificationPrefs, value: boolean | number | null) => {
-      if (!session) return;
-      const next = { ...prefs, [key]: value } as NotificationPrefs;
-      setPrefs(next);
-
-      // If enabling anything, make sure we have a token registered.
-      if (typeof value === 'boolean' && value === true) {
-        const token = await registerForPushNotifications();
-        if (!token) {
-          Alert.alert(
-            'Notifications are off',
-            'Enable notifications for Saint Central in your device settings to receive reminders.',
-          );
-          setPrefs((p) => ({ ...p, [key]: false }));
-          return;
-        }
-        await savePushToken(session.user.id, token);
-      }
-
-      try {
-        await updatePrefs(session.user.id, { [key]: value } as Partial<NotificationPrefs>);
-      } catch (e) {
-        console.warn('updatePrefs failed', e);
-        setPrefs(prefs); // revert
-      }
-    },
-    [prefs, session],
   );
 
   const [deleting, setDeleting] = useState(false);
@@ -366,20 +217,17 @@ export default function MeScreen() {
             <View style={{ paddingHorizontal: 22 }}>
               <Pressable
                 onPress={() => router.push('/myPrayers')}
-                style={({ pressed }) => [
-                  styles.requestsCta,
-                  pressed && { opacity: 0.85 },
-                ]}>
-                <View style={styles.requestsCtaIcon}>
+                style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
+                <View style={styles.ctaIcon}>
                   <PrayingIcon size={18} color={THEME.cardDarkInk} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.requestsCtaTitle}>
+                  <Text style={styles.ctaTitle}>
                     {stats.shared === 0
                       ? 'No prayers yet'
                       : `${stats.shared} ${stats.shared === 1 ? 'prayer' : 'prayers'} held`}
                   </Text>
-                  <Text style={styles.requestsCtaSub}>
+                  <Text style={styles.ctaSub}>
                     {stats.shared === 0
                       ? 'When you share one, it will be held here.'
                       : latest
@@ -391,90 +239,35 @@ export default function MeScreen() {
               </Pressable>
             </View>
 
-            <SectionLabel style={{ paddingHorizontal: 22 }}>Notifications</SectionLabel>
+            <SectionLabel style={{ paddingHorizontal: 22 }}>Settings</SectionLabel>
             <View style={{ paddingHorizontal: 22, gap: 10 }}>
-              <View style={styles.prefRow}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.prefTitle}>Notes of encouragement</Text>
-                  <Text style={styles.prefSub}>
-                    When someone leaves a note on a prayer you shared.
+              <Pressable
+                onPress={() => router.push('/notificationSettings')}
+                style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
+                <View style={styles.ctaIcon}>
+                  <BellIcon size={18} color={THEME.cardDarkInk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ctaTitle}>Notification settings</Text>
+                  <Text style={styles.ctaSub}>
+                    Notes, social-proof updates, and your daily reminder.
                   </Text>
                 </View>
-                <Switch
-                  value={prefs.comments_enabled}
-                  onValueChange={(v) => togglePref('comments_enabled', v)}
-                  trackColor={{ true: THEME.accent, false: THEME.line }}
-                />
-              </View>
+                <ArrowIcon size={16} color={THEME.muted} />
+              </Pressable>
 
-              <View style={styles.prefRow}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.prefTitle}>People praying for you</Text>
-                  <Text style={styles.prefSub}>
-                    A gentle update an hour or two after you share, with how many have prayed.
-                  </Text>
+              <Pressable
+                onPress={() => router.push('/customization')}
+                style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
+                <View style={styles.ctaIcon}>
+                  <SparkleIcon size={14} color={THEME.cardDarkInk} />
                 </View>
-                <Switch
-                  value={prefs.social_proof_enabled}
-                  onValueChange={(v) => togglePref('social_proof_enabled', v)}
-                  trackColor={{ true: THEME.accent, false: THEME.line }}
-                />
-              </View>
-
-              <View style={styles.prefRow}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.prefTitle}>Daily reminder</Text>
-                  <Text style={styles.prefSub}>
-                    A quiet nudge each day to pause and pray.
-                  </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ctaTitle}>Customization</Text>
+                  <Text style={styles.ctaSub}>Theme and app icon.</Text>
                 </View>
-                <Switch
-                  value={prefs.daily_reminder_enabled}
-                  onValueChange={(v) => togglePref('daily_reminder_enabled', v)}
-                  trackColor={{ true: THEME.accent, false: THEME.line }}
-                />
-              </View>
-
-              {prefs.daily_reminder_enabled ? (
-                <View style={styles.hourPickerWrap}>
-                  <Text style={styles.prefSub}>Remind me at</Text>
-                  <View style={styles.hourRow}>
-                    {REMINDER_HOURS.map((h) => {
-                      const active = prefs.daily_reminder_hour === h;
-                      return (
-                        <Pressable
-                          key={h}
-                          onPress={() => togglePref('daily_reminder_hour', h)}
-                          style={[
-                            styles.hourChip,
-                            {
-                              backgroundColor: active ? THEME.cardDark : THEME.surface,
-                              borderColor: active ? THEME.cardDark : THEME.line,
-                            },
-                          ]}>
-                          <Text
-                            style={[
-                              styles.hourChipText,
-                              { color: active ? THEME.cardDarkInk : THEME.ink },
-                            ]}>
-                            {formatHour(h)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : null}
-            </View>
-
-            <SectionLabel style={{ paddingHorizontal: 22 }}>Theme</SectionLabel>
-            <View style={{ paddingHorizontal: 22 }}>
-              <ThemePicker />
-            </View>
-
-            <SectionLabel style={{ paddingHorizontal: 22 }}>App icon</SectionLabel>
-            <View style={{ paddingHorizontal: 22 }}>
-              <AppIconPicker />
+                <ArrowIcon size={16} color={THEME.muted} />
+              </Pressable>
             </View>
 
             <View style={styles.signOutWrap}>
@@ -560,7 +353,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   statLabel: { fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
 
-  requestsCta: {
+  cta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
@@ -570,7 +363,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.line,
   },
-  requestsCtaIcon: {
+  ctaIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -578,12 +371,12 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  requestsCtaTitle: {
+  ctaTitle: {
     fontFamily: FONTS.bodySemi,
     fontSize: 14,
     color: THEME.ink,
   },
-  requestsCtaSub: {
+  ctaSub: {
     fontFamily: FONTS.body,
     fontSize: 12,
     color: THEME.muted,
@@ -630,129 +423,5 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     fontSize: 12.5,
     letterSpacing: 0.5,
     color: THEME.accent,
-  },
-  themeRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  themeSwatch: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    gap: 8,
-    position: 'relative',
-  },
-  themeDotMain: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  themeDotAccent: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  themeName: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.4,
-  },
-  themeCheck: {
-    position: 'absolute',
-    bottom: 8,
-    width: 18,
-    height: 3,
-    borderRadius: 2,
-  },
-
-  iconRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  iconSwatch: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    gap: 10,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  iconImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-  },
-  iconLabel: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.4,
-  },
-  iconCheck: {
-    position: 'absolute',
-    bottom: 8,
-    width: 18,
-    height: 3,
-    borderRadius: 2,
-  },
-  iconPendingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  prefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: THEME.surface,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.line,
-  },
-  prefTitle: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 14,
-    color: THEME.ink,
-  },
-  prefSub: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    lineHeight: 16,
-    color: THEME.muted,
-    marginTop: 3,
-  },
-  hourPickerWrap: {
-    backgroundColor: THEME.surface,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.line,
-    gap: 10,
-  },
-  hourRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  hourChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  hourChipText: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 12.5,
-    letterSpacing: 0.4,
   },
 });
