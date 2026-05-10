@@ -69,7 +69,14 @@ const AppIconPicker: React.FC = () => {
   const [pending, setPending] = useState<AppIconChoice | null>(null);
 
   useEffect(() => {
-    setActive(getCurrentAppIcon());
+    let cancelled = false;
+    (async () => {
+      const current = await getCurrentAppIcon();
+      if (!cancelled) setActive(current);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const onSelect = useCallback(async (choice: AppIconChoice) => {
@@ -78,7 +85,8 @@ const AppIconPicker: React.FC = () => {
     const result = await setAppIconChoice(choice);
     setPending(null);
     if (result === null || result !== choice) {
-      setActive(getCurrentAppIcon());
+      const current = await getCurrentAppIcon();
+      setActive(current);
       Alert.alert(
         'Couldn’t change icon',
         'Make sure the app was installed from a build that includes this version. Try reopening the app.',

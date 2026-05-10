@@ -49,11 +49,10 @@
         }
       ],
       [
-        "expo-dynamic-app-icon",
+        "@howincodes/expo-dynamic-app-icon",
         {
           "pink": {
-            "image": "./assets/images/icon-pink.png",
-            "prerendered": true
+            "ios": "./assets/images/icon-pink.png"
           }
         }
       ],
