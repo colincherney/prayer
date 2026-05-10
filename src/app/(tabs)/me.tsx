@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +30,11 @@ import {
   useThemedStyles,
 } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import {
+  type AppIconChoice,
+  getCurrentAppIcon,
+  setAppIconChoice,
+} from '@/lib/appIcon';
 import { useAuth } from '@/lib/auth';
 import {
   DEFAULT_PREFS,
@@ -40,6 +46,11 @@ import {
 } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { relativeTime } from '@/lib/time';
+
+const APP_ICONS: { key: AppIconChoice; label: string; image: number }[] = [
+  { key: 'default', label: 'Default', image: require('../../../assets/images/icon.png') },
+  { key: 'pink', label: 'Pink', image: require('../../../assets/images/icon-pink.png') },
+];
 
 const REMINDER_HOURS = [6, 7, 8, 9, 12, 17, 19, 21];
 
@@ -114,6 +125,64 @@ const ThemePicker: React.FC = () => {
             <View style={[styles.themeDotAccent, { backgroundColor: t.accent }]} />
             <Text style={[styles.themeName, { color: t.ink }]}>{t.name}</Text>
             {active ? <View style={[styles.themeCheck, { backgroundColor: t.accent }]} /> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
+const AppIconPicker: React.FC = () => {
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const [active, setActive] = useState<AppIconChoice>('default');
+  const [pending, setPending] = useState<AppIconChoice | null>(null);
+
+  useEffect(() => {
+    setActive(getCurrentAppIcon());
+  }, []);
+
+  const onSelect = useCallback(async (choice: AppIconChoice) => {
+    if (pending || choice === active) return;
+    setPending(choice);
+    const ok = await setAppIconChoice(choice);
+    setPending(null);
+    if (!ok) {
+      Alert.alert(
+        'Couldn’t change icon',
+        'Make sure the app was installed from a build that includes this version. Try reopening the app.',
+      );
+      return;
+    }
+    setActive(choice);
+  }, [active, pending]);
+
+  return (
+    <View style={styles.iconRow}>
+      {APP_ICONS.map(({ key, label, image }) => {
+        const isActive = active === key;
+        const isPending = pending === key;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onSelect(key)}
+            disabled={pending !== null}
+            style={[
+              styles.iconSwatch,
+              {
+                borderColor: isActive ? THEME.accent : THEME.line,
+                backgroundColor: THEME.surface,
+                opacity: pending && !isPending ? 0.5 : 1,
+              },
+            ]}>
+            <Image source={image} style={styles.iconImage} contentFit="cover" />
+            <Text style={[styles.iconLabel, { color: THEME.ink }]}>{label}</Text>
+            {isActive ? <View style={[styles.iconCheck, { backgroundColor: THEME.accent }]} /> : null}
+            {isPending ? (
+              <View style={styles.iconPendingOverlay}>
+                <ActivityIndicator size="small" color={THEME.accent} />
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
@@ -403,6 +472,11 @@ export default function MeScreen() {
               <ThemePicker />
             </View>
 
+            <SectionLabel style={{ paddingHorizontal: 22 }}>App icon</SectionLabel>
+            <View style={{ paddingHorizontal: 22 }}>
+              <AppIconPicker />
+            </View>
+
             <View style={styles.signOutWrap}>
               <Pressable onPress={onSignOut} style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}>
                 <Text style={styles.signOutText}>Sign out</Text>
@@ -595,6 +669,45 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     width: 18,
     height: 3,
     borderRadius: 2,
+  },
+
+  iconRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  iconSwatch: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    gap: 10,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  iconImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+  },
+  iconLabel: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  iconCheck: {
+    position: 'absolute',
+    bottom: 8,
+    width: 18,
+    height: 3,
+    borderRadius: 2,
+  },
+  iconPendingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   prefRow: {

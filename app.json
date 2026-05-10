@@ -47,6 +47,15 @@
           "color": "#208AEF",
           "defaultChannel": "default"
         }
+      ],
+      [
+        "expo-dynamic-app-icon",
+        {
+          "pink": {
+            "image": "./assets/images/icon-pink.png",
+            "prerendered": true
+          }
+        }
       ]
     ],
     "experiments": {
