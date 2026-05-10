@@ -37,7 +37,7 @@ export function AnimatedSplashOverlay() {
       style={styles.splashFill}
       pointerEvents="none">
       <Image
-        source={require('@/assets/images/splash.png')}
+        source={require('@/assets/images/blue-ios-loading-page.png')}
         style={StyleSheet.absoluteFillObject}
         contentFit="cover"
       />
