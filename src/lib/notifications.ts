@@ -19,6 +19,7 @@ export type NotificationPrefs = {
   social_proof_enabled: boolean;
   daily_reminder_enabled: boolean;
   daily_reminder_hour: number | null;
+  daily_reminder_minute: number | null;
   timezone: string | null;
 };
 
@@ -27,6 +28,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   social_proof_enabled: true,
   daily_reminder_enabled: false,
   daily_reminder_hour: null,
+  daily_reminder_minute: null,
   timezone: null,
 };
 
@@ -109,7 +111,7 @@ export async function savePushToken(userId: string, token: string) {
 export async function loadPrefs(userId: string): Promise<NotificationPrefs> {
   const { data } = await supabase
     .from('notification_preferences')
-    .select('comments_enabled, social_proof_enabled, daily_reminder_enabled, daily_reminder_hour, timezone')
+    .select('comments_enabled, social_proof_enabled, daily_reminder_enabled, daily_reminder_hour, daily_reminder_minute, timezone')
     .eq('user_id', userId)
     .maybeSingle();
   if (!data) return { ...DEFAULT_PREFS, timezone: detectTimezone() };
@@ -118,6 +120,7 @@ export async function loadPrefs(userId: string): Promise<NotificationPrefs> {
     social_proof_enabled: data.social_proof_enabled ?? true,
     daily_reminder_enabled: data.daily_reminder_enabled ?? false,
     daily_reminder_hour: data.daily_reminder_hour ?? null,
+    daily_reminder_minute: data.daily_reminder_minute ?? null,
     timezone: data.timezone ?? detectTimezone(),
   };
 }

@@ -1,6 +1,6 @@
-// Daily prayer reminder. Invoked by pg_cron every 5 min.
-// For each opted-in user, compute the current local hour in their timezone.
-// If it matches their reminder hour AND we haven't notified them today,
+// Daily prayer reminder. Invoked by pg_cron every minute.
+// For each opted-in user, compute the current local hour:minute in their timezone.
+// If it matches their reminder hour+minute AND we haven't notified them today,
 // send a single push and stamp daily_reminder_last_sent_date.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -70,17 +70,22 @@ const json = (data: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-function localHourFor(tz: string, now: Date): number | null {
+function localHourMinuteFor(tz: string, now: Date): { hour: number; minute: number } | null {
   try {
     const fmt = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       hour: 'numeric',
+      minute: '2-digit',
       hour12: false,
     });
-    const h = fmt.formatToParts(now).find((p) => p.type === 'hour')?.value;
-    if (h == null) return null;
-    const n = parseInt(h, 10);
-    return Number.isFinite(n) ? n % 24 : null;
+    const parts = fmt.formatToParts(now);
+    const h = parts.find((p) => p.type === 'hour')?.value;
+    const m = parts.find((p) => p.type === 'minute')?.value;
+    if (h == null || m == null) return null;
+    const hour = parseInt(h, 10);
+    const minute = parseInt(m, 10);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+    return { hour: hour % 24, minute };
   } catch {
     return null;
   }
@@ -116,7 +121,7 @@ Deno.serve(async (req) => {
 
   const { data: rows, error } = await admin
     .from('notification_preferences')
-    .select('user_id, daily_reminder_hour, timezone, daily_reminder_last_sent_date')
+    .select('user_id, daily_reminder_hour, daily_reminder_minute, timezone, daily_reminder_last_sent_date')
     .eq('daily_reminder_enabled', true);
 
   if (error) {
@@ -130,10 +135,13 @@ Deno.serve(async (req) => {
 
   for (const r of rows) {
     if (r.daily_reminder_hour == null || !r.timezone) continue;
-    const localHour = localHourFor(r.timezone, now);
+    const local = localHourMinuteFor(r.timezone, now);
     const localDate = localDateFor(r.timezone, now);
-    if (localHour == null || localDate == null) continue;
-    if (localHour !== r.daily_reminder_hour) continue;
+    if (local == null || localDate == null) continue;
+    if (local.hour !== r.daily_reminder_hour) continue;
+    // Pre-minute rows default to 0 — preserves prior on-the-hour behaviour.
+    const targetMinute = r.daily_reminder_minute ?? 0;
+    if (local.minute !== targetMinute) continue;
     if (r.daily_reminder_last_sent_date === localDate) continue;
     dueUserIds.push(r.user_id);
     dueDateByUser[r.user_id] = localDate;

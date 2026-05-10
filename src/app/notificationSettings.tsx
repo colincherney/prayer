@@ -1,8 +1,10 @@
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -39,6 +41,18 @@ const formatHour = (h: number) => {
   return `${display}${period}`;
 };
 
+const formatTime = (h: number, m: number) => {
+  const period = h < 12 ? 'AM' : 'PM';
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${display}:${m.toString().padStart(2, '0')} ${period}`;
+};
+
+const dateFromHM = (h: number | null, m: number | null) => {
+  const d = new Date();
+  d.setHours(h ?? 9, m ?? 0, 0, 0);
+  return d;
+};
+
 export default function NotificationSettingsScreen() {
   const fontsLoaded = useSaintFonts();
   const { session } = useAuth();
@@ -46,6 +60,7 @@ export default function NotificationSettingsScreen() {
   const styles = useThemedStyles(makeStyles);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
+  const [androidPickerOpen, setAndroidPickerOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,33 +80,63 @@ export default function NotificationSettingsScreen() {
     }, [session]),
   );
 
-  const togglePref = useCallback(
-    async (key: keyof NotificationPrefs, value: boolean | number | null) => {
+  const patchPrefs = useCallback(
+    async (patch: Partial<NotificationPrefs>) => {
       if (!session) return;
-      const next = { ...prefs, [key]: value } as NotificationPrefs;
+      const previous = prefs;
+      const next = { ...prefs, ...patch } as NotificationPrefs;
       setPrefs(next);
 
-      if (typeof value === 'boolean' && value === true) {
+      const turningOnPush = Object.entries(patch).some(
+        ([, v]) => typeof v === 'boolean' && v === true,
+      );
+      if (turningOnPush) {
         const token = await registerForPushNotifications();
         if (!token) {
           Alert.alert(
             'Notifications are off',
             'Enable notifications for Saint Central in your device settings to receive reminders.',
           );
-          setPrefs((p) => ({ ...p, [key]: false }));
+          const reverted: Partial<NotificationPrefs> = {};
+          for (const [k, v] of Object.entries(patch)) {
+            if (typeof v === 'boolean' && v === true) {
+              reverted[k as keyof NotificationPrefs] = false as never;
+            }
+          }
+          setPrefs((p) => ({ ...p, ...reverted }));
           return;
         }
         await savePushToken(session.user.id, token);
       }
 
       try {
-        await updatePrefs(session.user.id, { [key]: value } as Partial<NotificationPrefs>);
+        await updatePrefs(session.user.id, patch);
       } catch (e) {
         console.warn('updatePrefs failed', e);
-        setPrefs(prefs);
+        setPrefs(previous);
       }
     },
     [prefs, session],
+  );
+
+  const togglePref = useCallback(
+    (key: keyof NotificationPrefs, value: boolean | number | null) =>
+      patchPrefs({ [key]: value } as Partial<NotificationPrefs>),
+    [patchPrefs],
+  );
+
+  const onTimeChange = useCallback(
+    (event: DateTimePickerEvent, selected?: Date) => {
+      // Android fires a single 'set' (or 'dismissed') event then closes the dialog.
+      // iOS streams continuous 'set' events while the user spins the wheels.
+      if (Platform.OS === 'android') setAndroidPickerOpen(false);
+      if (event.type === 'dismissed' || !selected) return;
+      patchPrefs({
+        daily_reminder_hour: selected.getHours(),
+        daily_reminder_minute: selected.getMinutes(),
+      });
+    },
+    [patchPrefs],
   );
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -175,11 +220,15 @@ export default function NotificationSettingsScreen() {
                 <Text style={styles.prefSub}>Remind me at</Text>
                 <View style={styles.hourRow}>
                   {REMINDER_HOURS.map((h) => {
-                    const active = prefs.daily_reminder_hour === h;
+                    const active =
+                      prefs.daily_reminder_hour === h &&
+                      (prefs.daily_reminder_minute ?? 0) === 0;
                     return (
                       <Pressable
                         key={h}
-                        onPress={() => togglePref('daily_reminder_hour', h)}
+                        onPress={() =>
+                          patchPrefs({ daily_reminder_hour: h, daily_reminder_minute: 0 })
+                        }
                         style={[
                           styles.hourChip,
                           {
@@ -198,6 +247,46 @@ export default function NotificationSettingsScreen() {
                     );
                   })}
                 </View>
+
+                <View style={styles.customDivider} />
+                <Text style={styles.prefSub}>Or pick a custom time</Text>
+                {Platform.OS === 'ios' ? (
+                  <View style={styles.iosPickerWrap}>
+                    <DateTimePicker
+                      value={dateFromHM(prefs.daily_reminder_hour, prefs.daily_reminder_minute)}
+                      mode="time"
+                      display="spinner"
+                      minuteInterval={1}
+                      onChange={onTimeChange}
+                      themeVariant={THEME.bg === '#000000' ? 'dark' : 'light'}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => setAndroidPickerOpen(true)}
+                      style={[
+                        styles.androidPickerBtn,
+                        { backgroundColor: THEME.surface, borderColor: THEME.line },
+                      ]}>
+                      <Text style={[styles.androidPickerText, { color: THEME.ink }]}>
+                        {formatTime(
+                          prefs.daily_reminder_hour ?? 9,
+                          prefs.daily_reminder_minute ?? 0,
+                        )}
+                      </Text>
+                    </Pressable>
+                    {androidPickerOpen ? (
+                      <DateTimePicker
+                        value={dateFromHM(prefs.daily_reminder_hour, prefs.daily_reminder_minute)}
+                        mode="time"
+                        display="default"
+                        is24Hour={false}
+                        onChange={onTimeChange}
+                      />
+                    ) : null}
+                  </>
+                )}
               </View>
             ) : null}
           </View>
@@ -304,5 +393,27 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     fontFamily: FONTS.bodySemi,
     fontSize: 12.5,
     letterSpacing: 0.4,
+  },
+  customDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: THEME.line,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  iosPickerWrap: {
+    alignItems: 'center',
+    marginTop: -4,
+  },
+  androidPickerBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  androidPickerText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
 });

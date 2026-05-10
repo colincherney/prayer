@@ -1,6 +1,6 @@
 // 'pink' must match the key under expo-dynamic-app-icon's plugin config in
-// app.json. Pass null/'default' to restore the primary icon defined by the
-// top-level `icon` field.
+// app.json. The 'DEFAULT' sentinel restores the primary icon defined by the
+// top-level `icon` field — the native module maps it to setAlternateIconName(nil).
 export type AppIconChoice = 'default' | 'pink';
 
 // Loaded via require() inside try/catch because the package's top-level code
@@ -33,13 +33,18 @@ export function getCurrentAppIcon(): AppIconChoice {
   }
 }
 
-export async function setAppIconChoice(choice: AppIconChoice): Promise<boolean> {
-  if (!mod) return false;
+export async function setAppIconChoice(choice: AppIconChoice): Promise<AppIconChoice | null> {
+  // Why: expo-dynamic-app-icon@1.2.0's null-handling on iOS is unreliable when
+  // resetting from an alternate icon — the bridge sometimes drops the call.
+  // Passing the literal "DEFAULT" string takes a path the native module always
+  // honors, then we re-read getAppIcon() to return the truth (not the request).
+  if (!mod) return null;
   try {
-    await mod.setAppIcon(choice === 'default' ? null : choice);
-    return true;
+    const target = choice === 'default' ? 'DEFAULT' : choice;
+    await mod.setAppIcon(target);
   } catch (e) {
     console.warn('setAppIcon failed', e);
-    return false;
+    return null;
   }
+  return getCurrentAppIcon();
 }
