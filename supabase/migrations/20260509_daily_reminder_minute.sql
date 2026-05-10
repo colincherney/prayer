@@ -11,6 +11,8 @@ update notification_preferences
     and daily_reminder_hour is not null;
 
 -- Tighten cron to fire every minute so minute-precision matching works.
+-- Uses notifications_dispatch() (from notifications_fix.sql) so it reads from
+-- notifications_config rather than the easy-to-miss app.settings.* GUCs.
 do $$
 begin
   if exists (select 1 from cron.job where jobname = 'notify_daily_reminder') then
@@ -21,23 +23,5 @@ end$$;
 select cron.schedule(
   'notify_daily_reminder',
   '* * * * *',
-  $cron$
-  do $body$
-  declare
-    url text := current_setting('app.settings.supabase_url', true);
-    key text := current_setting('app.settings.service_role_key', true);
-  begin
-    if url is null or key is null then return; end if;
-    perform net.http_post(
-      url := url || '/functions/v1/notify-daily-reminder',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || key
-      ),
-      body := '{}'::jsonb,
-      timeout_milliseconds := 30000
-    );
-  end
-  $body$;
-  $cron$
+  $$select public.notifications_dispatch('notify-daily-reminder');$$
 );
