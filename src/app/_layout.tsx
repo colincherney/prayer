@@ -2,20 +2,28 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect } from 'react';
-import { useColorScheme, View } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
+import React, { useEffect, useState } from 'react';
+import { useColorScheme } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { SaintThemeProvider, THEME } from '@/components/saint/theme';
+import { SaintThemeProvider } from '@/components/saint/theme';
+import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
 
+const SPLASH_BG = '#0F1A33';
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Match the RN root view background to the splash so there's no white
+// frame exposed as the native splash fades out into the app.
+SystemUI.setBackgroundColorAsync(SPLASH_BG).catch(() => {});
 
 function RootStack() {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const fontsLoaded = useSaintFonts();
+  const [navSettled, setNavSettled] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -24,8 +32,19 @@ function RootStack() {
       router.replace('/auth');
     } else if (session && inAuth) {
       router.replace('/');
+    } else {
+      setNavSettled(true);
     }
   }, [session, loading, segments, router]);
+
+  // Hide the native splash only once auth, fonts, and navigation are all
+  // settled — so the splash transitions directly to a fully-rendered
+  // first screen with no white frame between.
+  useEffect(() => {
+    if (navSettled && fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [navSettled, fontsLoaded]);
 
   // Register the device for push notifications once we have a session.
   useEffect(() => {
@@ -56,12 +75,12 @@ function RootStack() {
     return () => sub.remove();
   }, [router]);
 
-  if (loading) {
-    return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
-  }
-
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: SPLASH_BG },
+      }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
       <Stack.Screen name="explore" options={{ presentation: 'card' }} />
@@ -78,7 +97,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
       <SaintThemeProvider>
         <AuthProvider>
           <RootStack />
