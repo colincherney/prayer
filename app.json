@@ -33,7 +33,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash.png",
+          "image": "./assets/images/splash-iphone.png",
+          "tabletImage": "./assets/images/splash-ipad.png",
           "resizeMode": "cover",
           "backgroundColor": "#0F1A33",
           "imageWidth": 1284
