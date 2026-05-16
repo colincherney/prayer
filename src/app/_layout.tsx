@@ -89,6 +89,8 @@ function RootStack() {
       <Stack.Screen name="myPrayers" options={{ presentation: 'card' }} />
       <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
       <Stack.Screen name="customization" options={{ presentation: 'card' }} />
+      <Stack.Screen name="journey" options={{ presentation: 'card' }} />
+      <Stack.Screen name="seasons" options={{ presentation: 'card' }} />
     </Stack>
   );
 }
