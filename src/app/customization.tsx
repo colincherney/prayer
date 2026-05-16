@@ -70,7 +70,7 @@ const ThemePicker: React.FC = () => {
 };
 
 // Tiny stand-in for each room's full SVG — just enough atmosphere to tell
-// the two scenes apart at swatch size.
+// the scenes apart at swatch size.
 const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
   const palette = PRAYER_ROOMS[room];
   if (room === 'window') {
@@ -114,6 +114,229 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
             bottom: 0,
             height: 10,
             backgroundColor: '#7a5435',
+          }}
+        />
+      </View>
+    );
+  }
+  if (room === 'stars') {
+    // Starlit Garden — indigo sky fading to dawn-rose, moon halo, tiny stars,
+    // a chapel silhouette, lampposts pooling warmth on a path.
+    return (
+      <View
+        style={{
+          width: '100%',
+          height: 64,
+          borderRadius: 12,
+          overflow: 'hidden',
+          backgroundColor: '#0a0e22',
+        }}>
+        {/* dawn strip near the horizon */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 12,
+            height: 18,
+            backgroundColor: '#a06458',
+            opacity: 0.65,
+          }}
+        />
+        {/* moon */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: 10,
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: '#fff7e0',
+          }}
+        />
+        {/* tiny stars */}
+        {[
+          [22, 14],
+          [38, 8],
+          [60, 18],
+          [76, 6],
+          [92, 16],
+        ].map(([left, top], i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: `${left}%`,
+              top,
+              width: 2,
+              height: 2,
+              borderRadius: 1,
+              backgroundColor: '#fff',
+            }}
+          />
+        ))}
+        {/* chapel silhouette */}
+        <View
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 14,
+            marginLeft: -4,
+            width: 8,
+            height: 8,
+            backgroundColor: '#0a0e22',
+          }}
+        />
+        {/* lamppost halos */}
+        <View
+          style={{
+            position: 'absolute',
+            left: '20%',
+            bottom: 0,
+            width: 28,
+            height: 14,
+            borderRadius: 14,
+            backgroundColor: '#f5b96a',
+            opacity: 0.35,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            right: '20%',
+            bottom: 0,
+            width: 28,
+            height: 14,
+            borderRadius: 14,
+            backgroundColor: '#f5b96a',
+            opacity: 0.35,
+          }}
+        />
+        {/* ground */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 8,
+            backgroundColor: '#1a1410',
+          }}
+        />
+      </View>
+    );
+  }
+  if (room === 'jungle') {
+    // Rainforest Vigil — teal-emerald sky, moon, layered canopy silhouettes,
+    // hut window glow, fireflies above.
+    return (
+      <View
+        style={{
+          width: '100%',
+          height: 64,
+          borderRadius: 12,
+          overflow: 'hidden',
+          backgroundColor: '#08111c',
+        }}>
+        {/* moon */}
+        <View
+          style={{
+            position: 'absolute',
+            right: 12,
+            top: 8,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: '#fff5dc',
+          }}
+        />
+        {/* stars */}
+        {[
+          [12, 10],
+          [28, 6],
+          [44, 14],
+          [68, 8],
+        ].map(([left, top], i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: `${left}%`,
+              top,
+              width: 1.5,
+              height: 1.5,
+              borderRadius: 1,
+              backgroundColor: '#f4f1d9',
+            }}
+          />
+        ))}
+        {/* far canopy */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 18,
+            height: 18,
+            backgroundColor: '#163d31',
+            opacity: 0.9,
+          }}
+        />
+        {/* mid canopy */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 8,
+            height: 16,
+            backgroundColor: '#0d2820',
+          }}
+        />
+        {/* near canopy */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 12,
+            backgroundColor: '#061a14',
+          }}
+        />
+        {/* hut window glow */}
+        <View
+          style={{
+            position: 'absolute',
+            left: '28%',
+            bottom: 22,
+            width: 4,
+            height: 4,
+            backgroundColor: '#f5b96a',
+          }}
+        />
+        {/* a firefly or two */}
+        <View
+          style={{
+            position: 'absolute',
+            left: '55%',
+            top: 32,
+            width: 2,
+            height: 2,
+            borderRadius: 1,
+            backgroundColor: '#fff4a8',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: '70%',
+            top: 38,
+            width: 2,
+            height: 2,
+            borderRadius: 1,
+            backgroundColor: '#fff4a8',
           }}
         />
       </View>
@@ -423,10 +646,13 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
 
   roomRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   roomSwatch: {
-    flex: 1,
+    // 2 columns: each swatch takes ~half, minus the 10px gap.
+    flexBasis: '48%',
+    flexGrow: 1,
     borderRadius: 18,
     padding: 12,
     borderWidth: 1.5,

@@ -12,7 +12,7 @@ import React, {
   useState,
 } from 'react';
 
-export type PrayerRoomName = 'lamp' | 'window';
+export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle';
 
 export type PrayerRoomPalette = {
   bg: string;
@@ -74,16 +74,62 @@ const WINDOW: PrayerRoomPalette = {
   statusBar: 'dark-content',
 };
 
+// Starlit Garden — outside under a deep-indigo sky, dawn cracking the horizon,
+// distant lit chapel, lampposts on a path. Matches design variant 6.
+const STARS: PrayerRoomPalette = {
+  bg: '#0a0e22',
+  ink: '#f4ead5',
+  inkSoft: 'rgba(244,234,213,0.82)',
+  muted: 'rgba(244,234,213,0.55)',
+  divider: 'rgba(244,234,213,0.18)',
+  accent: '#fde2a8',
+  pillBg: 'rgba(244,234,213,0.14)',
+  pillInk: '#f4ead5',
+  cardDark: 'rgba(10,14,34,0.75)',
+  cardDarkInk: '#f4ead5',
+  cardLight: 'rgba(244,234,213,0.9)',
+  cardLightInk: '#1f2a3a',
+  cardLightInkSoft: 'rgba(31,42,58,0.7)',
+  cardLightPillBg: 'rgba(253,226,168,0.22)',
+  cardLightPillInk: '#a86d2e',
+  statusBar: 'light-content',
+};
+
+// Rainforest Vigil — deep teal-emerald sky with stars, fog mountains, fireflies.
+// Matches design variant 7.
+const JUNGLE: PrayerRoomPalette = {
+  bg: '#08111c',
+  ink: '#f4ead5',
+  inkSoft: 'rgba(244,234,213,0.82)',
+  muted: 'rgba(166,222,196,0.55)',
+  divider: 'rgba(166,222,196,0.22)',
+  accent: '#7ec9a8',
+  pillBg: 'rgba(166,222,196,0.14)',
+  pillInk: '#dff3e6',
+  cardDark: 'rgba(8,17,28,0.78)',
+  cardDarkInk: '#dff3e6',
+  cardLight: 'rgba(223,243,230,0.92)',
+  cardLightInk: '#0e2230',
+  cardLightInkSoft: 'rgba(14,34,48,0.72)',
+  cardLightPillBg: 'rgba(126,201,168,0.18)',
+  cardLightPillInk: '#1d5448',
+  statusBar: 'light-content',
+};
+
 export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
+  stars: STARS,
+  jungle: JUNGLE,
 };
 
-export const PRAYER_ROOM_ORDER: PrayerRoomName[] = ['lamp', 'window'];
+export const PRAYER_ROOM_ORDER: PrayerRoomName[] = ['lamp', 'window', 'stars', 'jungle'];
 
 export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   lamp: 'Lamplit Corner',
   window: 'Window Seat',
+  stars: 'Starlit Garden',
+  jungle: 'Rainforest Vigil',
 };
 
 const STORAGE_KEY = 'saint.prayerRoom';

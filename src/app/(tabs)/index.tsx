@@ -13,6 +13,8 @@ import {
   StarIcon,
 } from '@/components/saint/Icons';
 import { LamplitScene } from '@/components/saint/LamplitScene';
+import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
+import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
 import {
   Pill,
@@ -32,9 +34,18 @@ export default function HomeScreen() {
     return <View style={{ flex: 1, backgroundColor: ROOM.bg }} />;
   }
 
+  const SceneComponent =
+    roomName === 'window'
+      ? WindowSeatScene
+      : roomName === 'stars'
+        ? StarlitGardenScene
+        : roomName === 'jungle'
+          ? RainforestVigilScene
+          : LamplitScene;
+
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
-      {roomName === 'window' ? <WindowSeatScene /> : <LamplitScene />}
+      <SceneComponent />
       <DustMotes count={26} />
 
       <SafeAreaView style={styles.safe} edges={['top']}>
