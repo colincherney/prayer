@@ -37,7 +37,7 @@
           "tabletImage": "./assets/images/splash-ipad.png",
           "resizeMode": "contain",
           "backgroundColor": "#0F1A33",
-          "imageWidth": 1284
+          "enableFullScreenImage_legacy": true
         }
       ],
       "expo-font",
