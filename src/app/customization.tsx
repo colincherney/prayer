@@ -15,6 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackIcon } from '@/components/saint/Icons';
 import {
+  PRAYER_ROOM_LABELS,
+  PRAYER_ROOM_ORDER,
+  PRAYER_ROOMS,
+  PrayerRoomName,
+  usePrayerRoom,
+} from '@/components/saint/prayerRoom';
+import {
   FONTS,
   Theme,
   ThemeName,
@@ -55,6 +62,139 @@ const ThemePicker: React.FC = () => {
             <View style={[styles.themeDotAccent, { backgroundColor: t.accent }]} />
             <Text style={[styles.themeName, { color: t.ink }]}>{t.name}</Text>
             {active ? <View style={[styles.themeCheck, { backgroundColor: t.accent }]} /> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
+// Tiny stand-in for each room's full SVG — just enough atmosphere to tell
+// the two scenes apart at swatch size.
+const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
+  const palette = PRAYER_ROOMS[room];
+  if (room === 'window') {
+    return (
+      <View
+        style={{
+          width: '100%',
+          height: 64,
+          borderRadius: 12,
+          overflow: 'hidden',
+          backgroundColor: '#e8d8be',
+        }}>
+        {/* arched window */}
+        <View
+          style={{
+            position: 'absolute',
+            left: '18%',
+            right: '18%',
+            top: 6,
+            bottom: 14,
+            borderTopLeftRadius: 26,
+            borderTopRightRadius: 26,
+            backgroundColor: '#3a2a18',
+            padding: 2,
+          }}>
+          <View
+            style={{
+              flex: 1,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              backgroundColor: '#f5b8a0',
+            }}
+          />
+        </View>
+        {/* floor */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 10,
+            backgroundColor: '#7a5435',
+          }}
+        />
+      </View>
+    );
+  }
+  // lamp — dusky scene with a warm halo
+  return (
+    <View
+      style={{
+        width: '100%',
+        height: 64,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: palette.bg,
+      }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: 8,
+          marginLeft: -22,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: '#f5cba2',
+          opacity: 0.55,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: 16,
+          marginLeft: -12,
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: '#fff0c8',
+          opacity: 0.85,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 14,
+          backgroundColor: '#2a1f15',
+        }}
+      />
+    </View>
+  );
+};
+
+const PrayerRoomPicker: React.FC = () => {
+  const { name, setRoom } = usePrayerRoom();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.roomRow}>
+      {PRAYER_ROOM_ORDER.map(key => {
+        const active = key === name;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => setRoom(key)}
+            style={[
+              styles.roomSwatch,
+              {
+                borderColor: active ? THEME.accent : THEME.line,
+                backgroundColor: THEME.surface,
+              },
+            ]}>
+            <PrayerRoomPreview room={key} />
+            <Text style={[styles.roomName, { color: THEME.ink }]}>
+              {PRAYER_ROOM_LABELS[key]}
+            </Text>
+            {active ? (
+              <View style={[styles.roomCheck, { backgroundColor: THEME.accent }]} />
+            ) : null}
           </Pressable>
         );
       })}
@@ -168,6 +308,10 @@ export default function CustomizationScreen() {
             <ThemePicker />
           </View>
           <View style={{ gap: 10 }}>
+            <Text style={styles.subLabel}>Prayer room</Text>
+            <PrayerRoomPicker />
+          </View>
+          <View style={{ gap: 10 }}>
             <Text style={styles.subLabel}>App icon</Text>
             <AppIconPicker />
           </View>
@@ -272,6 +416,36 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   themeCheck: {
     position: 'absolute',
     bottom: 8,
+    width: 18,
+    height: 3,
+    borderRadius: 2,
+  },
+
+  roomRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  roomSwatch: {
+    flex: 1,
+    borderRadius: 18,
+    padding: 12,
+    borderWidth: 1.5,
+    gap: 10,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  roomName: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textAlign: 'center',
+    paddingBottom: 6,
+  },
+  roomCheck: {
+    position: 'absolute',
+    bottom: 8,
+    left: '50%',
+    marginLeft: -9,
     width: 18,
     height: 3,
     borderRadius: 2,
