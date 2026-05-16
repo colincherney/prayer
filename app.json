@@ -35,7 +35,7 @@
         {
           "image": "./assets/images/splash-iphone.png",
           "tabletImage": "./assets/images/splash-ipad.png",
-          "resizeMode": "cover",
+          "resizeMode": "contain",
           "backgroundColor": "#0F1A33",
           "imageWidth": 1284
         }
