@@ -11,6 +11,13 @@ import React, {
   useState,
 } from 'react';
 
+import {
+  PrayerRoomName,
+  PrayerRoomPalette,
+  PRAYER_ROOM_LABELS,
+  usePrayerRoom,
+} from './prayerRoom';
+
 export type Theme = {
   name: string;
   bg: string;
@@ -106,6 +113,51 @@ export const THEMES = {
 export type ThemeName = keyof typeof THEMES;
 export const THEME_ORDER: ThemeName[] = ['cream', 'navy', 'forest', 'pink'];
 
+// Lightens a solid hex colour by adding `amt` to each RGB channel.
+// Used to derive a slightly elevated surface from a dark prayer-room bg.
+function lightenHex(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, (n >> 16) + amt);
+  const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+  const b = Math.min(255, (n & 0xff) + amt);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Maps a prayer room palette to the Theme shape so every screen picks up
+// the room's atmospheric bg and matching text colours automatically.
+//
+// 'none' → returns the base app theme unchanged (user deselected the room).
+// Dark rooms (lamp/stars/jungle): surface is derived by lightening bg so the
+// room's light ink stays readable on both the background AND card surfaces.
+// Window Seat is the only light room; cardLight is used as surface with its
+// own dark ink, keeping text readable there too.
+// accent maps to cardLightPillInk (the richer, darker accent) so it stays
+// legible when used as a card background with light text on top.
+function prayerRoomToTheme(
+  room: PrayerRoomName,
+  palette: PrayerRoomPalette,
+  base: Theme,
+): Theme {
+  if (room === 'none') return base;
+  const isDark = room !== 'window';
+  return {
+    name: PRAYER_ROOM_LABELS[room],
+    bg: palette.bg,
+    bgSoft: isDark ? lightenHex(palette.bg, 8) : palette.bg,
+    surface: isDark ? lightenHex(palette.bg, 22) : palette.cardLight,
+    ink: palette.ink,
+    inkSoft: palette.inkSoft,
+    muted: palette.muted,
+    line: palette.divider,
+    cardDark: palette.cardDark,
+    cardDarkInk: palette.cardDarkInk,
+    accent: palette.cardLightPillInk,
+    accentSoft: palette.accent,
+    pillBg: palette.pillBg,
+    pillInk: palette.pillInk,
+  };
+}
+
 // `THEME` is the legacy static reference. We mutate it in place so any code that
 // reads `THEME.x` at render time picks up the active theme on re-render. Module-
 // level StyleSheet.create snapshots are stale once switched — those screens use
@@ -130,28 +182,35 @@ export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [name, setName] = useState<ThemeName>('cream');
+  const { name: roomName, palette: roomPalette } = usePrayerRoom();
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
         if (stored && stored in THEMES) {
-          const next = stored as ThemeName;
-          Object.assign(THEME, THEMES[next]);
-          setName(next);
+          setName(stored as ThemeName);
         }
       })
       .catch(() => {});
   }, []);
 
   const setTheme = useCallback((next: ThemeName) => {
-    Object.assign(THEME, THEMES[next]);
     setName(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
   }, []);
 
+  const effectiveTheme = useMemo(
+    () => prayerRoomToTheme(roomName, roomPalette, THEMES[name]),
+    [name, roomName, roomPalette],
+  );
+
+  useEffect(() => {
+    Object.assign(THEME, effectiveTheme);
+  }, [effectiveTheme]);
+
   const value = useMemo<ThemeCtx>(
-    () => ({ name, theme: THEMES[name], setTheme }),
-    [name, setTheme],
+    () => ({ name, theme: effectiveTheme, setTheme }),
+    [name, effectiveTheme, setTheme],
   );
 
   return React.createElement(ThemeContext.Provider, { value }, children);

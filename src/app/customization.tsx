@@ -396,31 +396,47 @@ const PrayerRoomPicker: React.FC = () => {
   const { name, setRoom } = usePrayerRoom();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const noneActive = name === 'none';
   return (
-    <View style={styles.roomRow}>
-      {PRAYER_ROOM_ORDER.map(key => {
-        const active = key === name;
-        return (
-          <Pressable
-            key={key}
-            onPress={() => setRoom(key)}
-            style={[
-              styles.roomSwatch,
-              {
-                borderColor: active ? THEME.accent : THEME.line,
-                backgroundColor: THEME.surface,
-              },
-            ]}>
-            <PrayerRoomPreview room={key} />
-            <Text style={[styles.roomName, { color: THEME.ink }]}>
-              {PRAYER_ROOM_LABELS[key]}
-            </Text>
-            {active ? (
-              <View style={[styles.roomCheck, { backgroundColor: THEME.accent }]} />
-            ) : null}
-          </Pressable>
-        );
-      })}
+    <View style={{ gap: 10 }}>
+      <View style={styles.roomRow}>
+        {PRAYER_ROOM_ORDER.map(key => {
+          const active = key === name;
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setRoom(key)}
+              style={[
+                styles.roomSwatch,
+                {
+                  borderColor: active ? THEME.accent : THEME.line,
+                  backgroundColor: THEME.surface,
+                },
+              ]}>
+              <PrayerRoomPreview room={key} />
+              <Text style={[styles.roomName, { color: THEME.ink }]}>
+                {PRAYER_ROOM_LABELS[key]}
+              </Text>
+              {active ? (
+                <View style={[styles.roomCheck, { backgroundColor: THEME.accent }]} />
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      <Pressable
+        onPress={() => setRoom('none')}
+        style={[
+          styles.roomNone,
+          {
+            borderColor: noneActive ? THEME.accent : THEME.line,
+            backgroundColor: THEME.surface,
+          },
+        ]}>
+        <Text style={[styles.roomNoneLabel, { color: noneActive ? THEME.accent : THEME.muted }]}>
+          {noneActive ? '✓ ' : ''}Use app theme only
+        </Text>
+      </Pressable>
     </View>
   );
 };
@@ -675,6 +691,18 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     width: 18,
     height: 3,
     borderRadius: 2,
+  },
+  roomNone: {
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  roomNoneLabel: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.4,
   },
 
   iconRow: {
