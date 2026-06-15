@@ -12,6 +12,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -649,6 +650,7 @@ function NewEntryComposer({
   useEffect(() => {
     Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 340, useNativeDriver: true }).start();
     if (!visible) {
+      Keyboard.dismiss();
       setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);
     } else if (editEntry) {
       setTitle(editEntry.title);
@@ -670,7 +672,7 @@ function NewEntryComposer({
     }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.composerHeader, { paddingTop: insets.top + 16, borderBottomColor: THEME.line }]}>
-          <Pressable onPress={onClose}>
+          <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }}>
             <Text style={[styles.composerCancel, { color: THEME.muted }]}>Cancel</Text>
           </Pressable>
           <Text style={[styles.composerTitle, { color: THEME.accent }]}>
@@ -696,6 +698,7 @@ function NewEntryComposer({
             value={title} onChangeText={setTitle}
             placeholder="A line for today's page"
             placeholderTextColor={THEME.muted}
+            editable={visible}
             style={[styles.composerTitleInput, { color: THEME.ink, borderBottomColor: THEME.line }]}
           />
 
@@ -713,6 +716,7 @@ function NewEntryComposer({
             placeholder="Write plainly. This is your journal — nobody sees it unless you choose to share."
             placeholderTextColor={THEME.muted}
             multiline
+            editable={visible}
             style={[styles.composerBodyInput, {
               color: THEME.ink, backgroundColor: THEME.surface, borderColor: THEME.line,
             }]}
