@@ -16,6 +16,7 @@ import { Pill, SectionLabel } from '@/components/saint/Common';
 import {
   ArrowIcon,
   BellIcon,
+  PenIcon,
   PrayingIcon,
   ShieldIcon,
   SparkleIcon,
@@ -234,6 +235,22 @@ export default function MeScreen() {
                       ? `Most recent · ${latest.age} · open the calendar to revisit`
                       : 'Open to reflect on each one.'}
                   </Text>
+                </View>
+                <ArrowIcon size={16} color={THEME.muted} />
+              </Pressable>
+            </View>
+
+            <SectionLabel style={{ paddingHorizontal: 22 }}>Journal</SectionLabel>
+            <View style={{ paddingHorizontal: 22 }}>
+              <Pressable
+                onPress={() => router.push('/biography')}
+                style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
+                <View style={styles.ctaIcon}>
+                  <PenIcon size={18} color={THEME.cardDarkInk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ctaTitle}>My walk with God</Text>
+                  <Text style={styles.ctaSub}>A record of your prayers, reflections, and answered moments.</Text>
                 </View>
                 <ArrowIcon size={16} color={THEME.muted} />
               </Pressable>
