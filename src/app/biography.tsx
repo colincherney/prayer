@@ -31,14 +31,14 @@ import { useAuth } from '@/lib/auth';
 type BibleVersion = 'KJV' | 'CPVD';
 
 const ENTRY_THEMES = [
-  { id: 'health',        label: 'Health',        glyph: '✦', color: '#85c4a0' },
-  { id: 'family',        label: 'Family',        glyph: '❖', color: '#d8aa6a' },
-  { id: 'work',          label: 'Work',          glyph: '◇', color: '#5fa8c8' },
-  { id: 'grief',         label: 'Grief',         glyph: '❍', color: '#8a96c0' },
-  { id: 'gratitude',     label: 'Gratitude',     glyph: '✥', color: '#b8a84a' },
-  { id: 'faith',         label: 'Faith',         glyph: '◐', color: '#9875d8' },
-  { id: 'relationships', label: 'Relationships', glyph: '◉', color: '#c86a8f' },
-  { id: 'other',         label: 'Other',         glyph: '·', color: '#8a9a8a' },
+  { id: 'health',        label: 'Health',        glyph: '✦', color: '#e0876a' },
+  { id: 'family',        label: 'Family',        glyph: '❖', color: '#d4a060' },
+  { id: 'work',          label: 'Work',          glyph: '◇', color: '#6096b8' },
+  { id: 'grief',         label: 'Grief',         glyph: '❍', color: '#8888b4' },
+  { id: 'gratitude',     label: 'Gratitude',     glyph: '✥', color: '#c49070' },
+  { id: 'faith',         label: 'Faith',         glyph: '◐', color: '#9070c8' },
+  { id: 'relationships', label: 'Relationships', glyph: '◉', color: '#c46888' },
+  { id: 'other',         label: 'Other',         glyph: '·', color: '#a09888' },
 ];
 
 type Entry = {
@@ -446,6 +446,181 @@ function NewEntryComposer({
   );
 }
 
+// ── Calendar view ─────────────────────────────────────────────────────────────
+const CAL_MONTHS = ['January','February','March','April','May','June',
+  'July','August','September','October','November','December'];
+const CAL_DAY_LABELS = ['S','M','T','W','T','F','S'];
+
+function buildCalGrid(year: number, month: number): (number | null)[][] {
+  const firstDay = new Date(year, month, 1).getDay();
+  const total = new Date(year, month + 1, 0).getDate();
+  const grid: (number | null)[][] = [];
+  let week: (number | null)[] = Array(firstDay).fill(null);
+  for (let d = 1; d <= total; d++) {
+    week.push(d);
+    if (week.length === 7) { grid.push(week); week = []; }
+  }
+  if (week.length) { while (week.length < 7) week.push(null); grid.push(week); }
+  return grid;
+}
+
+type DayInfo = { themes: string[]; dominant: string; color: string };
+
+function CalendarView({
+  entries,
+  calMonth,
+  setCalMonth,
+  selectedDate,
+  onDayPress,
+}: {
+  entries: Entry[];
+  calMonth: { year: number; month: number };
+  setCalMonth: (m: { year: number; month: number }) => void;
+  selectedDate: string | null;
+  onDayPress: (date: string | null) => void;
+}) {
+  const { theme: THEME } = useTheme();
+
+  const dayMap = useMemo(() => {
+    const map: Record<string, DayInfo> = {};
+    entries.forEach(e => {
+      const key = e.createdAt?.slice(0, 10);
+      if (!key) return;
+      if (!map[key]) map[key] = { themes: [], dominant: 'other', color: '#8a9a8a' };
+      map[key].themes.push(e.theme);
+    });
+    Object.keys(map).forEach(key => {
+      const counts: Record<string, number> = {};
+      map[key].themes.forEach(t => { counts[t] = (counts[t] ?? 0) + 1; });
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other';
+      map[key].dominant = top;
+      map[key].color = ENTRY_THEMES.find(t => t.id === top)?.color ?? '#8a9a8a';
+    });
+    return map;
+  }, [entries]);
+
+  const weeks = useMemo(() => buildCalGrid(calMonth.year, calMonth.month), [calMonth]);
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const monthPrefix = `${calMonth.year}-${pad(calMonth.month + 1)}`;
+
+  const prevMonth = () => {
+    const d = new Date(calMonth.year, calMonth.month - 1, 1);
+    setCalMonth({ year: d.getFullYear(), month: d.getMonth() });
+  };
+  const nextMonth = () => {
+    const d = new Date(calMonth.year, calMonth.month + 1, 1);
+    setCalMonth({ year: d.getFullYear(), month: d.getMonth() });
+  };
+
+  // Which themes appear this month (for legend)
+  const monthThemes = useMemo(() => {
+    const seen = new Set<string>();
+    Object.keys(dayMap).filter(k => k.startsWith(monthPrefix))
+      .forEach(k => dayMap[k].themes.forEach(t => seen.add(t)));
+    return ENTRY_THEMES.filter(t => seen.has(t.id));
+  }, [dayMap, monthPrefix]);
+
+  return (
+    <View style={[styles.calWrap, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+      {/* Month nav */}
+      <View style={styles.calNavRow}>
+        <Pressable onPress={prevMonth} style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
+          <Text style={[styles.calNavArrow, { color: THEME.ink }]}>‹</Text>
+        </Pressable>
+        <Text style={[styles.calMonthLabel, { color: THEME.ink }]}>
+          {CAL_MONTHS[calMonth.month]}{' '}
+          <Text style={{ color: THEME.accent }}>{calMonth.year}</Text>
+        </Text>
+        <Pressable onPress={nextMonth} style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
+          <Text style={[styles.calNavArrow, { color: THEME.ink }]}>›</Text>
+        </Pressable>
+      </View>
+
+      {/* Day-of-week labels */}
+      <View style={styles.calDayLabels}>
+        {CAL_DAY_LABELS.map((l, i) => (
+          <Text key={i} style={[styles.calDayLabel, { color: THEME.muted }]}>{l}</Text>
+        ))}
+      </View>
+
+      {/* Weeks */}
+      {weeks.map((week, wi) => {
+        // Week dominant color for the side bar
+        const weekKeys = week
+          .filter((d): d is number => d !== null)
+          .map(d => `${monthPrefix}-${pad(d)}`);
+        const weekThemes = weekKeys.flatMap(k => dayMap[k]?.themes ?? []);
+        const wCounts: Record<string, number> = {};
+        weekThemes.forEach(t => { wCounts[t] = (wCounts[t] ?? 0) + 1; });
+        const wTopId = Object.entries(wCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const wColor = ENTRY_THEMES.find(t => t.id === wTopId)?.color;
+
+        return (
+          <View key={wi} style={styles.calWeekRow}>
+            <View style={[styles.calWeekBar, { backgroundColor: wColor ? wColor + '66' : 'transparent' }]} />
+            {week.map((day, di) => {
+              if (day === null) return <View key={di} style={styles.calCell} />;
+              const dateKey = `${monthPrefix}-${pad(day)}`;
+              const info = dayMap[dateKey];
+              const isToday = dateKey === todayKey;
+              const isSelected = dateKey === selectedDate;
+
+              return (
+                <Pressable
+                  key={di}
+                  style={styles.calCell}
+                  onPress={() => info ? onDayPress(isSelected ? null : dateKey) : null}
+                  disabled={!info}>
+                  <View style={[
+                    styles.calDayCircle,
+                    isSelected && { backgroundColor: THEME.accent },
+                    !isSelected && info && { backgroundColor: info.color + '66' },
+                    isToday && !isSelected && { borderWidth: 1.5, borderColor: THEME.accent },
+                  ]}>
+                    <Text style={[
+                      styles.calDayNum,
+                      { color: isSelected ? THEME.cardDarkInk : info ? THEME.ink : THEME.muted + '99' },
+                      isToday && !isSelected && { color: THEME.accent, fontFamily: FONTS.bodySemi },
+                    ]}>
+                      {day}
+                    </Text>
+                  </View>
+                  {info && !isSelected && (
+                    <View style={styles.calDots}>
+                      {[...new Set(info.themes)].slice(0, 3).map((tid, i) => (
+                        <View key={i} style={[styles.calDot, {
+                          backgroundColor: ENTRY_THEMES.find(t => t.id === tid)?.color ?? THEME.accent,
+                        }]} />
+                      ))}
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        );
+      })}
+
+      {/* Legend — only shows categories present this month */}
+      {monthThemes.length > 0 && (
+        <View style={[styles.calLegend, { borderTopColor: THEME.line }]}>
+          {monthThemes.map(t => (
+            <View key={t.id} style={styles.calLegendItem}>
+              <View style={[styles.calLegendDot, { backgroundColor: t.color }]} />
+              <Text style={[styles.calLegendText, { color: THEME.muted }]}>{t.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {monthThemes.length === 0 && (
+        <Text style={[styles.calEmptyMonth, { color: THEME.muted }]}>No entries this month</Text>
+      )}
+    </View>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BiographyScreen() {
   const fontsLoaded = useSaintFonts();
@@ -457,6 +632,12 @@ export default function BiographyScreen() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTheme, setActiveTheme] = useState('all');
+  const [journalView, setJournalView] = useState<'list' | 'calendar'>('list');
+  const [calMonth, setCalMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [bibleVersion, setBibleVersion] = useState<BibleVersion>('KJV');
 
   useFocusEffect(useCallback(() => {
@@ -494,9 +675,10 @@ export default function BiographyScreen() {
   const allEntries = entries;
 
   const filtered = useMemo(() => {
+    if (selectedDate) return allEntries.filter(e => e.createdAt?.slice(0, 10) === selectedDate);
     if (activeTheme === 'all') return allEntries;
     return allEntries.filter(e => e.theme === activeTheme);
-  }, [activeTheme, allEntries]);
+  }, [activeTheme, allEntries, selectedDate]);
 
   const handleSave = async (data: {
     title: string; body: string; theme: string; verseRef: string;
@@ -547,7 +729,7 @@ export default function BiographyScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
 
-        {/* Back button */}
+        {/* Brand / nav row */}
         <View style={styles.brandRow}>
           <Pressable onPress={() => router.back()} style={[styles.backBtn, {
             backgroundColor: THEME.surface,
@@ -555,6 +737,9 @@ export default function BiographyScreen() {
           }]}>
             <Text style={[styles.backBtnText, { color: THEME.ink }]}>‹</Text>
           </Pressable>
+          <Text style={[styles.brandText, { color: THEME.ink }]}>
+            Saint <Text style={{ fontFamily: FONTS.body }}>Central</Text>
+          </Text>
           <View style={{ width: 38 }} />
         </View>
 
@@ -583,28 +768,62 @@ export default function BiographyScreen() {
           <View>
             <Text style={[styles.sectionTitle, { color: THEME.ink }]}>Your journal</Text>
             <Text style={[styles.sectionSubtitle, { color: THEME.muted }]}>
-              Prayer reflections + your own entries
+              {selectedDate
+                ? (() => { const d = new Date(selectedDate + 'T12:00:00'); return `${CAL_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; })()
+                : 'Prayer reflections + your own entries'}
             </Text>
           </View>
-          <Text style={[styles.sectionCount, { color: THEME.muted }]}>
-            {filtered.length} / {allEntries.length}
-          </Text>
+          <View style={styles.viewToggle}>
+            <Pressable
+              onPress={() => { setJournalView('list'); setSelectedDate(null); }}
+              style={[styles.viewToggleBtn, {
+                backgroundColor: journalView === 'list' ? THEME.accent : 'transparent',
+                borderColor: journalView === 'list' ? THEME.accent : THEME.line,
+              }]}>
+              <Text style={[styles.viewToggleText, {
+                color: journalView === 'list' ? THEME.cardDarkInk : THEME.muted,
+              }]}>List</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setJournalView('calendar')}
+              style={[styles.viewToggleBtn, {
+                backgroundColor: journalView === 'calendar' ? THEME.accent : 'transparent',
+                borderColor: journalView === 'calendar' ? THEME.accent : THEME.line,
+              }]}>
+              <Text style={[styles.viewToggleText, {
+                color: journalView === 'calendar' ? THEME.cardDarkInk : THEME.muted,
+              }]}>Calendar</Text>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}>
-          <FilterChip active={activeTheme === 'all'} onPress={() => setActiveTheme('all')}>All</FilterChip>
-          {ENTRY_THEMES.map(t => (
-            <FilterChip key={t.id} active={activeTheme === t.id} glyph={t.glyph}
-              onPress={() => setActiveTheme(t.id)}>{t.label}</FilterChip>
-          ))}
-        </ScrollView>
+        {/* Calendar */}
+        {journalView === 'calendar' && (
+          <CalendarView
+            entries={allEntries}
+            calMonth={calMonth}
+            setCalMonth={setCalMonth}
+            selectedDate={selectedDate}
+            onDayPress={setSelectedDate}
+          />
+        )}
+
+        {/* Filter chips — only in list mode */}
+        {journalView === 'list' && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}>
+            <FilterChip active={activeTheme === 'all'} onPress={() => setActiveTheme('all')}>All</FilterChip>
+            {ENTRY_THEMES.map(t => (
+              <FilterChip key={t.id} active={activeTheme === t.id} glyph={t.glyph}
+                onPress={() => setActiveTheme(t.id)}>{t.label}</FilterChip>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Entry list */}
-        <View style={{ paddingHorizontal: 22 }}>
+        <View style={{ paddingHorizontal: 22, marginTop: journalView === 'calendar' ? 14 : 0 }}>
           {loading ? (
             <View style={{ paddingVertical: 48, alignItems: 'center' }}>
               <ActivityIndicator color={THEME.accent} />
@@ -619,6 +838,8 @@ export default function BiographyScreen() {
                 <Text style={[styles.emptyState, { color: THEME.muted }]}>
                   {allEntries.length === 0
                     ? 'Your journal is empty.\nShare a prayer or write your first entry.'
+                    : selectedDate
+                    ? 'No entries on this day.'
                     : 'No entries in this category yet.'}
                 </Text>
               )}
@@ -668,6 +889,11 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     fontFamily: FONTS.body,
     marginTop: -2,
+  },
+  brandText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 13,
+    letterSpacing: -0.2,
   },
   // Hero
   heroRow: {
@@ -766,7 +992,7 @@ const styles = StyleSheet.create({
   // Section header
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 22,
     paddingTop: 24,
@@ -775,6 +1001,116 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: FONTS.display, fontSize: 26, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 },
   sectionCount: { fontFamily: FONTS.body, fontSize: 12 },
+
+  // View toggle
+  viewToggle: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  viewToggleBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 13,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
+  viewToggleText: { fontFamily: FONTS.bodySemi, fontSize: 12 },
+
+  // Calendar
+  calWrap: {
+    marginHorizontal: 22,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  calNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  calNavBtn: {
+    width: 34, height: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calNavArrow: { fontSize: 20, lineHeight: 24, fontFamily: FONTS.body },
+  calMonthLabel: { fontFamily: FONTS.display, fontSize: 20, letterSpacing: -0.4 },
+  calDayLabels: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+  },
+  calDayLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: FONTS.bodySemi,
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+  },
+  calWeekRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    marginBottom: 2,
+    position: 'relative',
+  },
+  calWeekBar: {
+    position: 'absolute',
+    left: 4,
+    top: 6,
+    bottom: 6,
+    width: 3,
+    borderRadius: 2,
+  },
+  calCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 3,
+    gap: 3,
+  },
+  calDayCircle: {
+    width: 34, height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calDayNum: { fontFamily: FONTS.bodyMed, fontSize: 13.5 },
+  calDots: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  calDot: {
+    width: 4, height: 4,
+    borderRadius: 2,
+  },
+  calLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 8,
+  },
+  calLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  calLegendDot: { width: 7, height: 7, borderRadius: 3.5 },
+  calLegendText: { fontFamily: FONTS.body, fontSize: 10.5 },
+  calEmptyMonth: {
+    textAlign: 'center',
+    paddingVertical: 20,
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 13,
+  },
+
 
   // Filter chips
   chipsRow: {
