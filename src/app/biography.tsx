@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -266,9 +267,10 @@ function EntryCard({ entry, onOpen }: { entry: Entry; onOpen: (e: Entry) => void
 
 // ── Entry detail ──────────────────────────────────────────────────────────────
 function EntryDetail({
-  entry, onBack, visible, bibleVersion,
+  entry, onBack, visible, bibleVersion, onEdit, onDelete,
 }: {
   entry: Entry | null; onBack: () => void; visible: boolean; bibleVersion: BibleVersion;
+  onEdit: () => void; onDelete: () => void;
 }) {
   const { theme: THEME } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
@@ -311,7 +313,20 @@ function EntryDetail({
             <Text style={[styles.detailNavBtnText, { color: THEME.ink }]}>‹</Text>
           </Pressable>
           <Text style={[styles.detailNavDate, { color: THEME.muted }]}>{entry.date.toUpperCase()}</Text>
-          <View style={[styles.detailNavBtn, { opacity: 0 }]} />
+          <Pressable
+            onPress={() => Alert.alert('', '', [
+              { text: 'Edit entry', onPress: onEdit },
+              { text: 'Delete entry', style: 'destructive', onPress: () =>
+                Alert.alert('Delete this entry?', 'This cannot be undone.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: onDelete },
+                ])
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ])}
+            style={[styles.detailNavBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+            <Text style={[styles.detailNavBtnText, { color: THEME.ink, fontSize: 18 }]}>⋯</Text>
+          </Pressable>
         </View>
 
         <View style={{ paddingHorizontal: 26 }}>
@@ -613,12 +628,13 @@ function VersePicker({ version, onConfirm, onClose }: {
 
 // ── New entry composer ────────────────────────────────────────────────────────
 function NewEntryComposer({
-  visible, onClose, onSave, bibleVersion,
+  visible, onClose, onSave, bibleVersion, editEntry,
 }: {
   visible: boolean;
   onClose: () => void;
-  onSave: (data: { title: string; body: string; theme: string; verseRef: string }) => void;
+  onSave: (data: { title: string; body: string; theme: string; verseRef: string }, editId?: string) => void;
   bibleVersion: BibleVersion;
+  editEntry?: Entry | null;
 }) {
   const { theme: THEME } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
@@ -632,9 +648,18 @@ function NewEntryComposer({
 
   useEffect(() => {
     Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 340, useNativeDriver: true }).start();
-    if (!visible) { setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false); }
+    if (!visible) {
+      setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);
+    } else if (editEntry) {
+      setTitle(editEntry.title);
+      setBody(editEntry.body);
+      setTheme(editEntry.theme);
+      setVerseRef(editEntry.verse?.ref ?? '');
+      setVersePreviewText('');
+    }
   }, [visible]);
 
+  const isEdit = !!editEntry;
   const canSave = body.trim().length > 0;
 
   return (
@@ -648,11 +673,15 @@ function NewEntryComposer({
           <Pressable onPress={onClose}>
             <Text style={[styles.composerCancel, { color: THEME.muted }]}>Cancel</Text>
           </Pressable>
-          <Text style={[styles.composerTitle, { color: THEME.accent }]}>✥ NEW JOURNAL ENTRY</Text>
+          <Text style={[styles.composerTitle, { color: THEME.accent }]}>
+            {isEdit ? '✥ EDIT ENTRY' : '✥ NEW JOURNAL ENTRY'}
+          </Text>
           <Pressable
-            onPress={() => { if (canSave) onSave({ title, body, theme, verseRef }); }}
+            onPress={() => { if (canSave) onSave({ title, body, theme, verseRef }, editEntry?.id); }}
             style={[styles.composerSaveBtn, { backgroundColor: canSave ? THEME.accent : THEME.surface }]}>
-            <Text style={[styles.composerSaveText, { color: canSave ? THEME.cardDarkInk : THEME.muted }]}>Save</Text>
+            <Text style={[styles.composerSaveText, { color: canSave ? THEME.cardDarkInk : THEME.muted }]}>
+              {isEdit ? 'Update' : 'Save'}
+            </Text>
           </Pressable>
         </View>
 
@@ -920,7 +949,7 @@ export default function BiographyScreen() {
   const { theme: THEME } = useTheme();
   const { session, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState<'list' | 'detail' | 'new'>('list');
+  const [view, setView] = useState<'list' | 'detail' | 'new' | 'edit'>('list');
   const [openEntry, setOpenEntry] = useState<Entry | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -973,9 +1002,34 @@ export default function BiographyScreen() {
     return allEntries.filter(e => e.theme === activeTheme);
   }, [activeTheme, allEntries, selectedDate]);
 
-  const handleSave = async (data: {
-    title: string; body: string; theme: string; verseRef: string;
-  }) => {
+  const handleSave = async (
+    data: { title: string; body: string; theme: string; verseRef: string },
+    editId?: string,
+  ) => {
+    if (editId) {
+      // Update existing entry
+      const numericId = editId.replace('bio-', '');
+      const updated: Partial<Entry> = {
+        theme: data.theme,
+        title: data.title || 'Untitled entry',
+        body: data.body,
+        verse: data.verseRef ? { ref: data.verseRef, text: '' } : null,
+      };
+      setEntries(prev => prev.map(e => e.id === editId ? { ...e, ...updated } : e));
+      setOpenEntry(prev => prev?.id === editId ? { ...prev, ...updated } as Entry : prev);
+      setView('detail');
+      if (session && !isGuest) {
+        await supabase.from('biography_entries').update({
+          title: data.title || 'Untitled entry',
+          body: data.body,
+          theme: data.theme,
+          verse_ref: data.verseRef || null,
+        }).eq('id', numericId);
+      }
+      return;
+    }
+
+    // Create new entry
     const now = new Date().toISOString();
     const optimistic: Entry = {
       id: 'pending-' + Math.random().toString(36).slice(2),
@@ -1008,6 +1062,15 @@ export default function BiographyScreen() {
             : e
         ));
       }
+    }
+  };
+
+  const handleDelete = async (entryId: string) => {
+    setEntries(prev => prev.filter(e => e.id !== entryId));
+    setView('list');
+    if (session && !isGuest) {
+      const numericId = entryId.replace('bio-', '');
+      await supabase.from('biography_entries').delete().eq('id', numericId);
     }
   };
 
@@ -1150,12 +1213,15 @@ export default function BiographyScreen() {
         visible={view === 'detail'}
         onBack={() => setView('list')}
         bibleVersion={bibleVersion}
+        onEdit={() => setView('edit')}
+        onDelete={() => openEntry && handleDelete(openEntry.id)}
       />
       <NewEntryComposer
-        visible={view === 'new'}
-        onClose={() => setView('list')}
+        visible={view === 'new' || view === 'edit'}
+        onClose={() => setView(view === 'edit' ? 'detail' : 'list')}
         onSave={handleSave}
         bibleVersion={bibleVersion}
+        editEntry={view === 'edit' ? openEntry : null}
       />
     </View>
   );
