@@ -5,26 +5,35 @@ import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { type AppIconChoice, getCurrentAppIcon } from '@/lib/appIcon';
+
+const SPLASH_SOURCES: Record<AppIconChoice, number> = {
+  default: require('@/assets/images/blue-ios-loading-page.png'),
+  pink: require('@/assets/images/pink-ios-loading-page.png'),
+};
+
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
+const splashKeyframe = new Keyframe({
+  0: { opacity: 1 },
+  60: { opacity: 1 },
+  100: {
+    opacity: 0,
+    easing: Easing.out(Easing.cubic),
+  },
+});
+
 export function AnimatedSplashOverlay() {
   const [visible, setVisible] = useState(true);
+  const [iconChoice, setIconChoice] = useState<AppIconChoice | null>(null);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
+    getCurrentAppIcon().then(setIconChoice);
   }, []);
 
   if (!visible) return null;
-
-  const splashKeyframe = new Keyframe({
-    0: { opacity: 1 },
-    60: { opacity: 1 },
-    100: {
-      opacity: 0,
-      easing: Easing.out(Easing.cubic),
-    },
-  });
 
   return (
     <Animated.View
@@ -36,11 +45,13 @@ export function AnimatedSplashOverlay() {
       })}
       style={styles.splashFill}
       pointerEvents="none">
-      <Image
-        source={require('@/assets/images/blue-ios-loading-page.png')}
-        style={StyleSheet.absoluteFillObject}
-        contentFit="cover"
-      />
+      {iconChoice !== null && (
+        <Image
+          source={SPLASH_SOURCES[iconChoice]}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+        />
+      )}
     </Animated.View>
   );
 }
