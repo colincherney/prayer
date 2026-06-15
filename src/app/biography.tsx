@@ -94,22 +94,27 @@ function parseVerseRef(ref: string): { book: string; chapter: string; verse: str
   const afterColon = ref.slice(colonIdx + 1).trim().split('-')[0].trim();
   const m = beforeColon.match(/^(.*?)\s+(\d+)$/);
   if (!m) return null;
-  const book = BOOK_NAMES[m[1].trim().toLowerCase()];
-  if (!book) return null;
+  const rawBook = m[1].trim();
+  const book = BOOK_NAMES[rawBook.toLowerCase()] ?? rawBook;
   return { book, chapter: m[2], verse: afterColon };
 }
+
+const CPVD_ONLY_BOOKS = new Set([
+  'Tobit','Judith','1 Maccabees','2 Maccabees','Wisdom','Sirach','Baruch',
+]);
 
 async function fetchVerseText(ref: string, version: BibleVersion): Promise<string | null> {
   const parsed = parseVerseRef(ref);
   if (!parsed) return null;
+  const table = CPVD_ONLY_BOOKS.has(parsed.book) ? 'CPVD' : (version === 'KJV' ? 'KJV' : 'CPVD');
   const { data } = await supabase
-    .from(version === 'KJV' ? 'KJV' : 'CPVD')
+    .from(table)
     .select('text')
     .eq('book', parsed.book)
     .eq('chapter', parsed.chapter)
     .eq('verse', parsed.verse)
-    .maybeSingle();
-  return data ? (data.text as string) : null;
+    .limit(1);
+  return data?.[0]?.text ?? null;
 }
 
 function formatEntryDate(iso: string): string {
@@ -351,13 +356,269 @@ function EntryDetail({
   );
 }
 
+// ── Verse scroll-wheel picker ─────────────────────────────────────────────────
+
+const BIBLE_BOOKS_KJV = [
+  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy',
+  'Joshua','Judges','Ruth','1 Samuel','2 Samuel',
+  '1 Kings','2 Kings','1 Chronicles','2 Chronicles',
+  'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs',
+  'Ecclesiastes','Song of Solomon','Isaiah','Jeremiah',
+  'Lamentations','Ezekiel','Daniel','Hosea','Joel','Amos',
+  'Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah',
+  'Haggai','Zechariah','Malachi',
+  'Matthew','Mark','Luke','John','Acts','Romans',
+  '1 Corinthians','2 Corinthians','Galatians','Ephesians',
+  'Philippians','Colossians','1 Thessalonians','2 Thessalonians',
+  '1 Timothy','2 Timothy','Titus','Philemon','Hebrews',
+  'James','1 Peter','2 Peter','1 John','2 John','3 John',
+  'Jude','Revelation',
+];
+
+// Catholic deuterocanonical books inserted at canonical positions
+const BIBLE_BOOKS_CPVD = [
+  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy',
+  'Joshua','Judges','Ruth','1 Samuel','2 Samuel',
+  '1 Kings','2 Kings','1 Chronicles','2 Chronicles',
+  'Ezra','Nehemiah',
+  'Tobit','Judith',
+  'Esther','1 Maccabees','2 Maccabees',
+  'Job','Psalms','Proverbs','Ecclesiastes','Song of Solomon',
+  'Wisdom','Sirach',
+  'Isaiah','Jeremiah','Lamentations','Baruch',
+  'Ezekiel','Daniel','Hosea','Joel','Amos',
+  'Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah',
+  'Haggai','Zechariah','Malachi',
+  'Matthew','Mark','Luke','John','Acts','Romans',
+  '1 Corinthians','2 Corinthians','Galatians','Ephesians',
+  'Philippians','Colossians','1 Thessalonians','2 Thessalonians',
+  '1 Timothy','2 Timothy','Titus','Philemon','Hebrews',
+  'James','1 Peter','2 Peter','1 John','2 John','3 John',
+  'Jude','Revelation',
+];
+
+const WHEEL_ITEM_H = 46;
+const WHEEL_VISIBLE = 5;
+const WHEEL_H = WHEEL_ITEM_H * WHEEL_VISIBLE;
+
+function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
+  items: string[]; selectedIdx: number;
+  onSelect: (i: number) => void; flex?: number;
+}) {
+  const { theme: THEME } = useTheme();
+  const scrollY = useRef(new Animated.Value(selectedIdx * WHEEL_ITEM_H)).current;
+  const ref = useRef<any>(null);
+  const isScrolling = useRef(false);
+
+  useEffect(() => {
+    if (!isScrolling.current) {
+      ref.current?.scrollTo({ y: selectedIdx * WHEEL_ITEM_H, animated: false });
+      scrollY.setValue(selectedIdx * WHEEL_ITEM_H);
+    }
+  }, [selectedIdx, items.length]);
+
+  return (
+    <View style={{ flex, height: WHEEL_H, overflow: 'hidden' }}>
+      <Animated.ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={WHEEL_ITEM_H}
+        decelerationRate={0.985}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
+        onScrollBeginDrag={() => { isScrolling.current = true; }}
+        onMomentumScrollEnd={e => {
+          isScrolling.current = false;
+          const idx = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H), items.length - 1));
+          onSelect(idx);
+        }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}>
+        {items.map((item, i) => {
+          const center = i * WHEEL_ITEM_H;
+          const band = WHEEL_ITEM_H;
+          const opacity = scrollY.interpolate({
+            inputRange: [center - band * 2, center - band, center, center + band, center + band * 2],
+            outputRange: [0.12, 0.4, 1, 0.4, 0.12],
+            extrapolate: 'clamp',
+          });
+          const scale = scrollY.interpolate({
+            inputRange: [center - band * 2, center - band, center, center + band, center + band * 2],
+            outputRange: [0.8, 0.9, 1, 0.9, 0.8],
+            extrapolate: 'clamp',
+          });
+          return (
+            <Pressable
+              key={i}
+              onPress={() => { onSelect(i); ref.current?.scrollTo({ y: i * WHEEL_ITEM_H, animated: true }); }}
+              style={{ height: WHEEL_ITEM_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+              <Animated.Text
+                numberOfLines={1}
+                style={{
+                  fontFamily: FONTS.bodyMed,
+                  fontSize: 14,
+                  color: THEME.ink,
+                  opacity,
+                  transform: [{ scale }],
+                  textAlign: 'center',
+                }}>
+                {item}
+              </Animated.Text>
+            </Pressable>
+          );
+        })}
+      </Animated.ScrollView>
+
+      {/* Selection lines */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { justifyContent: 'center' }]}>
+        <View style={{ height: WHEEL_ITEM_H, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: THEME.accent + '99' }} />
+      </View>
+      {/* Fade top */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, backgroundColor: THEME.bg, opacity: 0.82 }} />
+      {/* Fade bottom */}
+      <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, backgroundColor: THEME.bg, opacity: 0.82 }} />
+    </View>
+  );
+}
+
+function VersePicker({ version, onConfirm, onClose }: {
+  version: BibleVersion;
+  onConfirm: (ref: string, text: string) => void;
+  onClose: () => void;
+}) {
+  const { theme: THEME } = useTheme();
+  const insets = useSafeAreaInsets();
+  const table = version === 'KJV' ? 'KJV' : 'CPVD';
+  const BOOKS = version === 'KJV' ? BIBLE_BOOKS_KJV : BIBLE_BOOKS_CPVD;
+
+  const [bookIdx, setBookIdx] = useState(0);
+  const [chapters, setChapters] = useState<string[]>([]);
+  const [chapterIdx, setChapterIdx] = useState(0);
+  const [verseNums, setVerseNums] = useState<string[]>([]);
+  const [verseIdx, setVerseIdx] = useState(0);
+  const [previewText, setPreviewText] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Load chapters when book changes
+  useEffect(() => {
+    setChapters([]); setChapterIdx(0); setVerseNums([]); setVerseIdx(0); setPreviewText('');
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from(table).select('chapter')
+        .eq('book', BOOKS[bookIdx]);
+      if (cancelled || !data) return;
+      const unique = [...new Set(data.map((r: any) => String(r.chapter)))];
+      unique.sort((a, b) => parseInt(a) - parseInt(b));
+      setChapters(unique);
+    })();
+    return () => { cancelled = true; };
+  }, [bookIdx, table]);
+
+  // Load verses when chapter changes
+  useEffect(() => {
+    setVerseNums([]); setVerseIdx(0); setPreviewText('');
+    if (!chapters.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from(table).select('verse')
+        .eq('book', BOOKS[bookIdx]).eq('chapter', chapters[chapterIdx]);
+      if (cancelled || !data) return;
+      const unique = [...new Set(data.map((r: any) => String(r.verse)))];
+      unique.sort((a, b) => parseInt(a) - parseInt(b));
+      setVerseNums(unique);
+    })();
+    return () => { cancelled = true; };
+  }, [chapterIdx, chapters, bookIdx, table]);
+
+  // Fetch preview text when verse changes
+  useEffect(() => {
+    if (!verseNums.length || !chapters.length) return;
+    let cancelled = false;
+    setPreviewText('');
+    setPreviewLoading(true);
+    (async () => {
+      const { data } = await supabase.from(table).select('text')
+        .eq('book', BOOKS[bookIdx])
+        .eq('chapter', chapters[chapterIdx])
+        .eq('verse', verseNums[verseIdx])
+        .limit(1);
+      if (cancelled) return;
+      setPreviewText(data?.[0]?.text ?? '');
+      setPreviewLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [verseIdx, verseNums, chapterIdx, chapters, bookIdx, table]);
+
+  const verseRef = chapters.length && verseNums.length
+    ? `${BOOKS[bookIdx]} ${chapters[chapterIdx]}:${verseNums[verseIdx]}`
+    : '';
+
+  return (
+    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: THEME.bg, zIndex: 30 }]}>
+      {/* Header */}
+      <View style={[styles.vpHeader, { paddingTop: insets.top + 14, borderBottomColor: THEME.line }]}>
+        <Pressable onPress={onClose} style={{ padding: 6 }}>
+          <Text style={[styles.vpCancel, { color: THEME.muted }]}>Cancel</Text>
+        </Pressable>
+        <Text style={[styles.vpTitle, { color: THEME.accent }]}>✥ PICK A VERSE</Text>
+        <Pressable
+          onPress={() => verseRef && previewText && onConfirm(verseRef, previewText)}
+          disabled={!verseRef || !previewText}
+          style={{ padding: 6 }}>
+          <Text style={[styles.vpDone, { color: verseRef && previewText ? THEME.accent : THEME.muted }]}>Done</Text>
+        </Pressable>
+      </View>
+
+      {/* Three wheels */}
+      <View style={[styles.vpWheels, { borderTopColor: THEME.line, borderBottomColor: THEME.line }]}>
+        <WheelColumn flex={3} items={BOOKS} selectedIdx={bookIdx} onSelect={setBookIdx} />
+        <View style={[styles.vpDivider, { backgroundColor: THEME.line }]} />
+        <WheelColumn flex={2} items={chapters.length ? chapters : ['…']} selectedIdx={chapterIdx} onSelect={setChapterIdx} />
+        <View style={[styles.vpDivider, { backgroundColor: THEME.line }]} />
+        <WheelColumn flex={2} items={verseNums.length ? verseNums : ['…']} selectedIdx={verseIdx} onSelect={setVerseIdx} />
+      </View>
+
+      {/* Column labels */}
+      <View style={styles.vpLabels}>
+        <Text style={[styles.vpLabel, { color: THEME.muted, flex: 3 }]}>Book</Text>
+        <View style={{ flex: 2 }}>
+          <Text style={[styles.vpLabel, { color: THEME.muted }]}>Chapter</Text>
+        </View>
+        <View style={{ flex: 2 }}>
+          <Text style={[styles.vpLabel, { color: THEME.muted }]}>Verse</Text>
+        </View>
+      </View>
+
+      {/* Preview */}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 28, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}>
+        {verseRef ? (
+          <Text style={[styles.vpRef, { color: THEME.accent }]}>{verseRef}</Text>
+        ) : null}
+        {previewLoading ? (
+          <ActivityIndicator color={THEME.accent} style={{ marginTop: 16 }} />
+        ) : previewText ? (
+          <Text style={[styles.vpPreview, { color: THEME.ink }]}>"{previewText}"</Text>
+        ) : (
+          <Text style={[styles.vpPreview, { color: THEME.muted, fontStyle: 'italic' }]}>
+            Scroll to a verse to preview it here.
+          </Text>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ── New entry composer ────────────────────────────────────────────────────────
 function NewEntryComposer({
-  visible, onClose, onSave,
+  visible, onClose, onSave, bibleVersion,
 }: {
   visible: boolean;
   onClose: () => void;
   onSave: (data: { title: string; body: string; theme: string; verseRef: string }) => void;
+  bibleVersion: BibleVersion;
 }) {
   const { theme: THEME } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
@@ -366,10 +627,12 @@ function NewEntryComposer({
   const [body, setBody] = useState('');
   const [theme, setTheme] = useState('gratitude');
   const [verseRef, setVerseRef] = useState('');
+  const [versePreviewText, setVersePreviewText] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 340, useNativeDriver: true }).start();
-    if (!visible) { setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); }
+    if (!visible) { setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false); }
   }, [visible]);
 
   const canSave = body.trim().length > 0;
@@ -427,21 +690,51 @@ function NewEntryComposer({
           />
 
           <Text style={[styles.composerLabel, { color: THEME.muted }]}>VERSE (OPTIONAL)</Text>
-          <View style={[styles.composerVerseRow, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
-            <Text style={{ color: THEME.accent, fontSize: 14 }}>✥</Text>
-            <TextInput
-              value={verseRef} onChangeText={setVerseRef}
-              placeholder="e.g. Psalm 46:10"
-              placeholderTextColor={THEME.muted}
-              style={[styles.composerVerseInput, { color: THEME.ink }]}
-            />
-          </View>
+          <Pressable
+            onPress={() => setPickerOpen(true)}
+            style={[styles.composerVersePick, {
+              backgroundColor: THEME.surface,
+              borderColor: verseRef ? THEME.accent + '77' : THEME.line,
+            }]}>
+            <Text style={{ color: THEME.accent, fontSize: 16 }}>✥</Text>
+            {verseRef ? (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.composerVerseRef, { color: THEME.accent }]}>{verseRef}</Text>
+                {versePreviewText ? (
+                  <Text style={[styles.composerVersePreview, { color: THEME.inkSoft }]} numberOfLines={2}>
+                    "{versePreviewText}"
+                  </Text>
+                ) : null}
+              </View>
+            ) : (
+              <Text style={[styles.composerVersePlaceholder, { color: THEME.muted }]}>
+                Pick a verse from scripture
+              </Text>
+            )}
+            {verseRef ? (
+              <Pressable onPress={(e) => { e.stopPropagation(); setVerseRef(''); setVersePreviewText(''); }}
+                hitSlop={10}>
+                <Text style={{ color: THEME.muted, fontSize: 15, paddingLeft: 8 }}>✕</Text>
+              </Pressable>
+            ) : (
+              <Text style={{ color: THEME.muted, fontSize: 18 }}>›</Text>
+            )}
+          </Pressable>
 
           <Text style={[styles.composerQuote, { color: THEME.muted }]}>
             "Write the vision; make it plain on tablets." — Habakkuk 2:2
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Verse picker overlay */}
+      {pickerOpen && (
+        <VersePicker
+          version={bibleVersion}
+          onConfirm={(ref, text) => { setVerseRef(ref); setVersePreviewText(text); setPickerOpen(false); }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -862,6 +1155,7 @@ export default function BiographyScreen() {
         visible={view === 'new'}
         onClose={() => setView('list')}
         onSave={handleSave}
+        bibleVersion={bibleVersion}
       />
     </View>
   );
@@ -1292,21 +1586,47 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 18,
   },
-  composerVerseRow: {
+  composerVersePick: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 12,
+    gap: 12,
+    padding: 14,
     marginBottom: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
+    borderWidth: 1,
+    borderRadius: 16,
   },
-  composerVerseInput: {
-    flex: 1,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
-    fontSize: 16,
+  composerVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 13, marginBottom: 4 },
+  composerVersePreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, lineHeight: 18 },
+  composerVersePlaceholder: { flex: 1, fontFamily: FONTS.body, fontSize: 14 },
+
+  // Verse picker
+  vpHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  vpCancel: { fontFamily: FONTS.body, fontSize: 14 },
+  vpTitle: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1.8 },
+  vpDone: { fontFamily: FONTS.bodySemi, fontSize: 14 },
+  vpWheels: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 8,
+  },
+  vpDivider: { width: StyleSheet.hairlineWidth, marginVertical: 8 },
+  vpLabels: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  vpLabel: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1, textAlign: 'center' },
+  vpRef: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: -0.3, marginBottom: 14 },
+  vpPreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 18, lineHeight: 28 },
   composerQuote: {
     textAlign: 'center',
     fontFamily: FONTS.displayItalic,
