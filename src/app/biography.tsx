@@ -6,7 +6,6 @@ import {
   Pressable,
   TextInput,
   StyleSheet,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -14,6 +13,15 @@ import {
   Alert,
   Keyboard,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  withTiming,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolate,
+  SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import Svg, {
@@ -274,13 +282,18 @@ function EntryDetail({
   onEdit: () => void; onDelete: () => void;
 }) {
   const { theme: THEME } = useTheme();
-  const anim = useRef(new Animated.Value(0)).current;
+  const anim = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const [fetchedVerseText, setFetchedVerseText] = useState<string | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
 
+  const detailAnimStyle = useAnimatedStyle(() => ({
+    opacity: anim.value,
+    transform: [{ translateY: interpolate(anim.value, [0, 1], [40, 0], Extrapolate.CLAMP) }],
+  }));
+
   useEffect(() => {
-    Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 280, useNativeDriver: true }).start();
+    anim.value = withTiming(visible ? 1 : 0, { duration: 280 });
   }, [visible]);
 
   useEffect(() => {
@@ -301,10 +314,8 @@ function EntryDetail({
   return (
     <Animated.View style={[StyleSheet.absoluteFillObject, {
       backgroundColor: THEME.bg,
-      opacity: anim,
-      transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
       zIndex: 10,
-    }]}>
+    }, detailAnimStyle]}>
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}>
@@ -417,21 +428,62 @@ const WHEEL_ITEM_H = 46;
 const WHEEL_VISIBLE = 5;
 const WHEEL_H = WHEEL_ITEM_H * WHEEL_VISIBLE;
 
+function WheelItem({ item, index, scrollY, onPress }: {
+  item: string; index: number;
+  scrollY: SharedValue<number>; onPress: () => void;
+}) {
+  const { theme: THEME } = useTheme();
+  const center = index * WHEEL_ITEM_H;
+  const band = WHEEL_ITEM_H;
+
+  const animStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [center - band * 2, center - band, center, center + band, center + band * 2],
+      [0.12, 0.4, 1, 0.4, 0.12],
+      Extrapolate.CLAMP,
+    );
+    const scale = interpolate(
+      scrollY.value,
+      [center - band * 2, center - band, center, center + band, center + band * 2],
+      [0.8, 0.9, 1, 0.9, 0.8],
+      Extrapolate.CLAMP,
+    );
+    return { opacity, transform: [{ scale }] };
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ height: WHEEL_ITEM_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+      <Animated.Text
+        numberOfLines={1}
+        style={[{ fontFamily: FONTS.bodyMed, fontSize: 14, color: THEME.ink, textAlign: 'center' }, animStyle]}>
+        {item}
+      </Animated.Text>
+    </Pressable>
+  );
+}
+
 function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
   items: string[]; selectedIdx: number;
   onSelect: (i: number) => void; flex?: number;
 }) {
   const { theme: THEME } = useTheme();
-  const scrollY = useRef(new Animated.Value(selectedIdx * WHEEL_ITEM_H)).current;
+  const scrollY = useSharedValue(selectedIdx * WHEEL_ITEM_H);
   const ref = useRef<any>(null);
   const isScrolling = useRef(false);
 
   useEffect(() => {
     if (!isScrolling.current) {
       ref.current?.scrollTo({ y: selectedIdx * WHEEL_ITEM_H, animated: false });
-      scrollY.setValue(selectedIdx * WHEEL_ITEM_H);
+      scrollY.value = selectedIdx * WHEEL_ITEM_H;
     }
   }, [selectedIdx, items.length]);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   return (
     <View style={{ flex, height: WHEEL_H, overflow: 'hidden' }}>
@@ -448,43 +500,16 @@ function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
           const idx = Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H), items.length - 1));
           onSelect(idx);
         }}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}>
-        {items.map((item, i) => {
-          const center = i * WHEEL_ITEM_H;
-          const band = WHEEL_ITEM_H;
-          const opacity = scrollY.interpolate({
-            inputRange: [center - band * 2, center - band, center, center + band, center + band * 2],
-            outputRange: [0.12, 0.4, 1, 0.4, 0.12],
-            extrapolate: 'clamp',
-          });
-          const scale = scrollY.interpolate({
-            inputRange: [center - band * 2, center - band, center, center + band, center + band * 2],
-            outputRange: [0.8, 0.9, 1, 0.9, 0.8],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Pressable
-              key={i}
-              onPress={() => { onSelect(i); ref.current?.scrollTo({ y: i * WHEEL_ITEM_H, animated: true }); }}
-              style={{ height: WHEEL_ITEM_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-              <Animated.Text
-                numberOfLines={1}
-                style={{
-                  fontFamily: FONTS.bodyMed,
-                  fontSize: 14,
-                  color: THEME.ink,
-                  opacity,
-                  transform: [{ scale }],
-                  textAlign: 'center',
-                }}>
-                {item}
-              </Animated.Text>
-            </Pressable>
-          );
-        })}
+        onScroll={scrollHandler}>
+        {items.map((item, i) => (
+          <WheelItem
+            key={i}
+            item={item}
+            index={i}
+            scrollY={scrollY}
+            onPress={() => { onSelect(i); ref.current?.scrollTo({ y: i * WHEEL_ITEM_H, animated: true }); }}
+          />
+        ))}
       </Animated.ScrollView>
 
       {/* Selection lines */}
@@ -638,7 +663,7 @@ function NewEntryComposer({
   editEntry?: Entry | null;
 }) {
   const { theme: THEME } = useTheme();
-  const anim = useRef(new Animated.Value(0)).current;
+  const anim = useSharedValue(0);
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -647,8 +672,12 @@ function NewEntryComposer({
   const [versePreviewText, setVersePreviewText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const composerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(anim.value, [0, 1], [800, 0], Extrapolate.CLAMP) }],
+  }));
+
   useEffect(() => {
-    Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 340, useNativeDriver: true }).start();
+    anim.value = withTiming(visible ? 1 : 0, { duration: 340 });
     if (!visible) {
       Keyboard.dismiss();
       setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);
@@ -668,8 +697,7 @@ function NewEntryComposer({
     <Animated.View style={[StyleSheet.absoluteFillObject, {
       backgroundColor: THEME.bg,
       zIndex: 20,
-      transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }],
-    }]}>
+    }, composerAnimStyle]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.composerHeader, { paddingTop: insets.top + 16, borderBottomColor: THEME.line }]}>
           <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }}>
