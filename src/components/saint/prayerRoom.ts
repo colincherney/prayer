@@ -152,7 +152,7 @@ const PrayerRoomContext = createContext<PrayerRoomCtx>({
 export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [name, setName] = useState<PrayerRoomName>('lamp');
+  const [name, setName] = useState<PrayerRoomName>('stars');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
