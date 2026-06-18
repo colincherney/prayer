@@ -44,16 +44,20 @@ const APP_ICONS: { key: AppIconChoice; label: string; image: number }[] = [
 
 const ThemePicker: React.FC = () => {
   const { name, setTheme } = useTheme();
+  const { name: roomName, setRoom } = usePrayerRoom();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.themeRow}>
       {THEME_ORDER.map(key => {
         const t = THEMES[key];
-        const active = key === name;
+        const active = roomName === 'none' && key === name;
         return (
           <Pressable
             key={key}
-            onPress={() => setTheme(key as ThemeName)}
+            onPress={() => {
+              setTheme(key as ThemeName);
+              setRoom('none');
+            }}
             style={[
               styles.themeSwatch,
               { borderColor: active ? t.accent : t.line, backgroundColor: t.bg },
@@ -676,7 +680,6 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     height: 3,
     borderRadius: 2,
   },
-
   iconRow: {
     flexDirection: 'row',
     gap: 10,

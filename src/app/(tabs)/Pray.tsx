@@ -14,6 +14,7 @@ import { ScreenHeader } from '@/components/saint/Common';
 import { HeartIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { usePrayerRoom } from '@/components/saint/prayerRoom';
 
 type CardProps = {
   variant?: 'dark' | 'light' | 'accent';
@@ -71,15 +72,17 @@ export default function PrayLauncherScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { palette: ROOM } = usePrayerRoom();
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle={ROOM.statusBar} backgroundColor={THEME.bg} />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="How will you pray?"
           subtitle="Choose where your heart is right now."
+          theme={THEME}
         />
         <View style={styles.cards}>
           <LauncherCard

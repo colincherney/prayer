@@ -204,6 +204,7 @@ const IntentPhase: React.FC<{
         title="Pray Right Now"
         subtitle="You'll be paired with one anonymous soul."
         onBack={() => router.back()}
+        theme={THEME}
       />
       <View style={{ paddingHorizontal: 22 }}>
         <View style={styles.howCard}>
