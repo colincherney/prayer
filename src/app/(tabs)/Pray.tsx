@@ -82,6 +82,7 @@ export default function PrayLauncherScreen() {
         <ScreenHeader
           title="How will you pray?"
           subtitle="Choose where your heart is right now."
+          theme={THEME}
         />
         <View style={styles.cards}>
           <LauncherCard

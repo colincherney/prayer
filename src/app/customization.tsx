@@ -44,16 +44,20 @@ const APP_ICONS: { key: AppIconChoice; label: string; image: number }[] = [
 
 const ThemePicker: React.FC = () => {
   const { name, setTheme } = useTheme();
+  const { name: roomName, setRoom } = usePrayerRoom();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.themeRow}>
       {THEME_ORDER.map(key => {
         const t = THEMES[key];
-        const active = key === name;
+        const active = roomName === 'none' && key === name;
         return (
           <Pressable
             key={key}
-            onPress={() => setTheme(key as ThemeName)}
+            onPress={() => {
+              setTheme(key as ThemeName);
+              setRoom('none');
+            }}
             style={[
               styles.themeSwatch,
               { borderColor: active ? t.accent : t.line, backgroundColor: t.bg },
@@ -396,47 +400,31 @@ const PrayerRoomPicker: React.FC = () => {
   const { name, setRoom } = usePrayerRoom();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const noneActive = name === 'none';
   return (
-    <View style={{ gap: 10 }}>
-      <View style={styles.roomRow}>
-        {PRAYER_ROOM_ORDER.map(key => {
-          const active = key === name;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => setRoom(key)}
-              style={[
-                styles.roomSwatch,
-                {
-                  borderColor: active ? THEME.accent : THEME.line,
-                  backgroundColor: THEME.surface,
-                },
-              ]}>
-              <PrayerRoomPreview room={key} />
-              <Text style={[styles.roomName, { color: THEME.ink }]}>
-                {PRAYER_ROOM_LABELS[key]}
-              </Text>
-              {active ? (
-                <View style={[styles.roomCheck, { backgroundColor: THEME.accent }]} />
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
-      <Pressable
-        onPress={() => setRoom('none')}
-        style={[
-          styles.roomNone,
-          {
-            borderColor: noneActive ? THEME.accent : THEME.line,
-            backgroundColor: THEME.surface,
-          },
-        ]}>
-        <Text style={[styles.roomNoneLabel, { color: noneActive ? THEME.accent : THEME.muted }]}>
-          {noneActive ? '✓ ' : ''}Use app theme only
-        </Text>
-      </Pressable>
+    <View style={styles.roomRow}>
+      {PRAYER_ROOM_ORDER.map(key => {
+        const active = key === name;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => setRoom(key)}
+            style={[
+              styles.roomSwatch,
+              {
+                borderColor: active ? THEME.accent : THEME.line,
+                backgroundColor: THEME.surface,
+              },
+            ]}>
+            <PrayerRoomPreview room={key} />
+            <Text style={[styles.roomName, { color: THEME.ink }]}>
+              {PRAYER_ROOM_LABELS[key]}
+            </Text>
+            {active ? (
+              <View style={[styles.roomCheck, { backgroundColor: THEME.accent }]} />
+            ) : null}
+          </Pressable>
+        );
+      })}
     </View>
   );
 };
@@ -692,19 +680,6 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     height: 3,
     borderRadius: 2,
   },
-  roomNone: {
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1.5,
-    alignItems: 'center',
-  },
-  roomNoneLabel: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.4,
-  },
-
   iconRow: {
     flexDirection: 'row',
     gap: 10,
