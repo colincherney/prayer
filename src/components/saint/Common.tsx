@@ -219,7 +219,7 @@ export const ScreenHeader: React.FC<{
           fontFamily: FONTS.displayItalic,
           fontStyle: 'italic',
           fontSize: 13,
-          color: theme.muted,
+          color: theme.inkSoft,
         }}>
         {subtitle}
       </Text>
@@ -256,7 +256,7 @@ export const PrimaryButton: React.FC<{
   bg?: string;
   fg?: string;
   style?: StyleProp<ViewStyle>;
-}> = ({ label, onPress, disabled, rightIcon, bg, fg = '#FFF', style }) => (
+}> = ({ label, onPress, disabled, rightIcon, bg, fg = THEME.accentInk, style }) => (
   <Pressable
     onPress={disabled ? undefined : onPress}
     style={[

@@ -12,7 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/saint/Common';
 import { HeartIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
-import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
+import {
+  FONTS,
+  relativeLuminance,
+  Theme,
+  useTheme,
+  useThemedStyles,
+} from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 type CardProps = {
@@ -31,13 +37,24 @@ const LauncherCard: React.FC<CardProps> = ({ variant = 'light', icon, eyebrow, t
   const dark = variant === 'dark';
   const accent = variant === 'accent';
   const bg = accent ? THEME.accent : dark ? THEME.cardDark : THEME.surface;
-  const fg = dark || accent ? THEME.cardDarkInk : THEME.ink;
-  const fgSoft = dark || accent ? 'rgba(255,255,255,0.78)' : THEME.inkSoft;
-  const fgMuted = dark || accent ? 'rgba(255,255,255,0.5)' : THEME.muted;
+  // accentInk adapts to whether THEME.accent is pale or saturated, so text
+  // never lands the same light-on-light (or dark-on-dark) pairing as its card.
+  const accentTextIsDark = accent && relativeLuminance(THEME.accentInk) < 0.5;
+  const fg = dark ? THEME.cardDarkInk : accent ? THEME.accentInk : THEME.ink;
+  const fgSoft = dark
+    ? 'rgba(255,255,255,0.78)'
+    : accent
+      ? accentTextIsDark ? 'rgba(31,42,58,0.75)' : 'rgba(255,255,255,0.78)'
+      : THEME.inkSoft;
+  const fgMuted = dark
+    ? 'rgba(255,255,255,0.5)'
+    : accent
+      ? accentTextIsDark ? 'rgba(31,42,58,0.55)' : 'rgba(255,255,255,0.5)'
+      : THEME.muted;
   const chipBg = dark
     ? 'rgba(255,255,255,0.12)'
     : accent
-      ? 'rgba(255,255,255,0.18)'
+      ? accentTextIsDark ? 'rgba(31,42,58,0.12)' : 'rgba(255,255,255,0.18)'
       : THEME.bgSoft;
 
   return (
@@ -102,7 +119,7 @@ export default function PrayLauncherScreen() {
           />
           <LauncherCard
             variant="accent"
-            icon={<HeartIcon size={22} color="#FFF" />}
+            icon={<HeartIcon size={22} color={THEME.accentInk} />}
             eyebrow="TWO SOULS, IN REAL TIME"
             title="Pray right now"
             desc="Be paired with one other anonymous person. Pray for each other."

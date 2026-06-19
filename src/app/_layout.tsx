@@ -6,6 +6,7 @@ import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -100,9 +101,11 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SaintThemeProvider>
         <PrayerRoomProvider>
-          <AuthProvider>
-            <RootStack />
-          </AuthProvider>
+          <AppearanceModeProvider>
+            <AuthProvider>
+              <RootStack />
+            </AuthProvider>
+          </AppearanceModeProvider>
         </PrayerRoomProvider>
       </SaintThemeProvider>
     </ThemeProvider>

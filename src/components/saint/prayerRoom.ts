@@ -16,11 +16,14 @@ export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle';
 
 export type PrayerRoomPalette = {
   bg: string;
+  bgSoft: string;
+  surface: string;
   ink: string;
   inkSoft: string;
   muted: string;
   divider: string;
   accent: string;
+  accentSoft: string;
   pillBg: string;
   pillInk: string;
   cardDark: string;
@@ -36,11 +39,14 @@ export type PrayerRoomPalette = {
 // Lamplit Corner — dusky navy room, cream text. Matches design variant 3.
 const LAMP: PrayerRoomPalette = {
   bg: '#14182a',
+  bgSoft: '#1b2138',
+  surface: '#20273f',
   ink: '#f4ead5',
   inkSoft: 'rgba(244,234,213,0.82)',
   muted: 'rgba(244,234,213,0.55)',
   divider: 'rgba(244,234,213,0.18)',
   accent: '#f5cba2',
+  accentSoft: '#caa57e',
   pillBg: 'rgba(244,234,213,0.16)',
   pillInk: '#f4ead5',
   cardDark: 'rgba(20,28,44,0.72)',
@@ -56,11 +62,14 @@ const LAMP: PrayerRoomPalette = {
 // Window Seat — cream wall, dark ink. Matches design variant 2.
 const WINDOW: PrayerRoomPalette = {
   bg: '#e8d8be',
+  bgSoft: '#ddc7a8',
+  surface: '#f3e6cc',
   ink: '#1f2a3a',
   inkSoft: 'rgba(31,42,58,0.85)',
   muted: 'rgba(31,42,58,0.55)',
   divider: 'rgba(31,42,58,0.22)',
   accent: '#c25a36',
+  accentSoft: '#dba087',
   pillBg: 'rgba(31,42,58,0.10)',
   pillInk: '#27384e',
   // Cards keep their dark/light duality so the two CTAs stay distinct.
@@ -78,11 +87,14 @@ const WINDOW: PrayerRoomPalette = {
 // distant lit chapel, lampposts on a path. Matches design variant 6.
 const STARS: PrayerRoomPalette = {
   bg: '#0a0e22',
+  bgSoft: '#10142c',
+  surface: '#161b38',
   ink: '#f4ead5',
   inkSoft: 'rgba(244,234,213,0.82)',
   muted: 'rgba(244,234,213,0.55)',
   divider: 'rgba(244,234,213,0.18)',
   accent: '#fde2a8',
+  accentSoft: '#cdb47f',
   pillBg: 'rgba(244,234,213,0.14)',
   pillInk: '#f4ead5',
   cardDark: 'rgba(10,14,34,0.75)',
@@ -99,11 +111,14 @@ const STARS: PrayerRoomPalette = {
 // Matches design variant 7.
 const JUNGLE: PrayerRoomPalette = {
   bg: '#08111c',
+  bgSoft: '#0d1c28',
+  surface: '#122433',
   ink: '#f4ead5',
   inkSoft: 'rgba(244,234,213,0.82)',
   muted: 'rgba(166,222,196,0.55)',
   divider: 'rgba(166,222,196,0.22)',
   accent: '#7ec9a8',
+  accentSoft: '#4f8f72',
   pillBg: 'rgba(166,222,196,0.14)',
   pillInk: '#dff3e6',
   cardDark: 'rgba(8,17,28,0.78)',
@@ -141,15 +156,15 @@ type PrayerRoomCtx = {
 };
 
 const PrayerRoomContext = createContext<PrayerRoomCtx>({
-  name: 'lamp',
-  palette: LAMP,
+  name: 'stars',
+  palette: STARS,
   setRoom: () => {},
 });
 
 export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [name, setName] = useState<PrayerRoomName>('lamp');
+  const [name, setName] = useState<PrayerRoomName>('stars');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)

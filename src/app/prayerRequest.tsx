@@ -300,7 +300,11 @@ export default function SubmitPrayerScreen() {
             disabled={!submittable || busy}
             onPress={onSubmit}
             rightIcon={
-              busy ? <ActivityIndicator color="#FFF" /> : <ArrowIcon size={16} color="#FFF" />
+              busy ? (
+                <ActivityIndicator color={THEME.accentInk} />
+              ) : (
+                <ArrowIcon size={16} color={THEME.accentInk} />
+              )
             }
             style={{ marginTop: 28 }}
           />

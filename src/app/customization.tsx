@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppearanceMode, useAppearanceMode } from '@/components/saint/appearanceMode';
 import { BackIcon } from '@/components/saint/Icons';
 import {
   PRAYER_ROOM_LABELS,
@@ -42,8 +43,46 @@ const APP_ICONS: { key: AppIconChoice; label: string; image: number }[] = [
   { key: 'pink', label: 'Pink', image: require('../../assets/images/icon-pink.png') },
 ];
 
+const ModePicker: React.FC = () => {
+  const { mode, setMode } = useAppearanceMode();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const OPTIONS: { key: AppearanceMode; label: string }[] = [
+    { key: 'room', label: 'Prayer room' },
+    { key: 'theme', label: 'Theme' },
+  ];
+  return (
+    <View style={styles.modeRow}>
+      {OPTIONS.map(({ key, label }) => {
+        const active = key === mode;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => setMode(key)}
+            style={[
+              styles.modePill,
+              {
+                backgroundColor: active ? THEME.accent : THEME.surface,
+                borderColor: active ? THEME.accent : THEME.line,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.modePillText,
+                { color: active ? THEME.accentInk : THEME.muted },
+              ]}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
 const ThemePicker: React.FC = () => {
   const { name, setTheme } = useTheme();
+  const { setMode } = useAppearanceMode();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.themeRow}>
@@ -53,7 +92,10 @@ const ThemePicker: React.FC = () => {
         return (
           <Pressable
             key={key}
-            onPress={() => setTheme(key as ThemeName)}
+            onPress={() => {
+              setTheme(key as ThemeName);
+              setMode('theme');
+            }}
             style={[
               styles.themeSwatch,
               { borderColor: active ? t.accent : t.line, backgroundColor: t.bg },
@@ -394,6 +436,7 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
 
 const PrayerRoomPicker: React.FC = () => {
   const { name, setRoom } = usePrayerRoom();
+  const { setMode } = useAppearanceMode();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
@@ -403,7 +446,10 @@ const PrayerRoomPicker: React.FC = () => {
         return (
           <Pressable
             key={key}
-            onPress={() => setRoom(key)}
+            onPress={() => {
+              setRoom(key);
+              setMode('room');
+            }}
             style={[
               styles.roomSwatch,
               {
@@ -495,6 +541,7 @@ const AppIconPicker: React.FC = () => {
 export default function CustomizationScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
+  const { mode } = useAppearanceMode();
   const styles = useThemedStyles(makeStyles);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -527,13 +574,20 @@ export default function CustomizationScreen() {
 
         <View style={{ paddingHorizontal: 22, gap: 18, marginTop: 8 }}>
           <View style={{ gap: 10 }}>
-            <Text style={styles.subLabel}>Theme</Text>
-            <ThemePicker />
+            <Text style={styles.subLabel}>Appearance</Text>
+            <ModePicker />
           </View>
-          <View style={{ gap: 10 }}>
-            <Text style={styles.subLabel}>Prayer room</Text>
-            <PrayerRoomPicker />
-          </View>
+          {mode === 'theme' ? (
+            <View style={{ gap: 10 }}>
+              <Text style={styles.subLabel}>Theme</Text>
+              <ThemePicker />
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              <Text style={styles.subLabel}>Prayer room</Text>
+              <PrayerRoomPicker />
+            </View>
+          )}
           <View style={{ gap: 10 }}>
             <Text style={styles.subLabel}>App icon</Text>
             <AppIconPicker />
@@ -602,6 +656,23 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.4,
     color: THEME.muted,
+  },
+
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modePill: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  modePillText: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
 
   themeRow: {

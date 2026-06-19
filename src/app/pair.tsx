@@ -240,7 +240,11 @@ const IntentPhase: React.FC<{
         <PrimaryButton
           label={submitting ? '' : 'Find a prayer partner'}
           rightIcon={
-            submitting ? <ActivityIndicator color="#FFF" /> : <ArrowIcon size={16} color="#FFF" />
+            submitting ? (
+              <ActivityIndicator color={THEME.accentInk} />
+            ) : (
+              <ArrowIcon size={16} color={THEME.accentInk} />
+            )
           }
           disabled={!intent.trim() || !!submitting}
           onPress={onNext}
@@ -367,7 +371,7 @@ const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => v
 
         <PrimaryButton
           label="Begin praying — 2 min"
-          rightIcon={<ArrowIcon size={16} color="#FFF" />}
+          rightIcon={<ArrowIcon size={16} color={THEME.accentInk} />}
           onPress={onBegin}
           style={{ marginTop: 8 }}
         />
