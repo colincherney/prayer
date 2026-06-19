@@ -12,7 +12,7 @@ import React, {
   useState,
 } from 'react';
 
-export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle' | 'none';
+export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle';
 
 export type PrayerRoomPalette = {
   bg: string;
@@ -116,23 +116,20 @@ const JUNGLE: PrayerRoomPalette = {
   statusBar: 'light-content',
 };
 
-type NamedRoom = Exclude<PrayerRoomName, 'none'>;
-
-export const PRAYER_ROOMS: Record<NamedRoom, PrayerRoomPalette> = {
+export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
   stars: STARS,
   jungle: JUNGLE,
 };
 
-export const PRAYER_ROOM_ORDER: NamedRoom[] = ['lamp', 'window', 'stars', 'jungle'];
+export const PRAYER_ROOM_ORDER: PrayerRoomName[] = ['lamp', 'window', 'stars', 'jungle'];
 
 export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   lamp: 'Lamplit Corner',
   window: 'Window Seat',
   stars: 'Starlit Garden',
   jungle: 'Rainforest Vigil',
-  none: 'App theme',
 };
 
 const STORAGE_KEY = 'saint.prayerRoom';
@@ -152,12 +149,12 @@ const PrayerRoomContext = createContext<PrayerRoomCtx>({
 export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [name, setName] = useState<PrayerRoomName>('stars');
+  const [name, setName] = useState<PrayerRoomName>('lamp');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
-        if (stored && (stored in PRAYER_ROOMS || stored === 'none')) {
+        if (stored && stored in PRAYER_ROOMS) {
           setName(stored as PrayerRoomName);
         }
       })
@@ -170,11 +167,7 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const value = useMemo<PrayerRoomCtx>(
-    () => ({
-      name,
-      palette: name === 'none' ? LAMP : PRAYER_ROOMS[name as Exclude<PrayerRoomName, 'none'>],
-      setRoom,
-    }),
+    () => ({ name, palette: PRAYER_ROOMS[name], setRoom }),
     [name, setRoom],
   );
 
