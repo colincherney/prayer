@@ -104,6 +104,16 @@ const MONTHS_SHORT = [
 const dayKeyOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// Prayer-room palettes give `cardDark` an rgba alpha meant for cards sitting
+// over the room's illustrated scene art. The bottom-sheet modals here float
+// over the whole page instead, so that transparency lets the page underneath
+// show through and blend with the sheet's own content — strip the alpha so
+// the sheet is always a solid backing.
+const opaque = (color: string): string => {
+  const m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,[^)]+)?\)/);
+  return m ? `rgb(${m[1]}, ${m[2]}, ${m[3]})` : color;
+};
+
 const formatJoined = (iso?: string | null) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -2317,7 +2327,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   darkSheet: {
-    backgroundColor: THEME.cardDark,
+    backgroundColor: opaque(THEME.cardDark),
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 24,
