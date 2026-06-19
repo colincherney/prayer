@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
-import { FONTS } from '@/components/saint/theme';
+import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -34,34 +34,54 @@ type PrayerRequest = {
   text: string;
 };
 
-const NIGHT = {
-  bg: '#0B1020',
-  surface: 'rgba(255, 247, 232, 0.04)',
-  ink: '#F1E7D2',
-  inkSoft: '#C8BFAA',
-  muted: '#7E7660',
-  line: 'rgba(241, 231, 210, 0.10)',
-  lineStrong: 'rgba(241, 231, 210, 0.18)',
-  flame: '#F5C065',
-  flameSoft: '#E0843A',
-  ember: '#A85327',
+type NightPalette = {
+  bg: string;
+  surface: string;
+  ink: string;
+  inkSoft: string;
+  muted: string;
+  line: string;
+  lineStrong: string;
+  flame: string;
+  flameSoft: string;
+  ember: string;
 };
+
+// The vigil's warm candlelit palette follows the active theme/prayer room
+// instead of a fixed night look, so this screen matches the rest of the app.
+function nightPaletteFromTheme(THEME: Theme): NightPalette {
+  return {
+    bg: THEME.bg,
+    surface: THEME.surface,
+    ink: THEME.ink,
+    inkSoft: THEME.inkSoft,
+    muted: THEME.muted,
+    line: THEME.line,
+    lineStrong: THEME.line,
+    flame: THEME.accent,
+    flameSoft: THEME.accentSoft,
+    ember: THEME.accentSoft,
+  };
+}
 
 const SCREEN = Dimensions.get('window');
 
 /* -------------------- Vigil background (radial glow) -------------------- */
-const VigilBackdrop: React.FC<{ glowIntensity: Animated.Value }> = ({ glowIntensity }) => (
+const VigilBackdrop: React.FC<{ night: NightPalette; glowIntensity: Animated.Value }> = ({
+  night,
+  glowIntensity,
+}) => (
   <View style={StyleSheet.absoluteFill} pointerEvents="none">
-    {/* base navy */}
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: NIGHT.bg }]} />
+    {/* base page color */}
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: night.bg }]} />
     {/* warm radial glow that pulses with the flame */}
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowIntensity }]}>
       <Svg width="100%" height="100%">
         <Defs>
           <RadialGradient id="glow" cx="50%" cy="32%" rx="70%" ry="55%" fx="50%" fy="32%">
-            <Stop offset="0%" stopColor="#7A4423" stopOpacity={0.55} />
-            <Stop offset="35%" stopColor="#3D2519" stopOpacity={0.45} />
-            <Stop offset="100%" stopColor="#0B1020" stopOpacity={0} />
+            <Stop offset="0%" stopColor={night.flameSoft} stopOpacity={0.4} />
+            <Stop offset="35%" stopColor={night.flameSoft} stopOpacity={0.25} />
+            <Stop offset="100%" stopColor={night.bg} stopOpacity={0} />
           </RadialGradient>
         </Defs>
         <Rect width="100%" height="100%" fill="url(#glow)" />
@@ -71,11 +91,13 @@ const VigilBackdrop: React.FC<{ glowIntensity: Animated.Value }> = ({ glowIntens
 );
 
 /* -------------------- Candle -------------------- */
-const Candle: React.FC<{ lit: boolean; flicker: Animated.Value; lightUp: Animated.Value }> = ({
-  lit,
-  flicker,
-  lightUp,
-}) => {
+const Candle: React.FC<{
+  night: NightPalette;
+  styles: Styles;
+  lit: boolean;
+  flicker: Animated.Value;
+  lightUp: Animated.Value;
+}> = ({ night, styles, lit, flicker, lightUp }) => {
   // Flicker drives flame opacity (0.82 → 1) and scaleY (0.94 → 1.06)
   const flameOpacity = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
   const flameScale = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.06] });
@@ -98,9 +120,9 @@ const Candle: React.FC<{ lit: boolean; flicker: Animated.Value; lightUp: Animate
           <Svg width={220} height={220} viewBox="0 0 220 220">
             <Defs>
               <RadialGradient id="halo" cx="50%" cy="50%" rx="50%" ry="50%">
-                <Stop offset="0%" stopColor={NIGHT.flame} stopOpacity={0.55} />
-                <Stop offset="55%" stopColor={NIGHT.flameSoft} stopOpacity={0.18} />
-                <Stop offset="100%" stopColor={NIGHT.flame} stopOpacity={0} />
+                <Stop offset="0%" stopColor={night.flame} stopOpacity={0.55} />
+                <Stop offset="55%" stopColor={night.flameSoft} stopOpacity={0.18} />
+                <Stop offset="100%" stopColor={night.flame} stopOpacity={0} />
               </RadialGradient>
             </Defs>
             <Rect width="220" height="220" fill="url(#halo)" />
@@ -121,9 +143,9 @@ const Candle: React.FC<{ lit: boolean; flicker: Animated.Value; lightUp: Animate
             <Defs>
               <RadialGradient id="flame" cx="50%" cy="65%" rx="55%" ry="55%">
                 <Stop offset="0%" stopColor="#FFF1C2" stopOpacity={1} />
-                <Stop offset="45%" stopColor={NIGHT.flame} stopOpacity={1} />
-                <Stop offset="85%" stopColor={NIGHT.flameSoft} stopOpacity={0.95} />
-                <Stop offset="100%" stopColor={NIGHT.ember} stopOpacity={0.5} />
+                <Stop offset="45%" stopColor={night.flame} stopOpacity={1} />
+                <Stop offset="85%" stopColor={night.flameSoft} stopOpacity={0.95} />
+                <Stop offset="100%" stopColor={night.ember} stopOpacity={0.5} />
               </RadialGradient>
             </Defs>
             <Path
@@ -157,12 +179,14 @@ const Candle: React.FC<{ lit: boolean; flicker: Animated.Value; lightUp: Animate
 
 /* -------------------- Wall of lights (session progress) -------------------- */
 const WallOfLights: React.FC<{
+  night: NightPalette;
+  styles: Styles;
   total: number;
   prayedIds: Set<string>;
   ids: string[];
   currentIndex: number;
   onJump: (i: number) => void;
-}> = ({ total, prayedIds, ids, currentIndex, onJump }) => (
+}> = ({ night, styles, total, prayedIds, ids, currentIndex, onJump }) => (
   <View style={styles.wall}>
     <View style={styles.wallRow}>
       {ids.map((id, i) => {
@@ -175,7 +199,7 @@ const WallOfLights: React.FC<{
               style={[
                 styles.tinyCandle,
                 {
-                  backgroundColor: isCurrent ? NIGHT.ink : 'rgba(241,231,210,0.32)',
+                  backgroundColor: isCurrent ? night.ink : night.line,
                   opacity: lit || isCurrent ? 1 : 0.55,
                 },
               ]}
@@ -185,8 +209,8 @@ const WallOfLights: React.FC<{
               style={[
                 styles.tinyFlame,
                 {
-                  backgroundColor: lit ? NIGHT.flame : 'transparent',
-                  shadowColor: lit ? NIGHT.flame : 'transparent',
+                  backgroundColor: lit ? night.flame : 'transparent',
+                  shadowColor: lit ? night.flame : 'transparent',
                   shadowOpacity: lit ? 0.8 : 0,
                   shadowRadius: lit ? 6 : 0,
                 },
@@ -205,6 +229,9 @@ const WallOfLights: React.FC<{
 /* -------------------- Screen -------------------- */
 export default function PrayForOthersScreen() {
   const fontsLoaded = useSaintFonts();
+  const { theme: THEME } = useTheme();
+  const NIGHT = useMemo(() => nightPaletteFromTheme(THEME), [THEME]);
+  const styles = useMemo(() => makeStyles(NIGHT), [NIGHT]);
   const { session } = useAuth();
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
@@ -481,7 +508,7 @@ export default function PrayForOthersScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={NIGHT.bg} />
-      <VigilBackdrop glowIntensity={glowIntensity} />
+      <VigilBackdrop night={NIGHT} glowIntensity={glowIntensity} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
@@ -529,7 +556,7 @@ export default function PrayForOthersScreen() {
             contentContainerStyle={styles.bodyScroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            <Candle lit={lit} flicker={flicker} lightUp={lightUp} />
+            <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
 
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
@@ -659,6 +686,8 @@ export default function PrayForOthersScreen() {
 
         {/* Wall of lights */}
         <WallOfLights
+          night={NIGHT}
+          styles={styles}
           total={total}
           prayedIds={prayedIds}
           ids={requests.map(r => r.id)}
@@ -673,7 +702,7 @@ export default function PrayForOthersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: NIGHT.bg },
 
   /* Top bar */
@@ -1061,3 +1090,5 @@ const styles = StyleSheet.create({
     color: NIGHT.flame,
   },
 });
+
+type Styles = ReturnType<typeof makeStyles>;
