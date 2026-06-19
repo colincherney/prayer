@@ -86,9 +86,14 @@ const LauncherCard: React.FC<CardProps> = ({ variant = 'light', icon, eyebrow, t
 
 export default function PrayLauncherScreen() {
   const fontsLoaded = useSaintFonts();
-  const { theme: THEME } = useTheme();
+  const { theme: THEME, name } = useTheme();
   const styles = useThemedStyles(makeStyles);
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
+
+  // Cream, forest, and pink are light-on-light palettes where the thin
+  // display script reads faint — bold the title and darken the subtitle
+  // there. Navy already has plenty of contrast and is left untouched.
+  const needsContrastBoost = name === 'cream' || name === 'forest' || name === 'pink';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -97,6 +102,9 @@ export default function PrayLauncherScreen() {
         <ScreenHeader
           title="How will you pray?"
           subtitle="Choose where your heart is right now."
+          titleFont={needsContrastBoost ? FONTS.displaySemi : undefined}
+          titleColor={needsContrastBoost ? THEME.ink : undefined}
+          subtitleColor={needsContrastBoost ? THEME.ink : undefined}
         />
         <View style={styles.cards}>
           <LauncherCard

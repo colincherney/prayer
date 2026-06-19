@@ -176,7 +176,10 @@ export const ScreenHeader: React.FC<{
   onBack?: () => void;
   right?: React.ReactNode;
   theme?: Theme;
-}> = ({ title, subtitle, onBack, right, theme = THEME }) => (
+  titleFont?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+}> = ({ title, subtitle, onBack, right, theme = THEME, titleFont, titleColor, subtitleColor }) => (
   <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18 }}>
     {(onBack || right) && (
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -203,10 +206,10 @@ export const ScreenHeader: React.FC<{
     )}
     <Text
       style={{
-        fontFamily: FONTS.display,
+        fontFamily: titleFont ?? FONTS.display,
         fontSize: 36,
         lineHeight: 36,
-        color: theme.ink,
+        color: titleColor ?? theme.ink,
         marginTop: 14,
         marginBottom: 6,
         letterSpacing: -0.4,
@@ -219,7 +222,7 @@ export const ScreenHeader: React.FC<{
           fontFamily: FONTS.displayItalic,
           fontStyle: 'italic',
           fontSize: 13,
-          color: theme.inkSoft,
+          color: subtitleColor ?? theme.inkSoft,
         }}>
         {subtitle}
       </Text>
