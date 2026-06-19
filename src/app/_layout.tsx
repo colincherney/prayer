@@ -98,13 +98,13 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <PrayerRoomProvider>
-        <SaintThemeProvider>
+      <SaintThemeProvider>
+        <PrayerRoomProvider>
           <AuthProvider>
             <RootStack />
           </AuthProvider>
-        </SaintThemeProvider>
-      </PrayerRoomProvider>
+        </PrayerRoomProvider>
+      </SaintThemeProvider>
     </ThemeProvider>
   );
 }

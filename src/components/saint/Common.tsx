@@ -11,7 +11,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { FONTS, THEME, Theme, useTheme } from './theme';
+import { FONTS, THEME, Theme } from './theme';
 import { BackIcon } from './Icons';
 
 /* -------------------- Squiggle -------------------- */
@@ -176,10 +176,7 @@ export const ScreenHeader: React.FC<{
   onBack?: () => void;
   right?: React.ReactNode;
   theme?: Theme;
-}> = ({ title, subtitle, onBack, right, theme }) => {
-  const { theme: liveTheme } = useTheme();
-  const activeTheme = theme ?? liveTheme;
-  return (
+}> = ({ title, subtitle, onBack, right, theme = THEME }) => (
   <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18 }}>
     {(onBack || right) && (
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -190,13 +187,13 @@ export const ScreenHeader: React.FC<{
               width: 40,
               height: 40,
               borderRadius: 20,
-              backgroundColor: activeTheme.surface,
+              backgroundColor: theme.surface,
               borderWidth: StyleSheet.hairlineWidth,
-              borderColor: activeTheme.line,
+              borderColor: theme.line,
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-            <BackIcon size={16} color={activeTheme.ink} />
+            <BackIcon size={16} color={theme.ink} />
           </Pressable>
         ) : (
           <View />
@@ -209,7 +206,7 @@ export const ScreenHeader: React.FC<{
         fontFamily: FONTS.display,
         fontSize: 36,
         lineHeight: 36,
-        color: activeTheme.ink,
+        color: theme.ink,
         marginTop: 14,
         marginBottom: 6,
         letterSpacing: -0.4,
@@ -222,14 +219,13 @@ export const ScreenHeader: React.FC<{
           fontFamily: FONTS.displayItalic,
           fontStyle: 'italic',
           fontSize: 13,
-          color: activeTheme.inkSoft,
+          color: theme.muted,
         }}>
         {subtitle}
       </Text>
     ) : null}
   </View>
-  );
-};
+);
 
 /* -------------------- SectionLabel -------------------- */
 export const SectionLabel: React.FC<{
