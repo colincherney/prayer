@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +21,7 @@ import {
   LockIcon,
   PrayingIcon,
   ShieldIcon,
+  UsersIcon,
 } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -45,6 +46,11 @@ export default function SubmitPrayerScreen() {
   const { session } = useAuth();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  // Arriving from a group screen swaps "The community" for that group.
+  const { groupId, groupName } = useLocalSearchParams<{
+    groupId?: string;
+    groupName?: string;
+  }>();
   const [step, setStep] = useState<'compose' | 'confirm'>('compose');
   const [text, setText] = useState('');
   const [category, setCategory] = useState('family');
@@ -74,7 +80,7 @@ export default function SubmitPrayerScreen() {
     const title = body.split('\n')[0].slice(0, 80);
     const categoryLabel = CATEGORIES.find(c => c.id === category)?.label ?? null;
     const { data, error: e } = await supabase.functions.invoke('submit-prayer', {
-      body: { body, title, category: categoryLabel },
+      body: { body, title, category: categoryLabel, group_id: groupId ?? null },
     });
     setBusy(false);
     if (e) {
@@ -84,7 +90,7 @@ export default function SubmitPrayerScreen() {
     if (data?.ok === false) {
       setError(
         data.reason === 'moderation_blocked'
-          ? "This prayer doesn't fit our community guidelines. Try rewording and submit again."
+          ? "This prayer doesn't fit our community guidelines. To keep everyone anonymous, avoid using people's names — try \"my friend\" or \"my brother\" instead."
           : 'Something went wrong — please try again.',
       );
       return;
@@ -107,9 +113,11 @@ export default function SubmitPrayerScreen() {
               Your prayer is <Text style={styles.confirmTitleItalic}>held</Text>.
             </Text>
             <Text style={styles.confirmBody}>
-              {share === 'public'
-                ? "It has been placed gently before the community. Hearts you'll never meet will lift it up."
-                : 'It has been offered up — held only between you and God.'}
+              {share === 'private'
+                ? 'It has been offered up — held only between you and God.'
+                : groupId
+                  ? `It rests with ${groupName ?? 'your group'} now. Your circle will lift it up — without ever knowing it's you.`
+                  : "It has been placed gently before the community. Hearts you'll never meet will lift it up."}
             </Text>
             <View style={{ marginTop: 24 }}>
               <Text style={styles.confirmVerse}>
@@ -257,8 +265,20 @@ export default function SubmitPrayerScreen() {
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {(
               [
-                { id: 'public', Icon: GlobeIcon, title: 'The community', desc: 'Strangers will lift it up' },
-                { id: 'private', Icon: LockIcon, title: 'Just to God', desc: 'Held only between you two' },
+                groupId
+                  ? {
+                      id: 'public' as const,
+                      Icon: UsersIcon,
+                      title: groupName ?? 'Your group',
+                      desc: 'Only your circle sees it — still anonymous',
+                    }
+                  : {
+                      id: 'public' as const,
+                      Icon: GlobeIcon,
+                      title: 'The community',
+                      desc: 'Strangers will lift it up',
+                    },
+                { id: 'private' as const, Icon: LockIcon, title: 'Just to God', desc: 'Held only between you two' },
               ] as const
             ).map(opt => {
               const active = share === opt.id;

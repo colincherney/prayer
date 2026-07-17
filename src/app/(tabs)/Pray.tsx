@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/saint/Common';
-import { HeartIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
+import { HeartIcon, PenIcon, PrayingIcon, UsersIcon } from '@/components/saint/Icons';
 import {
   FONTS,
   relativeLuminance,
@@ -133,6 +133,15 @@ export default function PrayLauncherScreen() {
             desc="Be paired with one other anonymous person. Pray for each other."
             verse="Matt 18:20 · Where two or three gather, there am I"
             onPress={() => router.push('/pair')}
+          />
+          <LauncherCard
+            variant="light"
+            icon={<UsersIcon size={22} color={THEME.ink} />}
+            eyebrow="YOUR CHURCH, YOUR CIRCLE"
+            title="Pray with your group"
+            desc="Join your church's circle with a code. Known to God, anonymous to each other."
+            verse="Jas 5:16 · Pray for one another"
+            onPress={() => router.push('/groups')}
           />
         </View>
       </ScrollView>

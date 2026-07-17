@@ -266,6 +266,7 @@ export default function PrayForOthersScreen() {
         .from('prayers')
         .select('id, body, category, created_at, user_id, prayer_interactions(action, user_id)')
         .eq('approved', 'y')
+        .is('group_id', null)
         .order('created_at', { ascending: false })
         .limit(200);
       if (me) query = query.neq('user_id', me);
