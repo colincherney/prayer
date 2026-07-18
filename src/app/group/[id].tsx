@@ -3,12 +3,15 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   Share,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +20,7 @@ import { Pill, PrimaryButton, ScreenHeader, SectionLabel } from '@/components/sa
 import {
   CheckIcon,
   GlobeIcon,
+  HeartIcon,
   LockIcon,
   PrayingIcon,
   ShieldIcon,
@@ -58,6 +62,13 @@ export default function GroupScreen() {
   const [prayers, setPrayers] = useState<GroupPrayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Anonymous encouragement notes — one open composer at a time.
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [noteSending, setNoteSending] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [notesSent, setNotesSent] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!session || !id) return;
@@ -184,6 +195,43 @@ export default function GroupScreen() {
     ]);
   };
 
+  const onOpenNote = (prayerId: string) => {
+    setNoteFor(prayerId);
+    setNote('');
+    setNoteError(null);
+  };
+
+  const onSendNote = async (prayer: GroupPrayer) => {
+    if (!session || !note.trim() || noteSending) return;
+    Keyboard.dismiss();
+    setNoteSending(true);
+    setNoteError(null);
+    const content = note.trim();
+    const { data, error: e } = await supabase.functions.invoke('submit-reflection', {
+      body: { prayer_id: prayer.id, content },
+    });
+    setNoteSending(false);
+    if (e) {
+      setNoteError(e.message);
+      return;
+    }
+    if (data?.ok === false) {
+      setNoteError(
+        data.reason === 'moderation_blocked'
+          ? 'Couldn’t send — try rewording your note.'
+          : 'Couldn’t send. Try again.',
+      );
+      return;
+    }
+    setNote('');
+    setNoteFor(null);
+    setNotesSent(prev => {
+      const next = new Set(prev);
+      next.add(prayer.id);
+      return next;
+    });
+  };
+
   const onDeletePrayer = (prayer: GroupPrayer) => {
     if (!session || !prayer.mine) return;
     Alert.alert(
@@ -258,7 +306,9 @@ export default function GroupScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingBottom: 140 }}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
           <ScreenHeader
             title={group.name}
             subtitle={group.description ?? undefined}
@@ -362,6 +412,72 @@ export default function GroupScreen() {
                         </Pressable>
                       )}
                     </View>
+
+                    {/* Anonymous encouragement — same flow as the vigil page. */}
+                    {p.mine ? null : notesSent.has(p.id) ? (
+                      <View style={styles.noteSent}>
+                        <CheckIcon size={12} color={THEME.accent} />
+                        <Text style={styles.noteSentText}>
+                          Your encouragement was delivered.
+                        </Text>
+                      </View>
+                    ) : noteFor === p.id ? (
+                      <View style={styles.noteBox}>
+                        <TextInput
+                          value={note}
+                          onChangeText={setNote}
+                          placeholder="A short word of hope, anonymously…"
+                          placeholderTextColor={THEME.muted}
+                          multiline
+                          maxLength={140}
+                          style={styles.noteInput}
+                        />
+                        <View style={styles.noteFooter}>
+                          <Text style={styles.noteCounter}>{note.length}/140</Text>
+                          <Pressable
+                            onPress={() => onSendNote(p)}
+                            disabled={!note.trim() || noteSending}
+                            style={[
+                              styles.sendNoteBtn,
+                              {
+                                backgroundColor:
+                                  note.trim() && !noteSending
+                                    ? THEME.accent
+                                    : THEME.line,
+                              },
+                            ]}>
+                            {noteSending ? (
+                              <ActivityIndicator size="small" color={THEME.accentInk} />
+                            ) : (
+                              <Text
+                                style={[
+                                  styles.sendNoteText,
+                                  {
+                                    color: note.trim()
+                                      ? THEME.accentInk
+                                      : THEME.muted,
+                                  },
+                                ]}>
+                                Send anonymously
+                              </Text>
+                            )}
+                          </Pressable>
+                        </View>
+                        {noteError ? (
+                          <Text style={styles.noteErrorText}>{noteError}</Text>
+                        ) : null}
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => onOpenNote(p.id)}
+                        style={styles.noteCta}
+                        hitSlop={6}>
+                        <HeartIcon size={12} color={THEME.muted} />
+                        <Text style={styles.noteCtaText}>
+                          Send anonymous encouragement
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 ))}
               </View>
@@ -508,4 +624,61 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   leaveBtnText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.muted },
   deleteBtnText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.accent },
   removeText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.muted },
+  noteCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+  },
+  noteCtaText: { fontFamily: FONTS.bodySemi, fontSize: 12, color: THEME.muted },
+  noteBox: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    backgroundColor: THEME.bg,
+    padding: 12,
+  },
+  noteInput: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: THEME.ink,
+    minHeight: 52,
+    textAlignVertical: 'top',
+    padding: 0,
+  },
+  noteFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  noteCounter: { fontFamily: FONTS.body, fontSize: 11, color: THEME.muted },
+  sendNoteBtn: {
+    borderRadius: 9999,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  sendNoteText: { fontFamily: FONTS.bodySemi, fontSize: 12.5 },
+  noteErrorText: {
+    fontFamily: FONTS.body,
+    fontSize: 11.5,
+    color: THEME.accent,
+    marginTop: 8,
+  },
+  noteSent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  noteSentText: { fontFamily: FONTS.bodySemi, fontSize: 12, color: THEME.accent },
 });
