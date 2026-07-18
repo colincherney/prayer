@@ -46,6 +46,14 @@ export default function GroupsScreen() {
   const [joining, setJoining] = useState<string | null>(null); // group id or 'code'
   const [error, setError] = useState<string | null>(null);
 
+  // People often paste the whole share message ("Join our prayer circle … use
+  // code K7DM3P …") instead of just the code — pull the code out for them.
+  const onCodeChange = (t: string) => {
+    const upper = t.toUpperCase();
+    const fromMessage = upper.match(/CODE\s*:?\s*([A-Z0-9]{4,8})/);
+    setCode((fromMessage ? fromMessage[1] : upper).replace(/[^A-Z0-9]/g, '').slice(0, 6));
+  };
+
   const load = useCallback(async () => {
     if (!session) return;
     const me = session.user.id;
@@ -206,12 +214,11 @@ export default function GroupsScreen() {
           <View style={styles.codeRow}>
             <TextInput
               value={code}
-              onChangeText={t => setCode(t.toUpperCase())}
+              onChangeText={onCodeChange}
               placeholder="e.g. K7DM3P"
               placeholderTextColor={THEME.muted}
               autoCapitalize="characters"
               autoCorrect={false}
-              maxLength={6}
               style={styles.codeInput}
             />
             <Pressable

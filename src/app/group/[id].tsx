@@ -184,6 +184,60 @@ export default function GroupScreen() {
     ]);
   };
 
+  const onDeletePrayer = (prayer: GroupPrayer) => {
+    if (!session || !prayer.mine) return;
+    Alert.alert(
+      'Remove this prayer?',
+      'It will disappear from the group for everyone. This cannot be undone.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const { error: e } = await supabase
+              .from('prayers')
+              .delete()
+              .eq('id', prayer.id)
+              .eq('user_id', session.user.id);
+            if (e) {
+              Alert.alert('Something went wrong', 'Could not remove the prayer — please try again.');
+              return;
+            }
+            setPrayers(prev => prev.filter(p => p.id !== prayer.id));
+          },
+        },
+      ],
+    );
+  };
+
+  const onDeleteGroup = () => {
+    if (!group || !session || group.myRole !== 'owner') return;
+    Alert.alert(
+      'Delete this group?',
+      'Every prayer shared here will be deleted and all members removed. This cannot be undone.',
+      [
+        { text: 'Keep the group', style: 'cancel' },
+        {
+          text: 'Delete group',
+          style: 'destructive',
+          onPress: async () => {
+            const { data, error: e } = await supabase
+              .from('groups')
+              .delete()
+              .eq('id', group.id)
+              .select('id');
+            if (e || !data?.length) {
+              Alert.alert('Something went wrong', 'Could not delete the group — please try again.');
+              return;
+            }
+            router.back();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
@@ -284,7 +338,14 @@ export default function GroupScreen() {
                         {p.prayedCount}{' '}
                         {p.prayedCount === 1 ? 'has prayed' : 'have prayed'}
                       </Text>
-                      {p.mine ? null : p.prayedByMe ? (
+                      {p.mine ? (
+                        <Pressable
+                          onPress={() => onDeletePrayer(p)}
+                          hitSlop={8}
+                          style={({ pressed }) => pressed && { opacity: 0.6 }}>
+                          <Text style={styles.removeText}>Remove</Text>
+                        </Pressable>
+                      ) : p.prayedByMe ? (
                         <View style={styles.prayedChip}>
                           <CheckIcon size={12} color={THEME.accent} />
                           <Text style={styles.prayedChipText}>Prayed</Text>
@@ -309,6 +370,10 @@ export default function GroupScreen() {
             {group.myRole === 'member' ? (
               <Pressable onPress={onLeave} style={styles.leaveBtn}>
                 <Text style={styles.leaveBtnText}>Leave group</Text>
+              </Pressable>
+            ) : group.myRole === 'owner' ? (
+              <Pressable onPress={onDeleteGroup} style={styles.leaveBtn}>
+                <Text style={styles.deleteBtnText}>Delete this group</Text>
               </Pressable>
             ) : null}
           </View>
@@ -441,4 +506,6 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     paddingHorizontal: 20,
   },
   leaveBtnText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.muted },
+  deleteBtnText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.accent },
+  removeText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.muted },
 });

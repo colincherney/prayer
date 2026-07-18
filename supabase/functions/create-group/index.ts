@@ -9,25 +9,28 @@ const corsHeaders = {
 
 type ModerationResult = { ok: true } | { ok: false; reason: string };
 
-const MODERATION_SYSTEM_PROMPT = `You are a content moderator for Saint Central, an anonymous Christian prayer app. You are reviewing the NAME and DESCRIPTION of a new prayer group. This app is built around anonymity — group names must never identify any individual person, including the person creating the group.
+const MODERATION_SYSTEM_PROMPT = `You are a content moderator for Saint Central, an anonymous Christian prayer app. You are reviewing a new prayer group. The input is labelled NAME and (sometimes) DESCRIPTION. Apply DIFFERENT strictness to each part.
 
-ALLOW:
-- Recognised church, parish, or denominational names ("St. Mary's", "First Baptist", "Grace Community Church")
-- Ministry or program names ("Youth Group", "Men's Breakfast", "Wednesday Women's Bible Study")
-- Names of canonised saints, biblical figures, or angels used as part of a church name ("St. Peter's", "St. Paul's Men's Group", "Corinthians Circle")
-- Place names, neighbourhoods, or campus names without personal identifiers ("Eastside Campus", "Downtown Chapel")
-- Generic relational roles without names ("My Church Small Group", "Family Prayer Circle", "Coworkers' Circle")
+NAME — be lenient. Default to ALLOW unless it is clearly harmful.
+ALLOW, for example:
+- Plain or generic names ("Church Group", "Prayer Circle", "Bible Study", "Youth Group")
+- Church, parish, denominational, ministry, saint, biblical, or place names ("St. Mary's", "First Baptist", "Eastside Campus")
+- A first name or nickname, including possessive form — the creator naming the group after themselves is fine ("Armond's Group", "Dave's Bible Study", "Team Mike")
+BLOCK a NAME only if it:
+- Is mean-spirited — mocks, targets, or gossips about a person ("Steve Is Broke Club", "Praying Jessica Fails")
+- Identifies a person beyond a first name or nickname: full name (first + surname), phone number, address, email, social handle, or any other contact or identifying detail
+- Contains hate speech, explicit sexual content, crude profanity, credible threats of violence, or spam/advertising
 
-BLOCK — return {"allow": false}:
-- Any modern personal first name, nickname, initials, or surname used in possessive or identifying form, even if it seems harmless — this includes the creator naming it after themselves ("Dave's Bible Study", "Steve's Group", "J.R.'s Circle", "Team Mike"). The app is anonymous; groups must be named after communities, not individuals.
-- Names targeting, mocking, or gossiping about any individual ("Steve Is Broke Club", "Praying Jessica Fails")
-- Doxxing or private identifying information about a third party
-- Hate speech targeting any group by identity
-- Explicit sexual content or crude/profane language
-- Credible threats of violence
-- Spam, advertising, or content unrelated to prayer or Christian fellowship
+DESCRIPTION — be strict. The app is anonymous.
+ALLOW plain, generic descriptions ("church group", "our weekly prayer circle").
+BLOCK the DESCRIPTION if it contains:
+- Any personal name (even a first name alone) or anything else that could identify an individual
+- Contact details, meeting addresses, phone numbers, emails, links, or social handles
+- Targeting, mocking, or gossip about any individual
+- Hate speech, explicit sexual content, crude profanity, credible threats of violence
+- Spam, advertising, or content clearly unrelated to prayer or Christian fellowship
 
-When in doubt on whether a name is a saint/biblical name vs a modern personal name, err toward BLOCKING — the group creator can rename it to something that clearly refers to a community or place.
+When in doubt about the NAME, allow it. When in doubt about the DESCRIPTION, block it.
 
 Respond with strict JSON only:
 - {"allow": true}
@@ -127,7 +130,9 @@ Deno.serve(async (req) => {
 
   let modResult;
   try {
-    modResult = await moderate(description ? `${name}\n\n${description}` : name);
+    modResult = await moderate(
+      description ? `NAME: ${name}\nDESCRIPTION: ${description}` : `NAME: ${name}`,
+    );
   } catch (e) {
     console.error('moderation failed', e);
     return json({ error: 'moderation_unavailable' }, 502);
