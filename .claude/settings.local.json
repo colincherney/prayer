@@ -14,7 +14,9 @@
       "PowerShell(npx tsc --noEmit)",
       "PowerShell(supabase *)",
       "PowerShell(npx supabase --version)",
-      "PowerShell(npx supabase functions deploy create-group)"
+      "PowerShell(npx supabase functions deploy create-group)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(git checkout *)"
     ]
   }
 }
