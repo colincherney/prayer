@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
 
   const { data: prayerRow, error: prayerErr } = await admin
     .from('prayers')
-    .select('body, user_id, title')
+    .select('body, user_id, title, group_id')
     .eq('id', prayerId)
     .maybeSingle();
 
@@ -209,6 +209,26 @@ Deno.serve(async (req) => {
   }
   if (!prayerRow) {
     return json({ error: 'prayer_not_found' }, 404);
+  }
+
+  // A note aimed at a group prayer only lands if the sender is currently a
+  // member — same boundary submit-prayer enforces. Checked before moderation
+  // so a private prayer's body never reaches the moderator or logs for an
+  // outsider.
+  if (prayerRow.group_id) {
+    const { data: membership, error: memberErr } = await admin
+      .from('group_members')
+      .select('group_id')
+      .eq('group_id', prayerRow.group_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (memberErr) {
+      console.error('membership lookup failed', memberErr);
+      return json({ error: memberErr.message }, 500);
+    }
+    if (!membership) {
+      return json({ error: 'not_a_member' }, 403);
+    }
   }
 
   let modResult;

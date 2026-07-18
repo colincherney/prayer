@@ -18,26 +18,40 @@ create policy "groups owner delete"
   );
 
 -- ---------- prayer deletion ----------
--- prayer_interactions predates the repo migrations, so its FK to prayers may
--- not cascade. Recreate any non-cascading FK so deleting a prayer can't fail
--- on leftover "prayed" rows.
+-- The child tables of prayers (prayer_interactions, reflections,
+-- prayer_updates, ...) predate the repo migrations, so their FKs may not
+-- cascade. Recreate EVERY non-cascading FK that points at prayers, so
+-- deleting a prayer (or a whole group) can neither fail on leftover child
+-- rows nor orphan them — deletion must wipe everything, that's the privacy
+-- promise.
 do $$
 declare
   r record;
+  col text;
 begin
   for r in
-    select con.conname
+    select con.conname, con.conrelid, con.conkey, rel.relname as child
     from pg_constraint con
     join pg_class rel on rel.oid = con.conrelid
     join pg_class frel on frel.oid = con.confrelid
-    where rel.relname = 'prayer_interactions'
-      and frel.relname = 'prayers'
+    join pg_namespace n on n.oid = rel.relnamespace
+    where frel.relname = 'prayers'
+      and n.nspname = 'public'
       and con.contype = 'f'
       and con.confdeltype <> 'c'
   loop
-    execute format('alter table prayer_interactions drop constraint %I', r.conname);
+    select a.attname into col
+    from pg_attribute a
+    where a.attrelid = r.conrelid and a.attnum = r.conkey[1];
+
+    execute format('alter table %I drop constraint %I', r.child, r.conname);
+    execute format(
+      'alter table %I add constraint %I foreign key (%I) references prayers(id) on delete cascade',
+      r.child, r.conname, col
+    );
   end loop;
 
+  -- prayer_interactions might have no FK at all; make sure it gets one.
   if not exists (
     select 1
     from pg_constraint con
