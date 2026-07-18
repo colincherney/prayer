@@ -73,6 +73,8 @@ ALLOW (do not block, even if uncomfortable):
 - "I've been there too" / solidarity / shared witness
 - Gentle, non-condemning honesty
 - Mentions of self-harm or addiction in a clearly supportive direction
+- Names of biblical figures, saints, or churches used in a devotional way ("Paul writes...", "St. Francis prayed...")
+- The sender signing off with a bare first name or nickname ("Praying for you — Steve", "love, Maria") — a first name alone is fine
 
 BLOCK:
 - Anything that encourages, endorses, agrees with, dismisses, mocks, or makes light of self-harm, suicide, or violence — even subtly, even one or two words
@@ -82,6 +84,7 @@ BLOCK:
 - Specific methods or instructions for self-harm, suicide, or harming others
 - Spam, advertising, recruiting (e.g. "join my church"), or content unrelated to encouragement
 - Doxxing or private information about a third party
+- Anything that identifies a person beyond a bare first name: full names (first + surname), naming or guessing who the prayer's writer is, or any phone number, email, address, social handle, or other contact/identifying detail
 
 Be especially strict about agreement with self-harm intent. If the prayer expresses any urge to self-harm and the reply could reasonably be read as agreement, encouragement, or invitation — block it.
 

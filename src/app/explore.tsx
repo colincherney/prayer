@@ -601,6 +601,14 @@ export default function PrayForOthersScreen() {
               )}
               {noteOpen && !noteSent && (
                 <View style={styles.noteBox}>
+                  {/* Keep the prayer readable while the keyboard is up. */}
+                  <ScrollView
+                    style={styles.notePrayerScroll}
+                    contentContainerStyle={{ paddingBottom: 8 }}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}>
+                    <Text style={styles.notePrayerText}>&ldquo;{req.text}&rdquo;</Text>
+                  </ScrollView>
                   <TextInput
                     value={note}
                     onChangeText={setNote}
@@ -609,6 +617,7 @@ export default function PrayForOthersScreen() {
                     multiline
                     maxLength={140}
                     style={styles.noteInput}
+                    autoFocus
                   />
                   <View style={styles.noteFooter}>
                     <Text style={styles.noteCounter}>{note.length}/140</Text>
@@ -948,6 +957,18 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: NIGHT.line,
+  },
+  notePrayerScroll: {
+    maxHeight: 88,
+    marginBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: NIGHT.line,
+  },
+  notePrayerText: {
+    fontFamily: FONTS.display,
+    fontSize: 14,
+    lineHeight: 20,
+    color: NIGHT.inkSoft,
   },
   noteInput: {
     minHeight: 56,
