@@ -8,19 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_NO_CAPABILITY_SYNC": "1"
+        "EXPO_NO_CAPABILITY_SYNC": "1",
+        "EAS_NO_FROZEN_LOCKFILE": "1"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_NO_CAPABILITY_SYNC": "1"
+        "EXPO_NO_CAPABILITY_SYNC": "1",
+        "EAS_NO_FROZEN_LOCKFILE": "1"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_NO_CAPABILITY_SYNC": "1"
+        "EXPO_NO_CAPABILITY_SYNC": "1",
+        "EAS_NO_FROZEN_LOCKFILE": "1"
       }
     }
   },
