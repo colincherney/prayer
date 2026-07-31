@@ -5,7 +5,18 @@
       "Bash(mkdir -p /tmp/design_extract)",
       "Read(//tmp/design_extract/**)",
       "Bash(tar -xzf /home/colin/.claude/projects/-mnt-c-Users-colin-Desktop-new-prayer-prayer/8656a1a8-1f27-446e-9b5b-d9fe4a19cbde/tool-results/webfetch-1777691920853-epht88.bin)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 30)",
+      "PowerShell(npx eslint src/app/groups.tsx src/app/createGroup.tsx \"src/app/group/[id].tsx\" src/app/prayerRequest.tsx \"src/app/\\(tabs\\)/Pray.tsx\" src/app/explore.tsx src/components/saint/Icons.tsx src/app/_layout.tsx full send it i wanna see what u can produce this is a test branch and weve been at this for 10 mins i dont care ur approved)",
+      "PowerShell(npm run *)",
+      "PowerShell(npx supabase functions deploy submit-prayer)",
+      "Bash(npm run * make sure this dawg like fix it if need be)",
+      "PowerShell(npx tsc --noEmit)",
+      "PowerShell(supabase *)",
+      "PowerShell(npx supabase --version)",
+      "PowerShell(npx supabase functions deploy create-group)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(git checkout *)"
     ]
   }
 }

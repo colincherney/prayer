@@ -30,6 +30,7 @@ BLOCK only the following:
 - Specific methods or step-by-step instructions for suicide, self-harm, or harming others
 - Spam, advertising, scams, or content unrelated to prayer
 - Doxxing or private identifying information about a third party
+- Naming a private individual — any first name, surname, nickname, initials-plus-context, or social handle that identifies a real person the writer knows (e.g. "pray for Steve, he's broke", "Jessica M. is cheating"). This app is anonymous; prayers must refer to people as "my friend", "my brother", "a coworker", etc. EXCEPTIONS that are always allowed: names of God, Jesus, Mary, saints, angels, biblical figures, clergy titles without surnames ("my pastor"), and well-known public figures prayed for in good faith.
 
 Additionally, if the content suggests the writer may be in active personal crisis — current suicidal ideation, urges to self-harm right now, a plan to end their life, or being actively harmed — set "sensitive": "self-harm" so the app can offer crisis resources. Do NOT set sensitive for general grief, sadness, doubt, or past struggles that are not active.
 
@@ -89,6 +90,7 @@ type Body = {
   body?: string;
   title?: string;
   category?: string | null;
+  group_id?: string | null;
 };
 
 const json = (data: unknown, status = 200) =>
@@ -129,6 +131,7 @@ Deno.serve(async (req) => {
   const body = payload.body?.trim() ?? '';
   const title = payload.title?.trim().slice(0, 200) ?? '';
   const category = payload.category?.toString().trim() || null;
+  const groupId = payload.group_id?.toString().trim() || null;
 
   if (!body) return json({ error: 'body_required' }, 400);
   if (body.length > 2000) return json({ error: 'body_too_long' }, 400);
@@ -149,6 +152,22 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
+
+  // A prayer aimed at a group only lands if the sender is a member.
+  if (groupId) {
+    const { data: membership, error: memberErr } = await admin
+      .from('group_members')
+      .select('group_id')
+      .eq('group_id', groupId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (memberErr) {
+      console.error('membership check failed', memberErr);
+      return json({ error: memberErr.message }, 500);
+    }
+    if (!membership) return json({ error: 'not_a_member' }, 403);
+  }
+
   const { data, error } = await admin
     .from('prayers')
     .insert({
@@ -157,6 +176,7 @@ Deno.serve(async (req) => {
       body,
       category,
       approved: 'y',
+      group_id: groupId,
     })
     .select('id')
     .single();
@@ -169,6 +189,10 @@ Deno.serve(async (req) => {
   // Seed synthetic engagement schedule. Each prayer gets a "popularity" target
   // sampled uniformly in [MIN_TOTAL, MAX_TOTAL]; that many rows are scattered
   // randomly across the 6h window. A pg_cron job drains rows whose due_at passes.
+  // Group prayers are exempt — inside a circle the candle count must be real.
+  if (groupId) {
+    return json({ ok: true, id: data.id, sensitive: modResult.sensitive });
+  }
   const WINDOW_MS = 6 * 60 * 60 * 1000;
   const MIN_TOTAL = 16;
   const MAX_TOTAL = 97;

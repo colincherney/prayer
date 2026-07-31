@@ -73,6 +73,8 @@ ALLOW (do not block, even if uncomfortable):
 - "I've been there too" / solidarity / shared witness
 - Gentle, non-condemning honesty
 - Mentions of self-harm or addiction in a clearly supportive direction
+- Names of biblical figures, saints, or churches used in a devotional way ("Paul writes...", "St. Francis prayed...")
+- The sender signing off with a bare first name or nickname ("Praying for you — Steve", "love, Maria") — a first name alone is fine
 
 BLOCK:
 - Anything that encourages, endorses, agrees with, dismisses, mocks, or makes light of self-harm, suicide, or violence — even subtly, even one or two words
@@ -82,6 +84,7 @@ BLOCK:
 - Specific methods or instructions for self-harm, suicide, or harming others
 - Spam, advertising, recruiting (e.g. "join my church"), or content unrelated to encouragement
 - Doxxing or private information about a third party
+- Anything that identifies a person beyond a bare first name: full names (first + surname), naming or guessing who the prayer's writer is, or any phone number, email, address, social handle, or other contact/identifying detail
 
 Be especially strict about agreement with self-harm intent. If the prayer expresses any urge to self-harm and the reply could reasonably be read as agreement, encouragement, or invitation — block it.
 
@@ -196,7 +199,7 @@ Deno.serve(async (req) => {
 
   const { data: prayerRow, error: prayerErr } = await admin
     .from('prayers')
-    .select('body, user_id, title')
+    .select('body, user_id, title, group_id')
     .eq('id', prayerId)
     .maybeSingle();
 
@@ -206,6 +209,26 @@ Deno.serve(async (req) => {
   }
   if (!prayerRow) {
     return json({ error: 'prayer_not_found' }, 404);
+  }
+
+  // A note aimed at a group prayer only lands if the sender is currently a
+  // member — same boundary submit-prayer enforces. Checked before moderation
+  // so a private prayer's body never reaches the moderator or logs for an
+  // outsider.
+  if (prayerRow.group_id) {
+    const { data: membership, error: memberErr } = await admin
+      .from('group_members')
+      .select('group_id')
+      .eq('group_id', prayerRow.group_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (memberErr) {
+      console.error('membership lookup failed', memberErr);
+      return json({ error: memberErr.message }, 500);
+    }
+    if (!membership) {
+      return json({ error: 'not_a_member' }, 403);
+    }
   }
 
   let modResult;

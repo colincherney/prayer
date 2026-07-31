@@ -87,6 +87,8 @@ type MyPrayer = {
   interactions: Interaction[];
   reflections: Reflection[];
   updates: PrayerUpdate[];
+  // Where this prayer was shared — null = public community, string = group name
+  groupName: string | null;
 };
 
 const KIND_LABEL: Record<UpdateKind, string> = {
@@ -384,7 +386,7 @@ export default function MyPrayersScreen() {
     const { data } = await supabase
       .from('prayers')
       .select(
-        'id, body, created_at, status, prayer_interactions(action, created_at), reflections(id, content, created_at), prayer_updates(id, kind, note, visibility, created_at)',
+        'id, body, created_at, status, group_id, groups(name), prayer_interactions(action, created_at), reflections(id, content, created_at), prayer_updates(id, kind, note, visibility, created_at)',
       )
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -431,6 +433,7 @@ export default function MyPrayersScreen() {
         action: i.action,
         createdAt: i.created_at,
       }));
+      const groupRow = p.groups as { name: string } | null;
       return {
         id: p.id as string,
         text: (p.body as string) ?? '',
@@ -441,6 +444,7 @@ export default function MyPrayersScreen() {
         interactions,
         reflections,
         updates,
+        groupName: groupRow?.name ?? null,
       };
     });
 
@@ -893,7 +897,7 @@ export default function MyPrayersScreen() {
                         {p.text}
                       </Text>
                       <Text style={styles.recentRowMeta}>
-                        {p.prayedCount} prayers · {p.age}
+                        {p.prayedCount} {p.prayedCount === 1 ? 'prayer' : 'prayers'} · {p.age} · {p.groupName ? `${p.groupName}` : 'Community'}
                       </Text>
                     </View>
                     <Text
@@ -1724,7 +1728,7 @@ const AllPrayersSheet: React.FC<{
                         {p.text}
                       </Text>
                       <Text style={styles.recentRowMeta}>
-                        {p.prayedCount} prayers · {p.age}
+                        {p.prayedCount} {p.prayedCount === 1 ? 'prayer' : 'prayers'} · {p.age} · {p.groupName ?? 'Community'}
                       </Text>
                     </View>
                     <Text

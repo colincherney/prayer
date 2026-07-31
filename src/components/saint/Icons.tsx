@@ -141,6 +141,33 @@ export const UserIcon: React.FC<IconProps> = ({ size = 22, color = 'currentColor
   </Svg>
 );
 
+export const UsersIcon: React.FC<IconProps> = ({ size = 22, color = 'currentColor' }) => (
+  <Svg width={size} height={size} viewBox="0 0 22 22">
+    <Circle cx={8} cy={8} r={3} stroke={color} strokeWidth={1.3} fill="none" />
+    <Path
+      d="M2 18 C 2 14, 5.5 13, 8 13 C 10.5 13, 14 14, 14 18"
+      stroke={color}
+      strokeWidth={1.3}
+      fill="none"
+      strokeLinecap="round"
+    />
+    <Path
+      d="M14.5 5.5 C 16 5.8, 17 7, 17 8.5 C 17 9.6, 16.4 10.5, 15.5 11"
+      stroke={color}
+      strokeWidth={1.3}
+      fill="none"
+      strokeLinecap="round"
+    />
+    <Path
+      d="M16 13.5 C 18.2 14.1, 20 15.4, 20 18"
+      stroke={color}
+      strokeWidth={1.3}
+      fill="none"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
 export const SparkleIcon: React.FC<IconProps> = ({ size = 12, color = 'currentColor' }) => (
   <Svg width={size} height={size} viewBox="0 0 12 12">
     <Path d="M6 1 L7 5 L11 6 L7 7 L6 11 L5 7 L1 6 L5 5 Z" fill={color} opacity={0.7} />
