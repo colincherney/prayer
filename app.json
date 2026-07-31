@@ -2,7 +2,7 @@
   "expo": {
     "name": "Saint Central",
     "slug": "saint-central",
-    "version": "6.0.0",
+    "version": "6.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "prayer",

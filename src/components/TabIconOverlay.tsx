@@ -3,10 +3,17 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeIcon, PrayingIcon, UserIcon } from './saint/Icons';
-import { THEME } from './saint/theme';
+import { useTheme } from './saint/theme';
 
 export function TabIconOverlay() {
   const insets = useSafeAreaInsets();
+  // Read through the hook rather than the mutable `THEME` singleton so the icons
+  // recolor when the theme or prayer room changes instead of keeping whichever
+  // palette happened to be active on first render.
+  const { theme: THEME } = useTheme();
+  // `ink` is the token guaranteed to read against the bar's background in every
+  // palette; `cardDark` is near-invisible on the dark ones.
+  const iconColor = THEME.ink;
 
   return (
     <View
@@ -17,13 +24,13 @@ export function TabIconOverlay() {
       pointerEvents="none" // Don't block touches to the actual tabs
     >
       <View style={[styles.iconWrapper, { paddingLeft: 60 }]}>
-        <HomeIcon size={22} color={THEME.cardDark} />
+        <HomeIcon size={22} color={iconColor} />
       </View>
       <View style={styles.iconWrapper}>
-        <PrayingIcon size={22} color={THEME.cardDark} />
+        <PrayingIcon size={22} color={iconColor} />
       </View>
       <View style={[styles.iconWrapper, { paddingRight: 58 }]}>
-        <UserIcon size={22} color={THEME.cardDark} />
+        <UserIcon size={22} color={iconColor} />
       </View>
     </View>
   );
