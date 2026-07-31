@@ -24,15 +24,23 @@ import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { relativeTime } from '@/lib/time';
 
 type PrayerRequest = {
   id: string;
   category: string;
   prayedCount: number;
-  age: string;
   text: string;
 };
+
+// Fisher-Yates. Returns a new array so callers never mutate query results.
+function shuffle<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 type NightPalette = {
   bg: string;
@@ -256,7 +264,9 @@ export default function PrayForOthersScreen() {
   const glowIntensity = useRef(new Animated.Value(0.55)).current;
 
   // Fetch the feed of approved prayers, excluding my own, any I've already
-  // prayed for, and any IDs already shown earlier this session.
+  // prayed for, and any IDs already shown earlier this session. The recency
+  // order below only bounds which prayers form the pool — the 10 we actually
+  // show are drawn from it at random.
   const loadFeed = useCallback(
     async (excludeIds: Set<string>) => {
       setLoadingFeed(true);
@@ -278,7 +288,7 @@ export default function PrayForOthersScreen() {
         return;
       }
 
-      const mapped = (data ?? [])
+      const candidates = (data ?? [])
         .map(p => {
           const interactions =
             (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
@@ -289,14 +299,16 @@ export default function PrayForOthersScreen() {
             id: p.id as string,
             text: (p.body as string) ?? '',
             category: (p.category as string | null) ?? 'Other',
-            age: relativeTime(p.created_at as string),
             prayedCount: interactions.filter(i => i.action === 'prayed').length,
             alreadyPrayed,
           };
         })
         .filter(p => !p.alreadyPrayed && !excludeIds.has(p.id))
-        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
-        .slice(0, 10);
+        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest);
+
+      // Draw a random handful from the pool instead of the 10 most recent, so
+      // the same prayers don't lead the feed for everyone.
+      const mapped = shuffle(candidates).slice(0, 10);
 
       setRequests(mapped);
       setIndex(0);
@@ -560,8 +572,6 @@ export default function PrayForOthersScreen() {
 
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.metaText}>{req.age.toUpperCase()}</Text>
             </View>
 
             <Text style={styles.prayer}>&ldquo;{req.text}&rdquo;</Text>
@@ -814,13 +824,6 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     fontSize: 10,
     letterSpacing: 1.6,
     color: NIGHT.muted,
-  },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: NIGHT.muted,
-    opacity: 0.6,
   },
   prayer: {
     fontFamily: FONTS.display,

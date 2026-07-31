@@ -35,11 +35,10 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { relativeTime } from '@/lib/time';
 
 type Phase = 'intent' | 'searching' | 'paired' | 'praying' | 'blessing';
 
-type Partner = { body: string; ageLabel: string };
+type Partner = { body: string };
 
 const ANONYMOUS_LABEL = 'An anonymous soul';
 
@@ -108,7 +107,6 @@ export default function PairingScreen() {
       }
       setPartner({
         body: p.body as string,
-        ageLabel: p.created_at ? `Shared ${relativeTime(p.created_at as string)}` : ANONYMOUS_LABEL,
       });
       setSubmitting(false);
       setPhase('paired');
@@ -348,7 +346,7 @@ const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => v
               <UserIcon size={20} color={THEME.muted} />
             </View>
             <View>
-              <Text style={styles.partnerLoc}>{partner.ageLabel}</Text>
+              <Text style={styles.partnerLoc}>{ANONYMOUS_LABEL}</Text>
               <Text style={styles.partnerLabel}>YOUR PARTNER</Text>
             </View>
           </View>
@@ -425,7 +423,7 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
           <Pill bg="rgba(255,255,255,0.1)" fg={THEME.cardDarkInk} icon={<SparkleIcon size={11} color={THEME.cardDarkInk} />}>
             Praying together
           </Pill>
-          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{partner.ageLabel}</Text>
+          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{ANONYMOUS_LABEL}</Text>
         </View>
 
         <View style={styles.prayingMid}>
