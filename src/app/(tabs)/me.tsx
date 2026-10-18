@@ -7,6 +7,7 @@ import {
   Alert,
   LayoutChangeEvent,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -379,7 +380,11 @@ export default function MeScreen() {
                 </Pressable>
               </View>
               <Text style={styles.rowLabel}>Scene</Text>
-              <View style={styles.chipGrid}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+                contentContainerStyle={styles.chipScrollContent}>
                 {SCENES.map(sc => (
                   <Pressable
                     key={sc.id}
@@ -396,11 +401,15 @@ export default function MeScreen() {
                     {sc.locked && !owns(owned, sceneProductId(sc.id)) ? <Text style={styles.lock}>{'\u{1F512}'}</Text> : null}
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
               {ROWS.map(row => (
                 <View key={row.slot}>
                   <Text style={styles.rowLabel}>{row.label}</Text>
-                  <View style={styles.chipGrid}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.chipScroll}
+                    contentContainerStyle={styles.chipScrollContent}>
                     {row.items.map(it => {
                       const on = nook.items.includes(it.id);
                       return (
@@ -418,7 +427,7 @@ export default function MeScreen() {
                         </Pressable>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 </View>
               ))}
               {previewing ? (
@@ -672,11 +681,13 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   storePillText: { fontFamily: FONTS.bodyBold, fontSize: 13, color: THEME.accentInk },
   rowLabel: { marginTop: 14, marginBottom: 8, fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Each row of cosmetics scrolls sideways, so adding more never makes the page longer. The strip runs to the screen
+  // edges (cancelling the page padding) so chips slide out from under the edge instead of being cut off early.
+  chipScroll: { marginHorizontal: -22 },
+  chipScrollContent: { paddingHorizontal: 22, gap: 8 },
   chip: {
-    width: '23%',
-    flexGrow: 1,
-    minHeight: 74,
+    width: 96,
+    minHeight: 78,
     paddingVertical: 10,
     paddingHorizontal: 4,
     borderRadius: 16,

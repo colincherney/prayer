@@ -116,6 +116,31 @@ function SceneArt({ id }: { id: string }) {
           <Rect x={0} y={27} width={32} height={5} fill="#24180F" />
         </>
       );
+    case 'harvest':
+      return (
+        <>
+          <Rect width={32} height={32} fill="#140F2A" />
+          <Rect x={0} y={12} width={32} height={12} fill="#5A2F4A" opacity={0.3} />
+          <Circle cx={22} cy={9} r={8} fill="#F6E2B0" opacity={0.2} />
+          <Circle cx={22} cy={9} r={5} fill="#F4E3B5" />
+          <G fill="#F2E9D8">
+            <Circle cx={7} cy={6} r={0.9} />
+            <Circle cx={13} cy={12} r={0.8} />
+            <Circle cx={28} cy={18} r={0.8} />
+          </G>
+          <Path d="M0 21 C8 17 16 19 24 18 C28 17.5 31 18 32 17.5 V32 H0 Z" fill="#2A1B3A" />
+          <G fill="#1E1430">
+            <Rect x={5} y={15} width={6} height={6} />
+            <Polygon points="4.5,15.2 8,12 11.5,15.2" />
+          </G>
+          <Path d="M0 26 C9 23 18 25 26 23.5 C29 23 31 23.5 32 23 V32 H0 Z" fill="#22162F" />
+          <G>
+            <Ellipse cx={10} cy={27} rx={3.2} ry={3.4} fill="#E07E34" />
+            <Rect x={9.4} y={22.8} width={1.2} height={1.6} fill="#4A2E1A" />
+            <Ellipse cx={23} cy={28} rx={2.6} ry={2.8} fill="#C9672A" />
+          </G>
+        </>
+      );
     default:
       return (
         <>
@@ -268,6 +293,94 @@ function ItemArt({ id }: { id: string }) {
             <Rect x={22} y={10} width={2.4} height={10} rx={1.2} />
           </G>
           <Circle cx={16} cy={29} r={1.8} fill="#C9A24B" />
+        </>
+      );
+    case 'jackolantern':
+      return (
+        <>
+          <Ellipse cx={10} cy={19} rx={6} ry={8} fill="#C9672A" />
+          <Ellipse cx={22} cy={19} rx={6} ry={8} fill="#C9672A" />
+          <Ellipse cx={16} cy={19} rx={8} ry={8.6} fill="#E07E34" />
+          <Rect x={15} y={7.5} width={2} height={4} fill="#4A2E1A" />
+          <Path d="M11 16 L13.4 13.6 L15.6 16 Z M21 16 L18.6 13.6 L16.4 16 Z" fill="#FFE08A" />
+          <Path d="M11 21.5 Q16 26 21 21.5 Q16 23.6 11 21.5 Z" fill="#FFE08A" />
+        </>
+      );
+    case 'hay':
+      return (
+        <>
+          <Rect x={4} y={14} width={24} height={13} rx={4} fill="#D9B24A" />
+          <Path d="M6 18 H26 M6 22 H26" stroke="#B8902E" strokeWidth={1} />
+          <Path d="M8 14 l1.5 -4 M13 14 l-1 -5 M19 14 l1.5 -4.5 M24 14 l-1.5 -4" stroke="#E8C86A" strokeWidth={1.4} strokeLinecap="round" />
+          <Path d="M11 14 V27 M21 14 V27" stroke="#9C7424" strokeWidth={1.4} />
+        </>
+      );
+    case 'wheat':
+      return (
+        <>
+          <Path d="M10 29 L12.5 12 M16 29 L16 9 M22 29 L19.5 12" stroke="#C9A24B" strokeWidth={1.8} strokeLinecap="round" />
+          <G fill="#F2C462">
+            <Ellipse cx={12.5} cy={9} rx={2.4} ry={5.4} />
+            <Ellipse cx={16} cy={6} rx={2.4} ry={5.4} />
+            <Ellipse cx={19.5} cy={9} rx={2.4} ry={5.4} />
+          </G>
+          <Path d="M10 21 L22 21" stroke="#C9433A" strokeWidth={2} />
+        </>
+      );
+    case 'autumnwreath':
+      return (
+        <>
+          <Circle cx={16} cy={16} r={9} fill="none" stroke="#6E8B4E" strokeWidth={4} />
+          {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
+            const a = (i * 45 * Math.PI) / 180;
+            return (
+              <Ellipse
+                key={i}
+                cx={16 + 9 * Math.cos(a)}
+                cy={16 + 9 * Math.sin(a)}
+                rx={3.4}
+                ry={1.8}
+                fill={['#C9433A', '#E8913A', '#F2C462'][i % 3]}
+                transform={`rotate(${i * 45 + 90} ${16 + 9 * Math.cos(a)} ${16 + 9 * Math.sin(a)})`}
+              />
+            );
+          })}
+        </>
+      );
+    case 'web':
+      return (
+        <>
+          <Path d="M2 2 L28 28 M2 2 L30 11 M2 2 L11 30" stroke="#B9BFC9" strokeWidth={0.9} />
+          <Path d="M14 3 Q12 12 3 14 M22 5 Q19 19 5 22 M29 9 Q25 26 9 29" stroke="#B9BFC9" strokeWidth={0.9} fill="none" />
+          <Path d="M20 2 V13" stroke="#B9BFC9" strokeWidth={0.8} />
+          <Circle cx={20} cy={15} r={2.4} fill="#8A6FA6" />
+          <Path d="M18 14 L15.5 12 M18 16 L15 17 M22 14 L24.5 12 M22 16 L25 17" stroke="#8A6FA6" strokeWidth={0.9} strokeLinecap="round" />
+        </>
+      );
+    case 'bats':
+      return (
+        <>
+          {[[16, 9, 0.9], [8, 20, 0.7], [24, 19, 0.75]].map(([x, y, sc], i) => (
+            <G key={i} transform={`translate(${x} ${y}) scale(${sc})`}>
+              <Path d="M0 0 Q-7 -6 -14 -2 Q-10 0 -8 4 Q-4 1 0 4 Q4 1 8 4 Q10 0 14 -2 Q7 -6 0 0 Z" fill="#8A6FA6" />
+              <Ellipse cx={0} cy={1.5} rx={2.8} ry={4} fill="#8A6FA6" />
+              <Circle cx={-1} cy={-0.5} r={0.7} fill="#F2C462" />
+              <Circle cx={1} cy={-0.5} r={0.7} fill="#F2C462" />
+            </G>
+          ))}
+        </>
+      );
+    case 'garland':
+      return (
+        <>
+          <Path d="M2 6 Q16 20 30 6" stroke="#8A6A45" strokeWidth={1.4} fill="none" />
+          {[[6, 9], [11.5, 12.2], [16, 13.2], [20.5, 12.2], [26, 9]].map(([x, y], i) => (
+            <G key={i}>
+              <Polygon points={`${x - 3},${y} ${x + 3},${y} ${x},${y + 8}`} fill="#E8913A" />
+              <Polygon points={`${x - 3},${y} ${x + 3},${y} ${x + 2},${y + 2.6} ${x - 2},${y + 2.6}`} fill="#F2C462" />
+              <Polygon points={`${x - 1},${y + 5.4} ${x + 1},${y + 5.4} ${x},${y + 8}`} fill="#FFFBF2" />
+            </G>
+          ))}
         </>
       );
     default:

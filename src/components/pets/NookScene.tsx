@@ -164,6 +164,68 @@ export function SceneBackdrop({ scene, bg }: { scene: SceneId; bg: string }) {
           <Rect x={0} y={360} width={342} height={80} fill="#24180F" />
         </>
       )}
+      {scene === 'harvest' && (
+        <>
+          <Rect width={342} height={440} fill="#140F2A" />
+          <Rect x={0} y={150} width={342} height={170} fill="#5A2F4A" opacity={0.28} />
+          <G fill="#F2E9D8">
+            <TwinkleDot cx={30} cy={40} r={1.3} />
+            <TwinkleDot cx={90} cy={96} r={1.1} delay={900} />
+            <TwinkleDot cx={150} cy={34} r={1.4} delay={1800} />
+            <TwinkleDot cx={310} cy={150} r={1.1} delay={900} />
+            <TwinkleDot cx={22} cy={170} r={1.2} />
+          </G>
+          <Fx kind="glowMoon">
+            <Circle cx={248} cy={84} r={70} fill="#F6E2B0" opacity={0.2} />
+          </Fx>
+          <Circle cx={248} cy={84} r={30} fill="#F4E3B5" />
+          <G fill="#E3CC92" opacity={0.6}>
+            <Circle cx={239} cy={76} r={5} />
+            <Circle cx={256} cy={94} r={4} />
+          </G>
+          <Path d="M0 300 C60 272 130 288 190 280 C250 272 300 288 342 280 L342 440 L0 440 Z" fill="#2A1B3A" />
+          <G fill="#1E1430">
+            <Rect x={44} y={262} width={22} height={18} />
+            <Polygon points="42,263 55,251 68,263" />
+            <Rect x={51} y={238} width={8} height={14} />
+            <Polygon points="50,239 55,226 60,239" />
+          </G>
+          <Fx kind="candle">
+            <Rect x={50} y={268} width={4} height={7} rx={2} fill="#F2C462" />
+          </Fx>
+          <Path d="M0 360 C80 336 170 352 250 338 C300 330 330 340 342 336 L342 440 L0 440 Z" fill="#22162F" />
+          <Fx kind="mist">
+            <Ellipse cx={120} cy={340} rx={140} ry={12} fill="#8A6FA6" opacity={0.12} />
+          </Fx>
+          <G transform="translate(60 392)">
+            <Ellipse cx={-10} cy={0} rx={11} ry={13} fill="#C9672A" />
+            <Ellipse cx={10} cy={0} rx={11} ry={13} fill="#C9672A" />
+            <Ellipse cx={0} cy={0} rx={13} ry={14} fill="#E07E34" />
+            <Rect x={-2} y={-18} width={4} height={6} fill="#4A2E1A" />
+          </G>
+          <G transform="translate(282 398) scale(0.85)">
+            <Ellipse cx={-10} cy={0} rx={11} ry={13} fill="#C9672A" />
+            <Ellipse cx={10} cy={0} rx={11} ry={13} fill="#C9672A" />
+            <Ellipse cx={0} cy={0} rx={13} ry={14} fill="#E07E34" />
+            <Rect x={-2} y={-18} width={4} height={6} fill="#4A2E1A" />
+            <Fx kind="candle">
+              <Path d="M-8 -4 L-4 -8 L0 -4 Z M8 -4 L4 -8 L0 -4 Z" fill="#FFE08A" />
+              <Path d="M-8 5 Q0 11 8 5 Q0 8 -8 5 Z" fill="#FFE08A" />
+            </Fx>
+          </G>
+          <G fill="#E8873A">
+            <Fx kind="firefly"><Circle cx={40} cy={330} r={2} /></Fx>
+            <Fx kind="firefly" delay={1300}><Circle cx={170} cy={310} r={2.2} /></Fx>
+            <Fx kind="firefly" delay={2600}><Circle cx={300} cy={340} r={2} /></Fx>
+          </G>
+          <Fx kind="leafFallH">
+            <Ellipse cx={70} cy={-8} rx={5} ry={3} fill="#D9762E" />
+          </Fx>
+          <Fx kind="leafFallH" delay={3000}>
+            <Ellipse cx={210} cy={-8} rx={5} ry={3} fill="#C9433A" />
+          </Fx>
+        </>
+      )}
       {scene === 'easter' && (
         <>
           <Rect x={0} y={190} width={342} height={130} fill="#E8A9A0" opacity={0.12} />
@@ -258,6 +320,27 @@ export function PrayerWeb({ level }: { level: 1 | 2 | 3 | 4 }) {
     </Svg>
   );
 }
+
+const BATS: [number, number, number, number][] = [
+  [171, 72, 1.1, 0],
+  [146, 100, 0.85, 800],
+  [198, 92, 0.95, 1600],
+];
+/** A gentle droop along the top of the nook, for the candy corn garland. */
+const garlandY = (x: number) => 4 + 20 * Math.sin((Math.PI * (x - 10)) / 322);
+const GARLAND_POINTS: [number, number][] = Array.from({ length: 11 }, (_, i) => {
+  const x = 20 + i * 30.2;
+  return [x, garlandY(x)];
+});
+const GARLAND_PATH = Array.from({ length: 33 }, (_, i) => {
+  const x = 10 + i * 10.06;
+  return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${garlandY(x).toFixed(1)}`;
+}).join(' ');
+const LEAF_COLORS = ['#C9433A', '#E8913A', '#F2C462'];
+const WREATH_LEAVES: [number, number, number, string][] = Array.from({ length: 12 }, (_, i) => {
+  const a = (i * 30 * Math.PI) / 180;
+  return [292 + 22 * Math.cos(a), 100 + 22 * Math.sin(a), i * 30 + 90, LEAF_COLORS[i % 3]];
+});
 
 type ItemArtProps = {
   id: string;
@@ -441,6 +524,103 @@ export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
           <Path d="M264 298 L285 292 L285 270 L264 276 Z" fill="#F3EBDD" />
           <Path d="M306 298 L285 292 L285 270 L306 276 Z" fill="#FFF8EC" />
           <Path d="M268 282 L281 278 M268 287 L281 283 M289 278 L302 282 M289 283 L302 287" stroke="#C9B89A" strokeWidth={1.2} />
+        </>
+      );
+    case 'jackolantern':
+      return (
+        <>
+          <Fx kind="glowP">
+            <Circle cx={70} cy={318} r={34} fill="#F2A93B" />
+          </Fx>
+          <Ellipse cx={58} cy={320} rx={13} ry={16} fill="#C9672A" />
+          <Ellipse cx={82} cy={320} rx={13} ry={16} fill="#C9672A" />
+          <Ellipse cx={70} cy={320} rx={15} ry={17} fill="#E07E34" />
+          <Rect x={68} y={299} width={4} height={7} fill="#4A2E1A" />
+          <Fx kind="candle">
+            <Path d="M62 316 L66 312 L70 316 Z M78 316 L74 312 L70 316 Z" fill="#FFE08A" />
+            <Path d="M62 325 Q70 331 78 325 Q70 328 62 325 Z" fill="#FFE08A" />
+          </Fx>
+        </>
+      );
+    case 'hay':
+      return (
+        <>
+          <Rect x={176} y={298} width={78} height={34} rx={8} fill="#D9B24A" />
+          <Path d="M180 306 H250 M180 314 H250 M180 322 H250" stroke="#B8902E" strokeWidth={1.4} />
+          <Path d="M188 298 l4 -7 M200 298 l-2 -8 M214 298 l3 -7 M228 298 l-3 -8 M240 298 l4 -7" stroke="#E8C86A" strokeWidth={1.6} strokeLinecap="round" />
+          <Path d="M196 298 V332 M232 298 V332" stroke="#9C7424" strokeWidth={2} />
+        </>
+      );
+    case 'wheat':
+      return (
+        <Fx kind="sheaf" ox={318} oy={342}>
+          <Path d="M308 342 L312 286 M316 342 L318 280 M324 342 L324 288" stroke="#C9A24B" strokeWidth={2.5} strokeLinecap="round" />
+          <G fill="#F2C462">
+            <Ellipse cx={312} cy={282} rx={4} ry={9} />
+            <Ellipse cx={318} cy={276} rx={4} ry={9} />
+            <Ellipse cx={324} cy={284} rx={4} ry={9} />
+          </G>
+          <Path d="M308 322 L326 322" stroke="#C9433A" strokeWidth={3} />
+        </Fx>
+      );
+    case 'bats':
+      return (
+        <>
+          {BATS.map(([x, y, s, d], i) => (
+            <Fx key={i} kind="bobH" delay={d}>
+              <G transform={`translate(${x} ${y}) scale(${s})`}>
+                <Fx kind="wingBeat" ox={0} oy={0}>
+                  <Path d="M0 0 Q-10 -9 -20 -3 Q-14 0 -12 6 Q-6 2 0 6 Q6 2 12 6 Q14 0 20 -3 Q10 -9 0 0 Z" fill="#241A38" />
+                </Fx>
+                <Ellipse cx={0} cy={2} rx={4} ry={6} fill="#241A38" />
+                <Path d="M-3 -3 L-4 -8 L-1 -4 M3 -3 L4 -8 L1 -4" fill="#241A38" />
+                <Circle cx={-1.6} cy={-1} r={0.9} fill="#F2C462" />
+                <Circle cx={1.6} cy={-1} r={0.9} fill="#F2C462" />
+              </G>
+            </Fx>
+          ))}
+        </>
+      );
+    case 'garland':
+      return (
+        <Fx kind="swing" ox={171} oy={0}>
+          <Path d={GARLAND_PATH} stroke="#8A6A45" strokeWidth={2} fill="none" />
+          {GARLAND_POINTS.map(([x, y], i) => (
+            <G key={i}>
+              <Polygon points={`${x - 7},${y} ${x + 7},${y} ${x},${y + 18}`} fill="#E8913A" />
+              <Polygon points={`${x - 7},${y} ${x + 7},${y} ${x + 4.7},${y + 6} ${x - 4.7},${y + 6}`} fill="#F2C462" />
+              <Polygon points={`${x - 2.3},${y + 12} ${x + 2.3},${y + 12} ${x},${y + 18}`} fill="#FFFBF2" />
+            </G>
+          ))}
+        </Fx>
+      );
+    case 'autumnwreath':
+      return (
+        <>
+          <Circle cx={292} cy={100} r={22} fill="none" stroke="#6E8B4E" strokeWidth={6} />
+          {WREATH_LEAVES.map(([x, y, rot, c], i) => (
+            <Ellipse key={i} cx={x} cy={y} rx={7} ry={3.4} fill={c} transform={`rotate(${rot} ${x} ${y})`} />
+          ))}
+          <G transform="translate(292 124)">
+            <Ellipse cx={-4} cy={0} rx={5} ry={6} fill="#C9672A" />
+            <Ellipse cx={4} cy={0} rx={5} ry={6} fill="#C9672A" />
+            <Ellipse cx={0} cy={0} rx={6} ry={6.5} fill="#E07E34" />
+            <Rect x={-1} y={-9} width={2} height={3} fill="#4A2E1A" />
+          </G>
+        </>
+      );
+    case 'web':
+      return (
+        <>
+          <Path d="M0 0 L70 70 M0 0 L92 30 M0 0 L30 92" stroke="#F2E9D8" strokeOpacity={0.35} strokeWidth={1} />
+          <Path d="M45 5 Q40 40 5 45 M75 8 Q66 66 8 75 M105 12 Q92 92 12 105" stroke="#F2E9D8" strokeOpacity={0.3} strokeWidth={1} fill="none" />
+          <Fx kind="swing" ox={70} oy={0}>
+            <Path d="M70 0 L70 48" stroke="#F2E9D8" strokeOpacity={0.5} strokeWidth={1} />
+            <Circle cx={70} cy={52} r={4.5} fill="#1A1228" />
+            <Path d="M66 50 L61 46 M66 53 L60 54 M74 50 L79 46 M74 53 L80 54" stroke="#1A1228" strokeWidth={1.2} strokeLinecap="round" />
+            <Circle cx={68.6} cy={51} r={0.9} fill="#F2C462" />
+            <Circle cx={71.4} cy={51} r={0.9} fill="#F2C462" />
+          </Fx>
         </>
       );
     default:

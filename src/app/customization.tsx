@@ -384,6 +384,57 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'halloween') {
+    // All Hallows' Eve — plum sky, big pale moon, dark hill, a glowing pumpkin.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View
+          style={{
+            position: 'absolute',
+            right: 14,
+            top: 8,
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: '#f4e3b5',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: -20,
+            right: -20,
+            bottom: -18,
+            height: 40,
+            borderRadius: 40,
+            backgroundColor: '#2a1b3a',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 18,
+            bottom: 8,
+            width: 20,
+            height: 17,
+            borderRadius: 9,
+            backgroundColor: '#e07e34',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 24,
+            bottom: 13,
+            width: 8,
+            height: 3,
+            borderRadius: 2,
+            backgroundColor: '#ffe08a',
+          }}
+        />
+      </View>
+    );
+  }
   // lamp — dusky scene with a warm halo
   return (
     <View

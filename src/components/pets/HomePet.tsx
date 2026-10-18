@@ -30,6 +30,8 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   lamp: { size: 100, x: 0.845, feetY: 151 },
   stars: { size: 124, x: 0.78, feetY: 163 },
   jungle: { size: 124, x: 0.78, feetY: 163 },
+  // All Hallows' Eve: sitting on top of the big pumpkin in the scene.
+  halloween: { size: 96, x: 0.744, feetY: 184 },
   theme: { size: 72, x: 0.644, feetY: 192 },
 };
 

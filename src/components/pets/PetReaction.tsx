@@ -124,6 +124,16 @@ export const REACTIONS: Record<PetId, [Reaction, Reaction, Reaction]> = {
       particles: [spark(['#FFE08A', '#F2C462', '#FFE08A'], 70, 24), spark(['#FFF3C4', '#F2A93B', '#FFE08A'], 22, 90, 150)],
     },
   ],
+  pumpkin: [
+    { text: 'Sprout!', bubble: { left: 16, top: 70 }, bursts: [], particles: [] },
+    { text: 'Happy harvest!', bubble: { left: 12, top: 40 }, bursts: [], particles: [] },
+    {
+      text: 'Bless this harvest!',
+      bubble: { left: 8, top: 24 },
+      bursts: [{ color: '#F2A93B', width: 3, top: 62 }, { color: '#FFE08A', width: 2, delay: 200, top: 62 }],
+      particles: [],
+    },
+  ],
   dragon: [
     { text: 'Crack!', bubble: { left: 16, top: 60 }, bursts: [], particles: [{ kind: 'zig', color: '#F2C462', w: 34, h: 30, left: 66, top: 64 }] },
     { text: 'Splash!', bubble: { left: 14, top: 50 }, bursts: [{ color: '#86E6D9', width: 3, top: 66 }], particles: [drops('#86E6D9', 40, 30, 64, 60)] },

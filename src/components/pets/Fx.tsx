@@ -100,6 +100,22 @@ const PRESETS = {
   rise: { dur: 4000, stops: [0, 0.15, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.8, tx: 0.9, ty: -13.5 }, { o: 0, tx: 6, ty: -90 }], rest: 0.15 },
   crack: { dur: 2800, stops: THREE, poses: [{ o: 0.15 }, { o: 1 }, { o: 0.15 }], rest: 0.5 },
   ripple: { dur: 3000, stops: [0, 1], poses: [{ o: 0.6, s: 0.5 }, { o: 0, s: 1.4 }], rest: 0.3 },
+  // ---- Halloween: Gourdy the pumpkin and the All Hallows' Eve room ----
+  hopP: { dur: 2400, stops: [0, 0.65, 0.72, 0.8, 0.88, 1], poses: [{ ty: 0, sx: 1, sy: 1 }, { ty: 0, sx: 1, sy: 1 }, { ty: 2, sx: 1.06, sy: 0.94 }, { ty: -14, sx: 0.96, sy: 1.04 }, { ty: 0, sx: 1, sy: 1 }, { ty: 0, sx: 1, sy: 1 }], rest: 0 },
+  candle: { dur: 1300, stops: [0, 0.3, 0.55, 0.75, 1], poses: [{ o: 1 }, { o: 0.75 }, { o: 0.95 }, { o: 0.8 }, { o: 1 }], rest: 0 },
+  leafSway: { dur: 2600, stops: THREE, poses: [{ rot: -8 }, { rot: 8 }, { rot: -8 }], rest: 0.25 },
+  sheaf: { dur: 3400, stops: THREE, poses: [{ rot: -4 }, { rot: 4 }, { rot: -4 }], rest: 0.25 },
+  firefly: { dur: 4000, stops: THREE, poses: [{ o: 0.15, tx: 0, ty: 0 }, { o: 1, tx: 6, ty: -12 }, { o: 0.15, tx: 0, ty: 0 }], rest: 0.5 },
+  glowP: { dur: 2600, stops: THREE, poses: [{ o: 0.12 }, { o: 0.3 }, { o: 0.12 }], rest: 0.25 },
+  spin28: { dur: 28000, stops: [0, 1], poses: [{ rot: 0 }, { rot: 360 }], rest: 0, linear: true },
+  twinkleSoft: { dur: 2600, stops: THREE, poses: [{ o: 0.25 }, { o: 1 }, { o: 0.25 }], rest: 0.5 },
+  glowMoon: { dur: 4000, stops: THREE, poses: [{ o: 0.7 }, { o: 1 }, { o: 0.7 }], rest: 0.5 },
+  mist: { dur: 28000, stops: THREE, poses: [{ tx: -30 }, { tx: 30 }, { tx: -30 }], rest: 0.25 },
+  mistB: { dur: 36000, stops: THREE, poses: [{ tx: 30 }, { tx: -30 }, { tx: 30 }], rest: 0.25 },
+  birds: { dur: 26000, stops: [0, 1], poses: [{ tx: -80 }, { tx: 470 }], rest: 0.4, linear: true },
+  leafFallH: { dur: 9000, stops: [0, 0.08, 0.92, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 1, tx: -3, ty: 69, rot: 34 }, { o: 1, tx: -37, ty: 791, rot: 386 }, { o: 0, tx: -40, ty: 860, rot: 420 }], rest: 0, linear: true },
+  flutterH: { dur: 7000, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ tx: 0, ty: 0 }, { tx: 18, ty: -12 }, { tx: 34, ty: 4 }, { tx: 14, ty: 10 }, { tx: 0, ty: 0 }], rest: 0 },
+  bobH: { dur: 3200, stops: THREE, poses: [{ ty: 0 }, { ty: -4 }, { ty: 0 }], rest: 0 },
   seed: { dur: 7000, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.8, tx: 6, ty: -30 }, { o: 0, tx: 30, ty: -150 }], rest: 0 },
 } satisfies Record<string, Preset>;
 

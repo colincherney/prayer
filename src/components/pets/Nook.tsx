@@ -114,6 +114,13 @@ const ITEM_ORDER = [
   'lamp',
   'mobile',
   'chimes',
+  'bats',
+  'garland',
+  'web',
+  'autumnwreath',
+  'hay',
+  'jackolantern',
+  'wheat',
 ];
 const ITEM_LABEL: Record<string, string> = {
   glass: 'Stained glass',
@@ -129,6 +136,13 @@ const ITEM_LABEL: Record<string, string> = {
   lamp: 'Clay oil lamp',
   mobile: 'Star mobile',
   chimes: 'Chimes',
+  hay: 'Hay bale',
+  jackolantern: "Jack-o'-lantern",
+  wheat: 'Wheat sheaf',
+  autumnwreath: 'Autumn wreath',
+  web: 'Spiderweb',
+  bats: 'Friendly bats',
+  garland: 'Candy corn garland',
 };
 
 function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean; warm: boolean }) {

@@ -12,7 +12,7 @@ import React, {
   useState,
 } from 'react';
 
-export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle';
+export type PrayerRoomName = 'lamp' | 'window' | 'stars' | 'jungle' | 'halloween';
 
 export type PrayerRoomPalette = {
   bg: string;
@@ -131,20 +131,46 @@ const JUNGLE: PrayerRoomPalette = {
   statusBar: 'light-content',
 };
 
+// All Hallows' Eve — a moonlit autumn hillside: deep plum sky, pumpkin-orange accent, cream text.
+// Matches the "Home · Halloween" design.
+const HALLOWEEN: PrayerRoomPalette = {
+  bg: '#140f2a',
+  bgSoft: '#1d1538',
+  surface: '#251a40',
+  ink: '#f2e9d8',
+  inkSoft: 'rgba(242,233,216,0.82)',
+  muted: 'rgba(242,233,216,0.55)',
+  divider: 'rgba(242,233,216,0.18)',
+  accent: '#e8913a',
+  accentSoft: '#b8702c',
+  pillBg: 'rgba(255,255,255,0.1)',
+  pillInk: '#f2e9d8',
+  cardDark: 'rgba(22,14,34,0.9)',
+  cardDarkInk: '#f2e9d8',
+  cardLight: 'rgba(246,234,214,0.95)',
+  cardLightInk: '#1f2633',
+  cardLightInkSoft: '#4a4f5a',
+  cardLightPillBg: '#f0cfae',
+  cardLightPillInk: '#b5562e',
+  statusBar: 'light-content',
+};
+
 export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
   stars: STARS,
   jungle: JUNGLE,
+  halloween: HALLOWEEN,
 };
 
-export const PRAYER_ROOM_ORDER: PrayerRoomName[] = ['lamp', 'window', 'stars', 'jungle'];
+export const PRAYER_ROOM_ORDER: PrayerRoomName[] = ['lamp', 'window', 'stars', 'jungle', 'halloween'];
 
 export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   lamp: 'Lamplit Corner',
   window: 'Window Seat',
   stars: 'Starlit Garden',
   jungle: 'Rainforest Vigil',
+  halloween: "All Hallows' Eve",
 };
 
 const STORAGE_KEY = 'saint.prayerRoom';

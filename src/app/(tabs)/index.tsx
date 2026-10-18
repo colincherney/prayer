@@ -15,6 +15,7 @@ import {
   StarIcon,
 } from '@/components/saint/Icons';
 import { HomePet } from '@/components/pets/HomePet';
+import { HalloweenScene } from '@/components/saint/HalloweenScene';
 import { LamplitScene } from '@/components/saint/LamplitScene';
 import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
@@ -30,6 +31,7 @@ import {
   Theme,
   useTheme,
   useThemedStyles,
+  HALLOWEEN_VERSES,
   VERSES,
 } from '@/components/saint/theme';
 import { usePrayerRoom } from '@/components/saint/prayerRoom';
@@ -302,7 +304,14 @@ function RoomHomeScreen() {
         ? StarlitGardenScene
         : roomName === 'jungle'
           ? RainforestVigilScene
-          : LamplitScene;
+          : roomName === 'halloween'
+            ? HalloweenScene
+            : LamplitScene;
+  // The Halloween room has its own light-themed verses, pill and tagline.
+  const hallows = roomName === 'halloween';
+  const topVerses = hallows ? HALLOWEEN_VERSES.slice(0, 3) : VERSES.slice(0, 3);
+  const midVerses = hallows ? HALLOWEEN_VERSES.slice(3, 5) : VERSES.slice(1, 4);
+  const lowVerses = hallows ? HALLOWEEN_VERSES.slice(5, 7) : VERSES.slice(2, 5);
 
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
@@ -315,7 +324,7 @@ function RoomHomeScreen() {
         {/* Top scripture ticker */}
         <View style={{ marginTop: 8, marginBottom: 14 }}>
           <ScriptureTicker
-            verses={VERSES.slice(0, 3)}
+            verses={topVerses}
             speed={26}
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />
@@ -327,7 +336,7 @@ function RoomHomeScreen() {
             bg={ROOM.pillBg}
             fg={ROOM.pillInk}
             icon={<ShieldIcon size={11} color={ROOM.accent} />}>
-            Anonymous Prayer
+            {hallows ? "All Hallows' Eve" : 'Anonymous Prayer'}
           </Pill>
           <View style={styles.sparkles}>
             <SparkleIcon size={10} color={ROOM.muted} />
@@ -354,7 +363,7 @@ function RoomHomeScreen() {
           <Text style={[styles.heroSubtitle, { color: ROOM.inkSoft }]}>
             Pray anonymously.{'\n'}
             Lift others. Find{' '}
-            <Text style={[styles.heroHope, { color: ROOM.accent }]}>hope</Text>.
+            <Text style={[styles.heroHope, { color: ROOM.accent }]}>{hallows ? 'light' : 'hope'}</Text>.
           </Text>
           <View style={{ marginTop: 8 }}>
             <Squiggle color={ROOM.accent} w={36} opacity={0.5} />
@@ -366,7 +375,7 @@ function RoomHomeScreen() {
             mock's mid marquee. */}
         <View style={[styles.midTickerWrap, { borderColor: ROOM.divider }]}>
           <ScriptureTicker
-            verses={VERSES.slice(1, 4)}
+            verses={midVerses}
             speed={22}
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />
@@ -438,7 +447,7 @@ function RoomHomeScreen() {
         {/* Bottom scripture ticker */}
         <View style={{ marginTop: 14 }}>
           <ScriptureTicker
-            verses={VERSES.slice(2, 5)}
+            verses={lowVerses}
             speed={24}
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />

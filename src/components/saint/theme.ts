@@ -253,6 +253,17 @@ export const FONTS = {
   bodyBold: 'Inter_700Bold',
 };
 
+/** Light-themed verses for the All Hallows' Eve room's scripture tickers. */
+export const HALLOWEEN_VERSES = [
+  { text: 'Your word is a lamp to my feet', ref: 'Psalm 119:105' },
+  { text: 'The light shines in the darkness', ref: 'John 1:5' },
+  { text: 'Let your light shine', ref: 'Matthew 5:16' },
+  { text: 'Even the darkness is not dark to You', ref: 'Psalm 139:12' },
+  { text: 'I am the light of the world', ref: 'John 8:12' },
+  { text: 'The Lord is my light and my salvation', ref: 'Psalm 27:1' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
 export const VERSES = [
   { text: 'Pray without ceasing', ref: '1 Thessalonians 5:17' },
   { text: 'Be still, and know that I am God', ref: 'Psalm 46:10' },

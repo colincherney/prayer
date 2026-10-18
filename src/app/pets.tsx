@@ -9,6 +9,16 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { usePetProgress } from '@/lib/pet';
 
+/**
+ * Size of each companion's picture (dp), and of the evolution stages under it. ART_SIZE is also the width of the
+ * picture column on every card, so the text lines up. Gourdy is drawn a little larger because its artwork sits
+ * smaller on its canvas; it is centered in the same column.
+ */
+const ART_COLUMN = 130; // width of the picture column; unchanged, so the text stays exactly where it was
+const ART_SIZE = 176; // the main picture, 0.3 inch (about 46 dp) larger than before; it spills evenly past the column
+const EVO_SIZE = 92;
+const PUMPKIN_ART_SIZE = 202; // Gourdy, also 46 dp larger than before
+const PUMPKIN_EVO_SIZE = 102;
 const LEVELS = ['Levels 1–4', 'Levels 5–9', 'Level 10+'] as const;
 
 function PetCard({
@@ -28,6 +38,8 @@ function PetCard({
   onToggle: () => void;
 }) {
   const styles = useThemedStyles(makeStyles);
+  const artSize = def.id === 'pumpkin' ? PUMPKIN_ART_SIZE : ART_SIZE;
+  const evoSize = def.id === 'pumpkin' ? PUMPKIN_EVO_SIZE : EVO_SIZE;
   return (
     <Pressable
       onPress={onPick}
@@ -36,12 +48,17 @@ function PetCard({
       accessibilityLabel={`${def.name} the ${def.species}${selected ? ', your companion' : ''}`}
       style={({ pressed }) => [styles.card, selected && styles.cardOn, pressed && { opacity: 0.9 }]}>
       <View style={styles.cardTop}>
-        <View style={styles.artBox}>
-          <Pet id={def.id} stage={stage} size={104} interactive={selected} />
+        <View style={[styles.artBox, { width: ART_COLUMN, height: Math.round((artSize * 260) / 240) }]}>
+          <View style={{ position: 'absolute', bottom: 0, left: (ART_COLUMN - artSize) / 2, width: artSize }}>
+            <Pet id={def.id} stage={stage} size={artSize} interactive={selected} />
+          </View>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.petName}>{def.name}</Text>
-          <Text style={styles.species}>{def.species.toUpperCase()}</Text>
+          <Text style={styles.species}>
+            {def.species.toUpperCase()}
+            {def.season ? `  ·  ${def.season.toUpperCase()}` : ''}
+          </Text>
           <Text style={styles.tagline}>{def.tagline}</Text>
           {selected ? <Text style={styles.badge}>YOUR COMPANION</Text> : null}
         </View>
@@ -50,7 +67,7 @@ function PetCard({
         <View style={styles.evoRow}>
           {([1, 2, 3] as const).map(st => (
             <View key={st} style={styles.evoCol}>
-              <Pet id={def.id} stage={st} size={84} interactive />
+              <Pet id={def.id} stage={st} size={evoSize} interactive />
               <Text style={styles.evoName}>{def.stages[st - 1]}</Text>
               <Text style={styles.evoLevel}>{LEVELS[st - 1]}</Text>
             </View>
@@ -146,7 +163,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   cardOn: { borderColor: THEME.accent },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  artBox: { width: 104, height: 112, alignItems: 'center', justifyContent: 'flex-end' },
+  artBox: { overflow: 'visible' },
   petName: { fontFamily: FONTS.displaySemi, fontSize: 24, color: THEME.ink },
   species: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.4, color: THEME.muted, marginTop: 2 },
   tagline: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 14, lineHeight: 19, color: THEME.inkSoft, marginTop: 8 },

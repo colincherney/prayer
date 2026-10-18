@@ -53,6 +53,14 @@ create policy "own purchases readable"
   to authenticated
   using (auth.uid() = user_id);
 
+-- Defense in depth on top of row level security: the app can only READ these tables. Even if someone adds a write
+-- policy by mistake later, the underlying permissions still block inserts, updates and deletes from the client.
+-- The service role (the Stripe webhook) is unaffected.
+revoke all on public.cosmetic_products from anon, authenticated;
+revoke all on public.user_cosmetics from anon, authenticated;
+grant select on public.cosmetic_products to authenticated;
+grant select on public.user_cosmetics to authenticated;
+
 -- Starter catalog. Prices are placeholders; change them here or with a later update.
 -- `on conflict do nothing` keeps any price or Stripe id you have already edited.
 insert into public.cosmetic_products (id, kind, name, price_cents, billing_interval) values
@@ -68,7 +76,16 @@ insert into public.cosmetic_products (id, kind, name, price_cents, billing_inter
   ('item:glass',         'item',   'Stained glass',    99, null),
   ('item:tapestry',      'item',   'Alpha & Omega',    99, null),
   ('item:mobile',        'item',   'Star mobile',      99, null),
-  ('item:chimes',        'item',   'Chimes',           99, null)
+  ('item:chimes',        'item',   'Chimes',           99, null),
+  -- Halloween pieces.
+  ('scene:harvest',      'scene',  'Harvest moon',    199, null),
+  ('item:hay',           'item',   'Hay bale',         99, null),
+  ('item:jackolantern',  'item',   'Jack-o''-lantern', 99, null),
+  ('item:wheat',         'item',   'Wheat sheaf',      99, null),
+  ('item:autumnwreath',  'item',   'Autumn wreath',    99, null),
+  ('item:web',           'item',   'Spiderweb',        99, null),
+  ('item:bats',          'item',   'Friendly bats',    99, null),
+  ('item:garland',       'item',   'Candy corn garland', 99, null)
 on conflict (id) do nothing;
 
 -- If you already ran an earlier copy of this file, move the bundle from the old $3.99 placeholder to $5.99.

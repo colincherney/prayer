@@ -60,7 +60,12 @@ export default function CreateAccountScreen() {
     const { error: e } = await upgradeToAccount(email.trim(), password);
     setBusy(false);
     if (e) {
-      setError(e);
+      // Supabase's email sender has a small hourly limit; say what happened instead of showing its raw message.
+      setError(
+        /rate limit/i.test(e)
+          ? 'Too many emails have been sent recently. Please try again in a little while.'
+          : e,
+      );
       return;
     }
     setSentTo(email.trim());

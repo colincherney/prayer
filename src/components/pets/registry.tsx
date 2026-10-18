@@ -7,8 +7,9 @@ import { JudahLion } from './Lion';
 import { PetProps } from './PetFrame';
 import { TapPet } from './PetReaction';
 import { PipLamb, PipStage } from './PipLamb';
+import { GourdyPumpkin } from './Pumpkin';
 
-export type PetId = 'lamb' | 'dove' | 'lion' | 'ember' | 'dragon';
+export type PetId = 'lamb' | 'dove' | 'lion' | 'ember' | 'dragon' | 'pumpkin';
 
 export type PetDef = {
   id: PetId;
@@ -18,6 +19,8 @@ export type PetDef = {
   tagline: string;
   /** Names for evolution stages 1, 2 and 3 (levels 1-4, 5-9, 10+). */
   stages: [string, string, string];
+  /** Set for seasonal companions; shown as a small tag in the picker. */
+  season?: string;
   Art: React.ComponentType<PetProps>;
 };
 
@@ -61,6 +64,15 @@ export const PETS: PetDef[] = [
     tagline: 'Grows from egg to guardian as you pray.',
     stages: ['Hatchling', 'Young Selah', 'Selah, Guardian'],
     Art: SelahDragon,
+  },
+  {
+    id: 'pumpkin',
+    name: 'Gourdy',
+    species: 'Pumpkin',
+    tagline: 'From a tiny gourd to the harvest lantern.',
+    stages: ['Seedling Gourd', 'Gourdy', 'Harvest Lantern'],
+    season: "All Hallows' Eve",
+    Art: GourdyPumpkin,
   },
 ];
 

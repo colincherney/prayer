@@ -1,6 +1,6 @@
 // Catalog and derived state for the Me-page nook, from design/Me.dc.html.
 
-export type SceneId = 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter';
+export type SceneId = 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter' | 'harvest';
 export type SlotId = 'floor' | 'left' | 'right' | 'wall' | 'hang';
 
 /** How far a piece has been dragged from its default spot, in the nook's own 342x440 units. */
@@ -59,6 +59,13 @@ export const ITEM_META: Record<string, ItemMeta> = {
   lamp: { slot: 'hang', base: { x: -62, y: 0 }, hit: { x: 134, y: 78, w: 74, h: 62 } },
   mobile: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 120, y: 90, w: 102, h: 56 } },
   chimes: { slot: 'hang', base: { x: 62, y: 0 }, hit: { x: 146, y: 88, w: 50, h: 54 } },
+  hay: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 176, y: 290, w: 78, h: 44 } },
+  jackolantern: { slot: 'left', base: { x: 38, y: 0 }, hit: { x: 50, y: 296, w: 42, h: 46 } },
+  wheat: { slot: 'right', base: { x: 0, y: 0 }, hit: { x: 302, y: 268, w: 32, h: 76 } },
+  autumnwreath: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 266, y: 74, w: 52, h: 56 } },
+  web: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 108, h: 108 } },
+  bats: { slot: 'hang', base: { x: -110, y: 0 }, hit: { x: 122, y: 56, w: 100, h: 56 } },
+  garland: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 100, y: 14, w: 142, h: 40 } },
 };
 
 /** Equip or unequip a piece. Unequipping also forgets where it was dragged to. */
@@ -88,6 +95,7 @@ export const SCENES: SceneDef[] = [
   { id: 'aurora', name: 'Aurora', sw: '#2F7D68', bg: '#0A1424', locked: true },
   { id: 'advent', name: 'Advent', sw: '#8A4A22', bg: '#1A120E', locked: true },
   { id: 'easter', name: 'Easter dawn', sw: '#E8A9A0', bg: '#2A2238', locked: true },
+  { id: 'harvest', name: 'Harvest moon', sw: '#2B1C44', bg: '#140F2A', locked: true },
 ];
 
 export const ROWS: RowDef[] = [
@@ -98,6 +106,7 @@ export const ROWS: RowDef[] = [
       { id: 'rug', name: 'Woven rug', sw: '#2E4B5E', locked: false },
       { id: 'cushion', name: 'Prayer cushion', sw: '#1E2E5A', locked: true },
       { id: 'wreath', name: 'Lily wreath', sw: '#8DAA62', locked: true },
+      { id: 'hay', name: 'Hay bale', sw: '#D9B24A', locked: true },
     ],
   },
   {
@@ -106,6 +115,7 @@ export const ROWS: RowDef[] = [
     items: [
       { id: 'lantern', name: 'Lantern', sw: '#F2C462', locked: false },
       { id: 'censer', name: 'Incense', sw: '#B9BFC9', locked: true },
+      { id: 'jackolantern', name: "Jack-o'-lantern", sw: '#E07E34', locked: true },
     ],
   },
   {
@@ -114,6 +124,7 @@ export const ROWS: RowDef[] = [
     items: [
       { id: 'plant', name: 'Fig plant', sw: '#6E8B4E', locked: false },
       { id: 'scripture', name: 'Scripture stand', sw: '#C98760', locked: true },
+      { id: 'wheat', name: 'Wheat sheaf', sw: '#F2C462', locked: true },
     ],
   },
   {
@@ -123,6 +134,8 @@ export const ROWS: RowDef[] = [
       { id: 'cross', name: 'Wooden cross', sw: '#7A5C3E', locked: false },
       { id: 'glass', name: 'Stained glass', sw: '#9C84E8', locked: true },
       { id: 'tapestry', name: 'Alpha & Omega', sw: '#C9A24B', locked: true },
+      { id: 'autumnwreath', name: 'Autumn wreath', sw: '#C9433A', locked: true },
+      { id: 'web', name: 'Spiderweb', sw: '#B9BFC9', locked: true },
     ],
   },
   {
@@ -132,6 +145,8 @@ export const ROWS: RowDef[] = [
       { id: 'lamp', name: 'Clay oil lamp', sw: '#B5734A', locked: false },
       { id: 'mobile', name: 'Star mobile', sw: '#F7E3B5', locked: true },
       { id: 'chimes', name: 'Chimes', sw: '#B5DCC6', locked: true },
+      { id: 'bats', name: 'Friendly bats', sw: '#241A38', locked: true },
+      { id: 'garland', name: 'Candy corn garland', sw: '#E8913A', locked: true },
     ],
   },
 ];
