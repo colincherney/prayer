@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Selah the sea dragon</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8FC6A9}a:hover{color:#B5DCC6}
+.bob{animation:bob 3.2s ease-in-out infinite}
+.bob.d2{animation-delay:.6s}.bob.d3{animation-delay:1.2s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+@keyframes blink{0%,91%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
+.sway{transform-box:fill-box;transform-origin:85% 95%;animation:sway 3.6s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(0)}50%{transform:rotate(-4deg)}}
+.flick{transform-box:fill-box;transform-origin:0% 50%;animation:flick 2.2s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
+.wobble{transform-box:fill-box;transform-origin:50% 100%;animation:wobble 2.8s ease-in-out infinite}
+@keyframes wobble{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(-5deg)}90%{transform:rotate(5deg)}95%{transform:rotate(-3deg)}}
+.glow{animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{opacity:.08}50%{opacity:.2}}
+.rise{animation:rise 4s ease-in infinite;opacity:0}.ri2{animation-delay:1.3s}.ri3{animation-delay:2.6s}
+@keyframes rise{0%{opacity:0;transform:translate(0,0)}15%{opacity:.8}100%{opacity:0;transform:translate(6px,-90px)}}
+.crack{animation:crack 2.8s ease-in-out infinite}
+@keyframes crack{0%,100%{opacity:.15}50%{opacity:1}}
+.ripple{transform-box:fill-box;transform-origin:center;animation:ripple 3s ease-out infinite;opacity:0}.rp2{animation-delay:1.5s}
+@keyframes ripple{0%{opacity:.6;transform:scale(.5)}100%{opacity:0;transform:scale(1.4)}}
+.twinkle{transform-box:fill-box;transform-origin:center;animation:twinkle 1.8s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.2;transform:scale(.6)}50%{opacity:1;transform:scale(1.2)}}
+svg.rx{animation:rxjump .8s cubic-bezier(.3,1.6,.5,1)!important}
+@keyframes rxjump{0%{transform:translateY(0) scale(1,1)}20%{transform:translateY(4px) scale(1.08,.9)}45%{transform:translateY(-26px) scale(.95,1.06)}75%{transform:translateY(0) scale(1.04,.96)}100%{transform:translateY(0) scale(1,1)}}
+.pop{position:absolute;pointer-events:none;opacity:0;animation:pop 1.5s ease-out forwards}.pop2{animation-delay:.15s}.pop3{animation-delay:.3s}
+@keyframes pop{0%{opacity:0;transform:translateY(10px) scale(.6)}20%{opacity:1;transform:translateY(0) scale(1.1)}70%{opacity:1;transform:translateY(-14px) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(1)}}
+.bubble{position:absolute;pointer-events:none;padding:5px 12px;border-radius:999px;background:#F2E9D8;color:#1A2230;font-size:13px;font-weight:700;opacity:0;animation:pop 1.5s ease-out forwards}
+.burst{position:absolute;pointer-events:none;left:50%;top:50%;width:140px;height:140px;margin:-70px 0 0 -70px;box-sizing:border-box;border-radius:50%;animation:burst 1s ease-out forwards}.burst2{animation-delay:.2s;opacity:0}
+@keyframes burst{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+.tapzone{position:absolute;inset:0;z-index:2;padding:0;border:none;border-radius:16px;background:transparent;cursor:pointer}
+.tapzone:focus-visible{outline:2px solid #8FC6A9;outline-offset:2px}
+@media (prefers-reduced-motion: reduce){.bob,.blink,.sway,.flick,.wobble,.glow{animation:none}}
+@media (prefers-reduced-motion: reduce){.rise,.crack,.ripple,.twinkle,.pop,.bubble{animation:none}svg.rx{animation:none!important}.pop,.bubble{opacity:1}.burst{display:none}}
+</style>
+</helmet>
+<div style="width: 1240px; height: 640px; box-sizing: border-box; padding: 56px; display: flex; flex-direction: column; gap: 28px; background: #0A111C; color: #F2E9D8; font-family: Inter, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 44px; font-weight: 500">Selah the Sea Dragon</h1>
+<p style="margin: 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 18px; color: #C9C0AF">Grows from egg to guardian as you pray. Tap a stage in Play to see it react.</p>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; flex-grow: 1">
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #1F2B3A">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap1}}" aria-label="Tap Hatchling to see it react"></button>
+<sc-if value="{{r1}}" hint-placeholder-val="{{ false }}">
+<span class="bubble" style="left: 16%; top: 60px">Crack!</span>
+<svg class="pop" style="left: 66%; top: 64px" width="34" height="30" viewBox="0 0 34 30" aria-hidden="true"><path d="M4 18 L10 10 L16 18 L22 8 L30 16" stroke="#F2C462" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</sc-if>
+<svg class="bob wobble {{j1}}" viewBox="0 0 240 260" width="190" height="206" role="img" aria-label="Selah as a hatchling peeking out of an egg">
+<ellipse cx="120" cy="240" rx="62" ry="9" fill="#000" opacity="0.35"></ellipse>
+<g class="blink" style="transform-origin: 50% 50%"></g>
+<polygon points="96,52 120,36 144,52 142,82 98,82" fill="#1C9C98"></polygon>
+<polygon points="120,36 144,52 142,82 128,60" fill="#0E5E61"></polygon>
+<polygon points="96,52 120,36 112,52" fill="#86E6D9" opacity="0.7"></polygon>
+<polygon points="106,42 110,26 116,38" fill="#E8B93A"></polygon>
+<polygon points="124,38 130,26 134,42" fill="#E8B93A"></polygon>
+<g class="blink"><polygon points="102,56 114,54 113,66 103,66" fill="#F2C462"></polygon><polygon points="107,56 110,56 110,65 107,65" fill="#0A3B3D"></polygon><polygon points="126,54 138,56 137,66 127,66" fill="#F2C462"></polygon><polygon points="130,56 133,56 133,65 130,65" fill="#0A3B3D"></polygon></g>
+<path d="M120 84 C170 84 190 150 185 190 C180 232 60 232 55 190 C50 150 70 84 120 84 Z" fill="#1C9C98"></path>
+<polygon points="72,130 96,96 92,178 62,188" fill="#86E6D9" opacity="0.35"></polygon>
+<polygon points="160,116 186,190 150,224 146,150" fill="#0E5E61" opacity="0.6"></polygon>
+<polygon points="74,96 90,80 104,94 118,78 132,94 148,80 164,96 168,110 72,110" fill="#1C9C98"></polygon>
+<polygon points="74,96 90,80 104,94 96,110 72,110" fill="#86E6D9" opacity="0.3"></polygon>
+<polyline points="58,166 80,154 100,170 120,154 140,170 160,154 182,166" fill="none" stroke="#E8B93A" stroke-width="7" stroke-linejoin="round"></polyline>
+<polyline class="crack" points="58,166 80,154 100,170 120,154 140,170 160,154 182,166" fill="none" stroke="#FFF3C4" stroke-width="3" stroke-linejoin="round"></polyline>
+<g fill="none" stroke="#86E6D9" stroke-width="1.5"><circle class="rise" cx="40" cy="220" r="4"></circle><circle class="rise ri2" cx="200" cy="214" r="3"></circle><circle class="rise ri3" cx="190" cy="230" r="2.5"></circle></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 1–4</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Hatchling</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">Peeks out of a faceted egg and wobbles when you pray. Hatches at Level 5.</p>
+</div>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8FC6A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #1F2B3A">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap2}}" aria-label="Tap Young Selah to see it react"></button>
+<sc-if value="{{r2}}" hint-placeholder-val="{{ false }}">
+<div class="burst" style="border: 3px solid #86E6D9; top: 66%"></div>
+<span class="bubble" style="left: 14%; top: 50px">Splash!</span>
+<svg class="pop" style="left: 64%; top: 60px" width="40" height="30" viewBox="0 0 40 30" aria-hidden="true"><path d="M8 4 C12 10 12 14 8 16 C4 14 4 10 8 4 Z M22 0 C26 7 26 11 22 13 C18 11 18 7 22 0 Z M34 8 C37 13 37 16 34 18 C31 16 31 13 34 8 Z" fill="#86E6D9"></path></svg>
+</sc-if>
+<svg class="bob d2 {{j2}}" viewBox="0 0 240 260" width="180" height="195" role="img" aria-label="Selah as a young dragon">
+<ellipse cx="120" cy="240" rx="80" ry="10" fill="#000" opacity="0.35"></ellipse>
+<polygon class="flick" points="198,226 226,216 214,238" fill="#E8B93A"></polygon>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#0E5E61" stroke-width="30" fill="none" stroke-linecap="round"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#1C9C98" stroke-width="20" fill="none" stroke-linecap="round" transform="translate(-3 -3)"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#E8B93A" stroke-width="30" fill="none" stroke-dasharray="5 52" stroke-dashoffset="-26"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#86E6D9" stroke-width="5" fill="none" stroke-dasharray="16 9" stroke-linecap="round" opacity="0.7" transform="translate(-8 -7)"></path>
+<polygon points="162,104 176,98 162,94" fill="#D7F4EF"></polygon>
+<polygon points="160,88 174,80 158,80" fill="#D7F4EF"></polygon>
+<g class="sway">
+<polygon points="116,40 122,24 128,38" fill="#E8B93A"></polygon>
+<polygon points="128,38 140,26 138,42" fill="#E8B93A"></polygon>
+<polygon points="96,44 130,32 152,52 144,76 108,80 90,62" fill="#1C9C98"></polygon>
+<polygon points="108,80 144,76 152,52 134,60" fill="#0E5E61"></polygon>
+<polygon points="96,44 130,32 120,48" fill="#86E6D9" opacity="0.7"></polygon>
+<polygon points="90,62 108,80 84,84 70,72" fill="#1C9C98"></polygon>
+<polygon points="70,72 90,62 86,70" fill="#86E6D9" opacity="0.7"></polygon>
+<circle cx="77" cy="72" r="2" fill="#0A3B3D"></circle>
+<polygon points="84,84 108,80 112,90 88,93" fill="#0E5E61"></polygon>
+<g class="blink"><polygon points="106,50 124,46 122,60 106,62" fill="#F2C462"></polygon><polygon points="113,49 117,48 116,61 112,61" fill="#0A3B3D"></polygon></g>
+</g>
+<ellipse class="ripple" cx="120" cy="240" rx="80" ry="10" fill="none" stroke="#86E6D9" stroke-width="1.5"></ellipse>
+<ellipse class="ripple rp2" cx="120" cy="240" rx="80" ry="10" fill="none" stroke="#86E6D9" stroke-width="1.5"></ellipse>
+<g fill="none" stroke="#86E6D9" stroke-width="1.5"><circle class="rise" cx="30" cy="220" r="4"></circle><circle class="rise ri2" cx="214" cy="200" r="3"></circle><circle class="rise ri3" cx="56" cy="190" r="2.5"></circle></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 5–9</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Young Selah</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">A long coil with its first gold bands, nub horns and a swishing tail fin.</p>
+</div>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8FC6A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #8FC6A9">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap3}}" aria-label="Tap Selah, Guardian to see it react"></button>
+<sc-if value="{{r3}}" hint-placeholder-val="{{ false }}">
+<div class="burst" style="border: 3px solid #86E6D9"></div>
+<div class="burst burst2" style="border: 2px solid #F2C462"></div>
+<span class="bubble" style="left: 10%; top: 30px">Splash!</span>
+<svg class="pop" style="left: 70%; top: 36px" width="40" height="30" viewBox="0 0 40 30" aria-hidden="true"><path d="M8 4 C12 10 12 14 8 16 C4 14 4 10 8 4 Z M22 0 C26 7 26 11 22 13 C18 11 18 7 22 0 Z M34 8 C37 13 37 16 34 18 C31 16 31 13 34 8 Z" fill="#86E6D9"></path></svg>
+<svg class="pop pop2" style="left: 18%; top: 120px" width="30" height="24" viewBox="0 0 40 30" aria-hidden="true"><path d="M8 4 C12 10 12 14 8 16 C4 14 4 10 8 4 Z M22 0 C26 7 26 11 22 13 C18 11 18 7 22 0 Z M34 8 C37 13 37 16 34 18 C31 16 31 13 34 8 Z" fill="#1C9C98"></path></svg>
+</sc-if>
+<svg class="bob d3 {{j3}}" viewBox="0 0 240 260" width="230" height="249" role="img" aria-label="Selah as a grown guardian dragon">
+<circle class="glow" cx="120" cy="140" r="108" fill="#7FE3D6"></circle>
+<ellipse cx="120" cy="240" rx="86" ry="10" fill="#000" opacity="0.35"></ellipse>
+<polygon class="flick" points="196,226 230,212 216,236 234,248 200,240" fill="#E8B93A"></polygon>
+<polygon points="42,150 20,140 40,164" fill="#D7F4EF"></polygon>
+<polygon points="46,174 24,182 50,188" fill="#D7F4EF"></polygon>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#0E5E61" stroke-width="34" fill="none" stroke-linecap="round"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#1C9C98" stroke-width="24" fill="none" stroke-linecap="round" transform="translate(-3 -3)"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#E8B93A" stroke-width="34" fill="none" stroke-dasharray="6 34" stroke-dashoffset="-20"></path>
+<path d="M200 232 C238 206 190 176 140 190 C82 206 38 186 60 150 C78 122 150 136 152 102 C153 84 138 72 124 66" stroke="#86E6D9" stroke-width="5" fill="none" stroke-dasharray="16 9" stroke-linecap="round" opacity="0.75" transform="translate(-8 -7)"></path>
+<polygon points="164,112 186,102 164,96" fill="#D7F4EF"></polygon>
+<polygon points="162,94 184,78 160,82" fill="#D7F4EF"></polygon>
+<polygon points="154,80 170,60 150,70" fill="#D7F4EF"></polygon>
+<g class="sway">
+<polygon points="138,44 174,28 154,54" fill="#D7F4EF"></polygon>
+<polygon points="146,58 178,62 150,70" fill="#D7F4EF"></polygon>
+<polygon points="116,38 130,6 132,36" fill="#E8B93A"></polygon>
+<polygon points="130,36 160,14 146,42" fill="#F2C462"></polygon>
+<polygon points="94,42 130,30 152,50 144,74 108,78 88,60" fill="#1C9C98"></polygon>
+<polygon points="108,78 144,74 152,50 134,58" fill="#0E5E61"></polygon>
+<polygon points="94,42 130,30 120,46" fill="#86E6D9" opacity="0.7"></polygon>
+<polygon points="88,60 108,78 80,84 62,70" fill="#1C9C98"></polygon>
+<polygon points="62,70 88,60 84,68" fill="#86E6D9" opacity="0.7"></polygon>
+<circle cx="70" cy="70" r="2" fill="#0A3B3D"></circle>
+<polygon points="80,84 108,78 114,90 86,94" fill="#0E5E61"></polygon>
+<polygon points="84,84 87,90 90,83" fill="#F7F2E8"></polygon>
+<polygon points="93,82 96,89 99,81" fill="#F7F2E8"></polygon>
+<polygon points="102,80 105,87 108,79" fill="#F7F2E8"></polygon>
+<g class="blink"><polygon points="106,50 124,46 122,58 106,60" fill="#F2C462"></polygon><polygon points="113,48 117,47 116,59 112,59" fill="#0A3B3D"></polygon></g>
+</g>
+<polygon points="134,84 160,88 160,100 132,96" fill="#E8B93A"></polygon>
+<ellipse class="ripple" cx="120" cy="240" rx="86" ry="10" fill="none" stroke="#86E6D9" stroke-width="1.5"></ellipse>
+<ellipse class="ripple rp2" cx="120" cy="240" rx="86" ry="10" fill="none" stroke="#F2C462" stroke-width="1.5"></ellipse>
+<g fill="none" stroke="#86E6D9" stroke-width="1.5"><circle class="rise" cx="24" cy="210" r="4"></circle><circle class="rise ri2" cx="222" cy="190" r="3"></circle><circle class="rise ri3" cx="40" cy="170" r="2.5"></circle></g>
+<g transform="translate(124 0)"><path class="twinkle" d="M6 0 L7 5 L12 6 L7 7 L6 12 L5 7 L0 6 L5 5 Z" fill="#FFF3C4"></path></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 10+</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Selah, Guardian</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">Golden horns, a pale crest, a gold collar and a soft glow that pulses.</p>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":640}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { a: 0 }; this.t = null; }
+  componentWillUnmount() { clearTimeout(this.t); }
+  tap(n) {
+    var self = this;
+    clearTimeout(this.t);
+    this.setState({ a: 0 }, function () {
+      requestAnimationFrame(function () {
+        self.setState({ a: n });
+        self.t = setTimeout(function () { self.setState({ a: 0 }); }, 1600);
+      });
+    });
+  }
+  renderVals() {
+    var a = this.state.a, self = this;
+    return {
+      r1: a === 1, r2: a === 2, r3: a === 3,
+      j1: a === 1 ? 'rx' : '', j2: a === 2 ? 'rx' : '', j3: a === 3 ? 'rx' : '',
+      tap1: function () { self.tap(1); }, tap2: function () { self.tap(2); }, tap3: function () { self.tap(3); }
+    };
+  }
+}
+</script>
+</body>
+</html>

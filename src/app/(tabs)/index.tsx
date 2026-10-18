@@ -14,6 +14,7 @@ import {
   SparkleIcon,
   StarIcon,
 } from '@/components/saint/Icons';
+import { HomePet } from '@/components/pets/HomePet';
 import { LamplitScene } from '@/components/saint/LamplitScene';
 import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
@@ -88,6 +89,7 @@ function ThemeHomeScreen() {
         <View style={styles.heroIllustration} pointerEvents="none">
           <HeroIllustration width={200} height={220} />
         </View>
+        <HomePet variant="theme" accent={THEME.accent} />
       </View>
 
       {/* Mid scripture ticker */}
@@ -357,6 +359,7 @@ function RoomHomeScreen() {
           <View style={{ marginTop: 8 }}>
             <Squiggle color={ROOM.accent} w={36} opacity={0.5} />
           </View>
+          <HomePet variant={roomName} accent={ROOM.accent} />
         </View>
 
         {/* Mid scripture ticker — bracketed by hairline dividers like the

@@ -271,7 +271,11 @@ export default function PrayForOthersScreen() {
         .limit(200);
       if (me) query = query.neq('user_id', me);
 
+      const startedAt = Date.now();
       const { data, error } = await query;
+      if (__DEV__) {
+        console.log(`[explore] feed query ${Date.now() - startedAt}ms, ${data?.length ?? 0} prayers`);
+      }
       if (error) {
         setFeedError(error.message);
         setRequests([]);
@@ -615,12 +619,12 @@ export default function PrayForOthersScreen() {
                     placeholder="A short word of hope, anonymously…"
                     placeholderTextColor={NIGHT.muted}
                     multiline
-                    maxLength={140}
+                    maxLength={280}
                     style={styles.noteInput}
                     autoFocus
                   />
                   <View style={styles.noteFooter}>
-                    <Text style={styles.noteCounter}>{note.length}/140</Text>
+                    <Text style={styles.noteCounter}>{note.length}/280</Text>
                     <Pressable
                       onPress={onSendNote}
                       disabled={!note.trim() || noteSending}

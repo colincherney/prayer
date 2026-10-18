@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Judah evolution</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8FC6A9}a:hover{color:#B5DCC6}
+.bob{animation:bob 3.2s ease-in-out infinite}.d2{animation-delay:.6s}.d3{animation-delay:1.2s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+@keyframes blink{0%,91%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
+.swish{transform-box:fill-box;transform-origin:0% 100%;animation:swish 1.8s ease-in-out infinite}
+@keyframes swish{0%,100%{transform:rotate(0)}50%{transform:rotate(-16deg)}}
+.tilt{transform-box:fill-box;transform-origin:50% 100%;animation:tilt 4s ease-in-out infinite}
+@keyframes tilt{0%,60%,100%{transform:rotate(0)}70%{transform:rotate(-8deg)}85%{transform:rotate(-8deg)}}
+.breathe{transform-box:fill-box;transform-origin:center;animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.glow{animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{opacity:.08}50%{opacity:.24}}
+.twinkle{transform-box:fill-box;transform-origin:center;animation:twinkle 1.8s ease-in-out infinite}.t2{animation-delay:.6s}.t3{animation-delay:1.2s}
+@keyframes twinkle{0%,100%{opacity:.2;transform:scale(.6)}50%{opacity:1;transform:scale(1.1)}}
+.flutter{animation:flutter 7s ease-in-out infinite}
+@keyframes flutter{0%{transform:translate(0,0)}25%{transform:translate(30px,-20px)}50%{transform:translate(60px,4px)}75%{transform:translate(26px,18px)}100%{transform:translate(0,0)}}
+.wingbeat{transform-box:fill-box;transform-origin:center;animation:wingbeat .3s ease-in-out infinite}
+@keyframes wingbeat{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.25)}}
+.yawn{transform-box:fill-box;transform-origin:50% 0%;animation:yawn 6s ease-in-out infinite;transform:scaleY(0)}
+@keyframes yawn{0%,78%,100%{transform:scaleY(0)}84%,92%{transform:scaleY(1)}}
+.mote{animation:mote 4s ease-in-out infinite;opacity:0}.m2{animation-delay:1.3s}.m3{animation-delay:2.6s}
+@keyframes mote{0%,100%{opacity:0;transform:translate(0,0)}50%{opacity:.8;transform:translate(6px,-16px)}}
+.flash{transform-box:fill-box;transform-origin:center;animation:flash 3.4s ease-in-out infinite;opacity:0}
+@keyframes flash{0%,70%,100%{opacity:0;transform:scale(.3)}80%{opacity:1;transform:scale(1.2)}90%{opacity:0;transform:scale(.6)}}
+.wind{animation:wind 4s ease-in-out infinite;opacity:0}.w2{animation-delay:1.3s}.w3{animation-delay:2.6s}
+@keyframes wind{0%{opacity:0;transform:translateX(-20px)}30%{opacity:.5}100%{opacity:0;transform:translateX(40px)}}
+svg.rx{animation:rxjump .8s cubic-bezier(.3,1.6,.5,1)!important}
+@keyframes rxjump{0%{transform:translateY(0) scale(1,1)}20%{transform:translateY(4px) scale(1.08,.9)}45%{transform:translateY(-26px) scale(.95,1.06)}75%{transform:translateY(0) scale(1.04,.96)}100%{transform:translateY(0) scale(1,1)}}
+.pop{position:absolute;pointer-events:none;opacity:0;animation:pop 1.5s ease-out forwards}.pop2{animation-delay:.15s}.pop3{animation-delay:.3s}
+@keyframes pop{0%{opacity:0;transform:translateY(10px) scale(.6)}20%{opacity:1;transform:translateY(0) scale(1.1)}70%{opacity:1;transform:translateY(-14px) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(1)}}
+.bubble{position:absolute;pointer-events:none;padding:5px 12px;border-radius:999px;background:#F2E9D8;color:#1A2230;font-size:13px;font-weight:700;opacity:0;animation:pop 1.5s ease-out forwards}
+.burst{position:absolute;pointer-events:none;left:50%;top:50%;width:140px;height:140px;margin:-70px 0 0 -70px;box-sizing:border-box;border-radius:50%;animation:burst 1s ease-out forwards}.burst2{animation-delay:.2s;opacity:0}
+@keyframes burst{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+.tapzone{position:absolute;inset:0;z-index:2;padding:0;border:none;border-radius:16px;background:transparent;cursor:pointer}
+.tapzone:focus-visible{outline:2px solid #8FC6A9;outline-offset:2px}
+@media (prefers-reduced-motion: reduce){.bob,.blink,.swish,.tilt,.breathe,.glow,.twinkle{animation:none}}
+@media (prefers-reduced-motion: reduce){.flutter,.wingbeat,.yawn,.mote,.flash,.wind,.pop,.bubble{animation:none}svg.rx{animation:none!important}.pop,.bubble{opacity:1}.burst{display:none}}
+</style>
+</helmet>
+<div style="width: 1240px; height: 640px; box-sizing: border-box; padding: 56px; display: flex; flex-direction: column; gap: 28px; background: #0A111C; color: #F2E9D8; font-family: Inter, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 44px; font-weight: 500">Judah the Lion</h1>
+<p style="margin: 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 18px; color: #C9C0AF">From a fuzzy cub to a crowned lion. Tap a stage in Play to see it react.</p>
+</div>
+<div style="display: flex; align-items: center; gap: 16px; flex-grow: 1">
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #1F2B3A">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap1}}" aria-label="Tap Cub to see him react"></button>
+<sc-if value="{{r1}}" hint-placeholder-val="{{ false }}">
+<span class="bubble" style="left: 16%; top: 70px">Rawr!</span>
+<svg class="pop" style="left: 68%; top: 70px" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 8 Q12 15 6 22 M14 4 Q22 15 14 26" stroke="#F2C462" stroke-width="2.5" fill="none" stroke-linecap="round"></path></svg>
+</sc-if>
+<svg class="bob {{j1}}" viewBox="0 0 240 260" width="220" height="238" role="img" aria-label="Judah as a fuzzy lion cub">
+<ellipse cx="120" cy="242" rx="56" ry="8" fill="#000" opacity="0.35"></ellipse>
+<g class="swish"><path d="M150 214 C176 214 186 196 184 180" stroke="#E3A957" stroke-width="8" fill="none" stroke-linecap="round"></path><circle cx="184" cy="174" r="8" fill="#C77A35"></circle></g>
+<ellipse cx="120" cy="200" rx="36" ry="32" fill="#E3A957"></ellipse>
+<ellipse cx="120" cy="210" rx="20" ry="18" fill="#F6D9A8"></ellipse>
+<ellipse cx="102" cy="232" rx="13" ry="8" fill="#EDB565"></ellipse>
+<ellipse cx="138" cy="232" rx="13" ry="8" fill="#EDB565"></ellipse>
+<g class="tilt">
+<g fill="#C77A35"><circle cx="104" cy="110" r="11"></circle><circle cx="120" cy="104" r="12"></circle><circle cx="136" cy="110" r="11"></circle></g>
+<circle cx="94" cy="118" r="11" fill="#EDB565"></circle><circle cx="146" cy="118" r="11" fill="#EDB565"></circle>
+<circle cx="94" cy="118" r="5.5" fill="#D9955A"></circle><circle cx="146" cy="118" r="5.5" fill="#D9955A"></circle>
+<circle cx="120" cy="142" r="32" fill="#EDB565"></circle>
+<ellipse cx="120" cy="154" rx="14" ry="10" fill="#F6D9A8"></ellipse>
+<g class="blink"><circle cx="108" cy="138" r="4.4" fill="#2B2420"></circle><circle cx="132" cy="138" r="4.4" fill="#2B2420"></circle><circle cx="109.5" cy="136.5" r="1.4" fill="#FFFFFF"></circle><circle cx="133.5" cy="136.5" r="1.4" fill="#FFFFFF"></circle></g>
+<path d="M115 149 L125 149 L120 155 Z" fill="#6B3F2A"></path>
+<path d="M120 155 Q116 160 112 158 M120 155 Q124 160 128 158" stroke="#6B3F2A" stroke-width="2" fill="none" stroke-linecap="round"></path>
+<circle cx="100" cy="152" r="4.5" fill="#E8998A" opacity="0.6"></circle><circle cx="140" cy="152" r="4.5" fill="#E8998A" opacity="0.6"></circle>
+</g>
+<g class="flutter"><g class="wingbeat"><ellipse cx="46" cy="118" rx="7" ry="9" fill="#B5DCC6"></ellipse><ellipse cx="60" cy="118" rx="7" ry="9" fill="#9C84E8"></ellipse></g><path d="M53 110 L53 126" stroke="#2B2420" stroke-width="2" stroke-linecap="round"></path></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 1–4</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Cub</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">A tuft of mane, big curious eyes, a head tilt and a tail that never stops.</p>
+</div>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8FC6A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #1F2B3A">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap2}}" aria-label="Tap Young Judah to see him react"></button>
+<sc-if value="{{r2}}" hint-placeholder-val="{{ false }}">
+<div class="burst" style="border: 3px solid #E3A957"></div>
+<span class="bubble" style="left: 12%; top: 40px">Roar!</span>
+<svg class="pop" style="left: 70%; top: 50px" width="34" height="34" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 8 Q12 15 6 22 M14 4 Q22 15 14 26" stroke="#F2C462" stroke-width="2.5" fill="none" stroke-linecap="round"></path></svg>
+</sc-if>
+<svg class="bob d2 {{j2}}" viewBox="0 0 240 260" width="220" height="238" role="img" aria-label="Judah as a young lion with a full mane">
+<g transform="translate(20 56)">
+<ellipse cx="100" cy="184" rx="50" ry="8" fill="#000" opacity="0.35"></ellipse>
+<g class="swish"><path d="M130 166 C160 168 174 152 172 134" stroke="#E3A957" stroke-width="7" fill="none" stroke-linecap="round"></path><circle cx="172" cy="128" r="8" fill="#C77A35"></circle></g>
+<ellipse cx="100" cy="158" rx="36" ry="22" fill="#E3A957"></ellipse>
+<ellipse cx="78" cy="176" rx="12" ry="7" fill="#EDB565"></ellipse>
+<ellipse cx="122" cy="176" rx="12" ry="7" fill="#EDB565"></ellipse>
+<g class="breathe" fill="#C77A35"><circle cx="100" cy="92" r="50"></circle><circle cx="58" cy="78" r="18"></circle><circle cx="142" cy="78" r="18"></circle><circle cx="62" cy="116" r="18"></circle><circle cx="138" cy="116" r="18"></circle><circle cx="100" cy="44" r="18"></circle><circle cx="100" cy="138" r="16"></circle></g>
+<circle cx="74" cy="64" r="11" fill="#EDB565"></circle><circle cx="126" cy="64" r="11" fill="#EDB565"></circle>
+<circle cx="74" cy="64" r="5.5" fill="#D9955A"></circle><circle cx="126" cy="64" r="5.5" fill="#D9955A"></circle>
+<circle cx="100" cy="94" r="34" fill="#EDB565"></circle>
+<ellipse cx="100" cy="108" rx="16" ry="12" fill="#F6D9A8"></ellipse>
+<g class="blink"><circle cx="88" cy="90" r="3.8" fill="#2B2420"></circle><circle cx="112" cy="90" r="3.8" fill="#2B2420"></circle></g>
+<path d="M94 102 L106 102 L100 109 Z" fill="#6B3F2A"></path>
+<path d="M100 109 Q95 115 91 112 M100 109 Q105 115 109 112" stroke="#6B3F2A" stroke-width="2" fill="none" stroke-linecap="round"></path>
+<circle cx="80" cy="102" r="4" fill="#E8998A" opacity="0.6"></circle><circle cx="120" cy="102" r="4" fill="#E8998A" opacity="0.6"></circle>
+</g>
+<ellipse class="yawn" cx="120" cy="166" rx="7" ry="9" fill="#6B3F2A"></ellipse>
+<g fill="#F7E3B5"><circle class="mote" cx="54" cy="150" r="2"></circle><circle class="mote m2" cx="190" cy="140" r="1.8"></circle><circle class="mote m3" cx="176" cy="200" r="1.6"></circle></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 5–9</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Young Judah</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">His mane fills out and rises and falls as he breathes. Tail tuft swishing.</p>
+</div>
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8FC6A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+<div style="flex: 1; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 24px; background: #16202D; border: 1px solid #8FC6A9">
+<div style="position: relative; height: 260px; display: flex; align-items: flex-end; justify-content: center">
+<button class="tapzone" onClick="{{tap3}}" aria-label="Tap Lion of Judah to see him react"></button>
+<sc-if value="{{r3}}" hint-placeholder-val="{{ false }}">
+<div class="burst" style="border: 3px solid #F2C462"></div>
+<div class="burst burst2" style="border: 2px solid #D98F3A"></div>
+<span class="bubble" style="left: 10%; top: 30px">ROAR!</span>
+<svg class="pop" style="left: 72%; top: 36px" width="38" height="38" viewBox="0 0 30 30" aria-hidden="true"><path d="M6 8 Q12 15 6 22 M14 4 Q22 15 14 26" stroke="#F2C462" stroke-width="2.5" fill="none" stroke-linecap="round"></path></svg>
+</sc-if>
+<svg class="bob d3 {{j3}}" viewBox="0 0 240 260" width="230" height="249" role="img" aria-label="Judah as a crowned lion with a golden mane">
+<circle class="glow" cx="120" cy="150" r="106" fill="#F2C462"></circle>
+<g transform="translate(20 56)">
+<ellipse cx="100" cy="184" rx="56" ry="8" fill="#000" opacity="0.35"></ellipse>
+<g class="swish"><path d="M130 166 C162 168 178 150 176 130" stroke="#E3A957" stroke-width="8" fill="none" stroke-linecap="round"></path><circle cx="176" cy="124" r="9" fill="#D98F3A"></circle></g>
+<ellipse cx="100" cy="158" rx="40" ry="24" fill="#E3A957"></ellipse>
+<ellipse cx="76" cy="177" rx="13" ry="7" fill="#EDB565"></ellipse>
+<ellipse cx="124" cy="177" rx="13" ry="7" fill="#EDB565"></ellipse>
+<g class="breathe">
+<g fill="#A85A22"><circle cx="48" cy="70" r="22"></circle><circle cx="152" cy="70" r="22"></circle><circle cx="44" cy="118" r="22"></circle><circle cx="156" cy="118" r="22"></circle><circle cx="66" cy="38" r="20"></circle><circle cx="134" cy="38" r="20"></circle><circle cx="66" cy="148" r="20"></circle><circle cx="134" cy="148" r="20"></circle><circle cx="100" cy="154" r="20"></circle></g>
+<g fill="#D98F3A"><circle cx="100" cy="92" r="52"></circle><circle cx="58" cy="78" r="18"></circle><circle cx="142" cy="78" r="18"></circle><circle cx="62" cy="116" r="18"></circle><circle cx="138" cy="116" r="18"></circle><circle cx="100" cy="44" r="18"></circle><circle cx="100" cy="140" r="16"></circle></g>
+</g>
+<circle cx="74" cy="64" r="11" fill="#EDB565"></circle><circle cx="126" cy="64" r="11" fill="#EDB565"></circle>
+<circle cx="74" cy="64" r="5.5" fill="#D9955A"></circle><circle cx="126" cy="64" r="5.5" fill="#D9955A"></circle>
+<circle cx="100" cy="94" r="34" fill="#EDB565"></circle>
+<ellipse cx="100" cy="108" rx="16" ry="12" fill="#F6D9A8"></ellipse>
+<g class="blink"><circle cx="88" cy="90" r="3.8" fill="#2B2420"></circle><circle cx="112" cy="90" r="3.8" fill="#2B2420"></circle></g>
+<path d="M84 84 L93 86 M116 84 L107 86" stroke="#B87A3A" stroke-width="2.5" stroke-linecap="round"></path>
+<path d="M94 102 L106 102 L100 109 Z" fill="#6B3F2A"></path>
+<path d="M100 109 Q95 115 91 112 M100 109 Q105 115 109 112" stroke="#6B3F2A" stroke-width="2" fill="none" stroke-linecap="round"></path>
+<polygon points="76,46 82,18 94,34 100,10 106,34 118,18 124,46" fill="#F2C462" stroke="#C99A2E" stroke-width="2" stroke-linejoin="round"></polygon>
+<circle cx="100" cy="37" r="4.5" fill="#8FC6A9"></circle>
+<circle cx="84" cy="40" r="3" fill="#F7E3B5"></circle><circle cx="116" cy="40" r="3" fill="#F7E3B5"></circle>
+</g>
+<g transform="translate(22 62)"><path class="twinkle" d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8 Z" fill="#F2C462"></path></g>
+<g transform="translate(200 104)"><path class="twinkle t2" d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8 Z" fill="#F7E3B5"></path></g>
+<g transform="translate(178 30)"><path class="twinkle t3" d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8 Z" fill="#F2C462"></path></g>
+<g transform="translate(120 93)"><path class="flash" d="M0 -10 L2 -2 L10 0 L2 2 L0 10 L-2 2 L-10 0 L-2 -2 Z" fill="#FFFFFF"></path></g>
+<g stroke="#F7E3B5" stroke-width="2" fill="none" stroke-linecap="round"><path class="wind" d="M6 120 Q24 114 40 120"></path><path class="wind w2" d="M192 92 Q208 86 222 92"></path><path class="wind w3" d="M12 172 Q30 166 46 172"></path></g>
+</svg>
+</div>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #8FC6A9">LEVEL 10+</div>
+<h2 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600">Lion of Judah</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #C9C0AF">A double golden mane, a jeweled crown and a steady, noble gaze.</p>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":640}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { a: 0 }; this.t = null; }
+  componentWillUnmount() { clearTimeout(this.t); }
+  tap(n) {
+    var self = this;
+    clearTimeout(this.t);
+    this.setState({ a: 0 }, function () {
+      requestAnimationFrame(function () {
+        self.setState({ a: n });
+        self.t = setTimeout(function () { self.setState({ a: 0 }); }, 1600);
+      });
+    });
+  }
+  renderVals() {
+    var a = this.state.a, self = this;
+    return {
+      r1: a === 1, r2: a === 2, r3: a === 3,
+      j1: a === 1 ? 'rx' : '', j2: a === 2 ? 'rx' : '', j3: a === 3 ? 'rx' : '',
+      tap1: function () { self.tap(1); }, tap2: function () { self.tap(2); }, tap3: function () { self.tap(3); }
+    };
+  }
+}
+</script>
+</body>
+</html>

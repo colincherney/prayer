@@ -1,4 +1,4 @@
-import { Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
 import { useColorScheme } from 'react-native';
 
@@ -12,29 +12,22 @@ export default function AppTabs() {
     <NativeTabs
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      iconColor={{ default: '#FFFFFF', selected: '#FFFFFF' }}
+      tintColor="#FFFFFF"
+      labelStyle={{ default: { color: '#FFFFFF' }, selected: { color: '#FFFFFF' } }}>
       <NativeTabs.Trigger name="index">
-        <Label>Home</Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/tab-home.png')} renderingMode="original" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="Pray">
-        <Label>Pray</Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Label>Pray</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/tab-pray.png')} renderingMode="original" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="me">
-        <Label>Me</Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Label>Me</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/tab-me.png')} renderingMode="original" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

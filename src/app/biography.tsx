@@ -312,7 +312,7 @@ function EntryDetail({
   const displayVerseText = fetchedVerseText ?? entry.verse?.text ?? '';
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, {
+    <Animated.View style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 10,
     }, detailAnimStyle]}>
@@ -513,7 +513,7 @@ function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
       </Animated.ScrollView>
 
       {/* Selection lines */}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { justifyContent: 'center' }]}>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
         <View style={{ height: WHEEL_ITEM_H, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: THEME.accent + '99' }} />
       </View>
       {/* Fade top */}
@@ -597,7 +597,7 @@ function VersePicker({ version, onConfirm, onClose }: {
     : '';
 
   return (
-    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: THEME.bg, zIndex: 30 }]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: THEME.bg, zIndex: 30 }]}>
       {/* Header */}
       <View style={[styles.vpHeader, { paddingTop: insets.top + 14, borderBottomColor: THEME.line }]}>
         <Pressable onPress={onClose} style={{ padding: 6 }}>
@@ -694,7 +694,7 @@ function NewEntryComposer({
   const canSave = body.trim().length > 0;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, {
+    <Animated.View style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 20,
     }, composerAnimStyle]}>

@@ -10,6 +10,14 @@ type AuthContextValue = {
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signInAnonymously: () => Promise<{ error: string | null }>;
+  /**
+   * Turns the current anonymous session into a real account by attaching an email and password to the same user.
+   * Everything already saved (prayers, notes, companion progress) stays, because the user id does not change.
+   * Supabase emails a confirmation link; the account becomes permanent once it is tapped.
+   */
+  upgradeToAccount: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Re-reads the user from the server, so a just-confirmed email is noticed without signing in again. */
+  refreshUser: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -49,6 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error?.message ?? null };
   };
 
+  const upgradeToAccount: AuthContextValue['upgradeToAccount'] = async (email, password) => {
+    const { error } = await supabase.auth.updateUser({ email, password });
+    return { error: error?.message ?? null };
+  };
+
+  const refreshUser: AuthContextValue['refreshUser'] = async () => {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data.session) setSession(data.session);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -64,6 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithPassword,
         signUpWithPassword,
         signInAnonymously,
+        upgradeToAccount,
+        refreshUser,
         signOut,
       }}>
       {children}

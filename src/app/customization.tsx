@@ -781,7 +781,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderRadius: 2,
   },
   iconPendingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.04)',
     alignItems: 'center',
     justifyContent: 'center',

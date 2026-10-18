@@ -1,10 +1,11 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
@@ -91,6 +92,9 @@ function RootStack() {
       <Stack.Screen name="myPrayers" options={{ presentation: 'card' }} />
       <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
       <Stack.Screen name="customization" options={{ presentation: 'card' }} />
+      <Stack.Screen name="pets" options={{ presentation: 'card' }} />
+      <Stack.Screen name="store" options={{ presentation: 'card' }} />
+      <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />
       <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
@@ -101,16 +105,18 @@ function RootStack() {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <SaintThemeProvider>
-        <PrayerRoomProvider>
-          <AppearanceModeProvider>
-            <AuthProvider>
-              <RootStack />
-            </AuthProvider>
-          </AppearanceModeProvider>
-        </PrayerRoomProvider>
-      </SaintThemeProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <SaintThemeProvider>
+          <PrayerRoomProvider>
+            <AppearanceModeProvider>
+              <AuthProvider>
+                <RootStack />
+              </AuthProvider>
+            </AppearanceModeProvider>
+          </PrayerRoomProvider>
+        </SaintThemeProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
