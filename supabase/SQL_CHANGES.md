@@ -116,8 +116,46 @@ alter function public.handle_new_user() reset search_path;
 
 ---
 
+## 4. `cosmetics_revenuecat` (2026-10-18): Stripe replaced by RevenueCat
+
+**What:** Purchases will go through the App Store / Google Play via RevenueCat instead of Stripe.
+
+- `cosmetic_products`: added `store_product_id` (the App Store / Play product id, unique when set); dropped `stripe_price_id`.
+- `user_cosmetics`: added `store_transaction_id`; dropped `stripe_session_id`, `stripe_customer_id`, `stripe_subscription_id` and the Stripe index; `source` is now `'revenuecat'` or `'grant'` (default `'revenuecat'`).
+- Safety checked first: the table had 0 purchases and no product had a Stripe id, so nothing was lost. Row level security and the read-only grants are unchanged (2 policies, `authenticated: SELECT`).
+- New edge function **`revenuecat-webhook`** (JWT verification **off**; it checks a shared secret in the `Authorization` header, secret name `REVENUECAT_WEBHOOK_AUTH`). It is inert until that secret is set.
+- The old **`create-checkout-session`** and **`stripe-webhook`** functions were removed from the repo but are **still deployed**. I have no tool to delete functions, so delete them in the Supabase dashboard (Edge Functions). They do nothing without the Stripe secrets.
+
+**Applied as:** `supabase/migrations/20261018_cosmetics_revenuecat.sql`
+
+**Revert (puts the Stripe columns back; they will be empty):**
+
+```sql
+alter table public.cosmetic_products add column if not exists stripe_price_id text;
+drop index if exists public.cosmetic_products_store_product_id_key;
+alter table public.cosmetic_products drop column if exists store_product_id;
+
+alter table public.user_cosmetics add column if not exists stripe_session_id text;
+alter table public.user_cosmetics add column if not exists stripe_customer_id text;
+alter table public.user_cosmetics add column if not exists stripe_subscription_id text;
+create index if not exists user_cosmetics_subscription_idx
+  on public.user_cosmetics (stripe_subscription_id) where stripe_subscription_id is not null;
+alter table public.user_cosmetics drop column if exists store_transaction_id;
+
+update public.user_cosmetics set source = 'grant' where source <> 'grant';
+alter table public.user_cosmetics alter column source set default 'stripe';
+alter table public.user_cosmetics drop constraint if exists user_cosmetics_source_check;
+alter table public.user_cosmetics add constraint user_cosmetics_source_check check (source in ('stripe', 'grant'));
+```
+
+To remove the new function, delete `revenuecat-webhook` in the dashboard.
+
+---
+
 ## Dashboard settings (not SQL)
 
-- **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings.
+- **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)
+- **Site URL** `prayer://` and redirect URL `prayer://**`. (Done.)
+- **Confirm email**: currently OFF for testing. Turn it back ON once custom SMTP is set up.
 - **Captcha protection: leave OFF.** The app has no captcha step, so turning it on would block every sign-in and anonymous sign-in.
 - **Leaked password protection**: optional, safe to enable (may need a paid plan).

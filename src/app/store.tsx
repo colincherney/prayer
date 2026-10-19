@@ -185,7 +185,7 @@ export default function StoreScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { catalog, owned, loaded, buying, buy, refresh } = useStore();
+  const { catalog, owned, loaded, buying, buy, restore } = useStore();
   const { isGuest } = useAuth();
   const [selected, setSelected] = useState<Product | null>(null);
 
@@ -193,7 +193,7 @@ export default function StoreScreen() {
 
   const onBuy = async (product: Product) => {
     const result = await buy(product.id);
-    if (!result.ok) Alert.alert('Saint Central+', result.message);
+    if (!result.ok && result.message) Alert.alert('Saint Central+', result.message);
   };
 
   const bundle = catalog.find(p => p.id === PLUS_PRODUCT);
@@ -261,7 +261,7 @@ export default function StoreScreen() {
         <View style={styles.list}>{items.map(renderRow)}</View>
 
         <View style={{ alignItems: 'center', marginTop: 24 }}>
-          <Pressable onPress={refresh} accessibilityRole="button" style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+          <Pressable onPress={restore} accessibilityRole="button" style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
             <Text style={styles.restore}>{loaded ? 'Restore purchases' : 'Loading…'}</Text>
           </Pressable>
         </View>

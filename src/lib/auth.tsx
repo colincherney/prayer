@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+import { signOutOfPurchases } from './purchases';
 import { supabase } from './supabase';
 
 type AuthContextValue = {
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    await signOutOfPurchases();
     await supabase.auth.signOut();
   };
 

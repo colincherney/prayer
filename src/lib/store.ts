@@ -1,10 +1,9 @@
-import * as Linking from 'expo-linking';
 import { useFocusEffect } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
 
 import { NookState, ROWS, SCENES } from '@/components/pets/nookData';
 import { useAuth } from '@/lib/auth';
+import { buyStoreProduct, purchasesAvailable, restoreStorePurchases } from '@/lib/purchases';
 import { supabase } from '@/lib/supabase';
 
 /** The Saint Central+ bundle unlocks every cosmetic. */
@@ -26,6 +25,8 @@ export type Product = {
   priceCents: number;
   /** null = one-time purchase. */
   interval: 'month' | 'year' | null;
+  /** The App Store / Play product id, set in the database once the product exists. */
+  storeProductId?: string | null;
 };
 
 // Placeholder prices, used until the catalog loads from public.cosmetic_products (which is the source of truth).
@@ -108,11 +109,17 @@ export function stripUnowned(nook: NookState, owned: ReadonlySet<string>, fallba
   };
 }
 
-type CatalogRow = { id: string; price_cents: number; billing_interval: 'month' | 'year' | null; active: boolean };
+type CatalogRow = {
+  id: string;
+  price_cents: number;
+  billing_interval: 'month' | 'year' | null;
+  active: boolean;
+  store_product_id: string | null;
+};
 
 /**
  * The user's owned cosmetics, reloaded whenever the screen gains focus.
- * Reads public.user_cosmetics, which only the Stripe webhook can write.
+ * Reads public.user_cosmetics, which only the RevenueCat webhook can write.
  */
 export function useOwned() {
   const { session } = useAuth();
@@ -149,16 +156,14 @@ export type BuyResult = { ok: true } | { ok: false; message: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   account_required: 'Create an account first so your purchases are never lost.',
-  stripe_not_configured: 'Purchases are not available yet. Please check back soon.',
-  product_not_linked_to_stripe: 'This item is not for sale yet. Please check back soon.',
-  already_owned: 'You already own this.',
-  product_not_found: 'This item is no longer available.',
+  not_available: 'Purchases are not available yet. Please check back soon.',
+  not_for_sale: 'This item is not for sale yet. Please check back soon.',
 };
 
 /** The catalog (prices from the database when available), purchases, and the buy flow. */
 export function useStore() {
   const { owned, loaded, refresh } = useOwned();
-  const { isGuest } = useAuth();
+  const { isGuest, session } = useAuth();
   const [rows, setRows] = useState<CatalogRow[] | null>(null);
   const [buying, setBuying] = useState<string | null>(null);
 
@@ -169,7 +174,7 @@ export function useStore() {
         try {
           const { data, error } = await supabase
             .from('cosmetic_products')
-            .select('id, price_cents, billing_interval, active');
+            .select('id, price_cents, billing_interval, active, store_product_id');
           if (error) throw error;
           if (!cancelled) setRows((data ?? []) as CatalogRow[]);
         } catch (e) {
@@ -190,48 +195,52 @@ export function useStore() {
       .filter(p => byId.get(p.id)?.active !== false)
       .map(p => {
         const row = byId.get(p.id);
-        return row ? { ...p, priceCents: row.price_cents, interval: row.billing_interval } : p;
+        return row
+          ? { ...p, priceCents: row.price_cents, interval: row.billing_interval, storeProductId: row.store_product_id }
+          : p;
       });
   }, [rows]);
 
-  /** Opens Stripe Checkout (via the create-checkout-session edge function), then reloads what the user owns. */
+  /** Reloads what the user owns now, and again a few times, since the webhook records a purchase a moment later. */
+  const refreshSoon = useCallback(() => {
+    refresh();
+    [2000, 5000, 10000].forEach(ms => setTimeout(refresh, ms));
+  }, [refresh]);
+
+  /** Buys a product through the app store (RevenueCat), then reloads what the user owns. */
   const buy = useCallback(
     async (productId: string): Promise<BuyResult> => {
-      // The server refuses anonymous sessions too; this just saves the round trip.
-      if (isGuest) return { ok: false, message: ERROR_MESSAGES.account_required };
+      if (isGuest || !session) return { ok: false, message: ERROR_MESSAGES.account_required };
+      const product = catalog.find(p => p.id === productId);
+      if (!product?.storeProductId) return { ok: false, message: ERROR_MESSAGES.not_for_sale };
+      if (!purchasesAvailable) return { ok: false, message: ERROR_MESSAGES.not_available };
       setBuying(productId);
       try {
-        const returnUrl = Linking.createURL('store');
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: { productId, returnUrl },
-        });
-        let code: string | undefined = data?.error;
-        if (error && !code) {
-          // Non-2xx responses carry the JSON body on error.context.
-          const ctx = (error as { context?: Response }).context;
-          if (ctx && typeof ctx.json === 'function') {
-            try {
-              code = (await ctx.json())?.error;
-            } catch {}
-          }
+        const result = await buyStoreProduct(session.user.id, product.storeProductId, product.interval !== null);
+        if (result.ok) {
+          refreshSoon();
+          return { ok: true };
         }
-        if (code || !data?.url) {
-          return { ok: false, message: ERROR_MESSAGES[code ?? ''] ?? 'Could not start checkout. Please try again.' };
-        }
-        await WebBrowser.openAuthSessionAsync(data.url as string, returnUrl);
-        // The webhook grants the purchase; give it a moment, then look again.
-        await refresh();
-        setTimeout(refresh, 3000);
-        return { ok: true };
-      } catch (e) {
-        console.warn('Checkout failed', e);
-        return { ok: false, message: 'Could not start checkout. Please try again.' };
+        // Backing out of the purchase sheet is not an error worth showing.
+        return { ok: false, message: result.cancelled ? '' : result.message };
       } finally {
         setBuying(null);
       }
     },
-    [refresh, isGuest],
+    [catalog, isGuest, session, refreshSoon],
   );
 
-  return { catalog, owned, loaded, buying, buy, refresh };
+  /** "Restore purchases": ask the app store to replay past purchases, then reload what the user owns. */
+  const restore = useCallback(async () => {
+    if (session && !isGuest && purchasesAvailable) {
+      try {
+        await restoreStorePurchases(session.user.id);
+      } catch (e) {
+        console.warn('Restore failed', e);
+      }
+    }
+    refreshSoon();
+  }, [session, isGuest, refreshSoon]);
+
+  return { catalog, owned, loaded, buying, buy, restore, refresh };
 }
