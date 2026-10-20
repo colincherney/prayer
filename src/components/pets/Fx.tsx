@@ -7,7 +7,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Circle, G, Path } from 'react-native-svg';
+import { Circle, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { keyframe, useLoop, useMotionEnabled } from './anim';
 
@@ -117,6 +117,37 @@ const PRESETS = {
   flutterH: { dur: 7000, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ tx: 0, ty: 0 }, { tx: 18, ty: -12 }, { tx: 34, ty: 4 }, { tx: 14, ty: 10 }, { tx: 0, ty: 0 }], rest: 0 },
   bobH: { dur: 3200, stops: THREE, poses: [{ ty: 0 }, { ty: -4 }, { ty: 0 }], rest: 0 },
   seed: { dur: 7000, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.8, tx: 6, ty: -30 }, { o: 0, tx: 30, ty: -150 }], rest: 0 },
+  // ---- Group hearth (design/Group.dc.html) and the pet screens (Share, Pray Now, Vigil) ----
+  fireH: { dur: 1200, stops: [0, 0.3, 0.6, 1], poses: [{ sx: 1, sy: 1 }, { sx: 0.94, sy: 1.08 }, { sx: 1.05, sy: 0.95 }, { sx: 1, sy: 1 }], rest: 0 },
+  fglow: { dur: 1600, stops: [0, 0.4, 0.7, 1], poses: [{ o: 0.7 }, { o: 0.95 }, { o: 0.8 }, { o: 0.7 }], rest: 0.4 },
+  sparkH: { dur: 2400, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 0.8, ty: -9 }, { o: 0, tx: 4, ty: -46 }], rest: 0 },
+  snowH: { dur: 5000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 0.6, ty: 8.8 }, { o: 1, tx: 5.4, ty: 79 }, { o: 0, tx: 6, ty: 88 }], rest: 0, linear: true },
+  zH: { dur: 3600, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0, s: 0.7 }, { o: 1, tx: 2, ty: -5, s: 0.8 }, { o: 0, tx: 10, ty: -26, s: 1.2 }], rest: 0.2, linear: true },
+  moteV: { dur: 4500, stops: [0, 0.25, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.9, tx: -11, ty: 13 }, { o: 0, tx: -44, ty: 52 }], rest: 0 },
+  shootStar: { dur: 8000, stops: [0, 0.04, 0.1, 0.12, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 6, ty: 3 }, { o: 1, tx: 48, ty: 24 }, { o: 0, tx: 56, ty: 28 }, { o: 0, tx: 56, ty: 28 }], rest: 0, linear: true },
+  dust: { dur: 9000, stops: [0, 0.2, 0.8, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.7, tx: 3, ty: -5 }, { o: 0.7, tx: 11, ty: -19 }, { o: 0, tx: 14, ty: -24 }], rest: 0, linear: true },
+  stoneFlick: { dur: 1700, stops: [0, 0.35, 0.7, 1], poses: [{ o: 0.05 }, { o: 0.16 }, { o: 0.09 }, { o: 0.05 }], rest: 0.4 },
+  heartUp: { dur: 3600, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0, s: 0.6 }, { o: 1, tx: 2, ty: -8, s: 1 }, { o: 0, tx: 8, ty: -44, s: 1 }], rest: 0, linear: true },
+  bubbleUp: { dur: 4000, stops: [0, 0.15, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.8, tx: 1, ty: -8 }, { o: 0, tx: 5, ty: -60 }], rest: 0, linear: true },
+  // ---- Lying-down poses (LyingPets.tsx) ----
+  breatheLie: { dur: 3600, stops: THREE, poses: [{ sx: 1, sy: 1 }, { sx: 1.015, sy: 1.05 }, { sx: 1, sy: 1 }], rest: 0 },
+  breatheSlow: { dur: 5200, stops: THREE, poses: [{ sx: 1, sy: 1 }, { sx: 1.02, sy: 1.07 }, { sx: 1, sy: 1 }], rest: 0 },
+  earFlop: { dur: 3000, stops: [0, 0.8, 0.88, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: -14 }, { rot: 0 }], rest: 0 },
+  earFlopR: { dur: 3400, stops: [0, 0.7, 0.78, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: 14 }, { rot: 0 }], rest: 0 },
+  tailFlick: { dur: 2400, stops: [0, 0.5, 0.62, 0.74, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: 16 }, { rot: -6 }, { rot: 0 }], rest: 0 },
+  tailWag: { dur: 900, stops: THREE, poses: [{ rot: -10 }, { rot: 10 }, { rot: -10 }], rest: 0.5 },
+  headNod: { dur: 5000, stops: [0, 0.6, 0.7, 0.85, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: -7 }, { rot: -7 }, { rot: 0 }], rest: 0 },
+  undulate: { dur: 3200, stops: THREE, poses: [{ ty: 0, sx: 1 }, { ty: -2, sx: 1.02 }, { ty: 0, sx: 1 }], rest: 0 },
+  wobbleLie: { dur: 3000, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ rot: 0 }, { rot: 3 }, { rot: 0 }, { rot: -3 }, { rot: 0 }], rest: 0 },
+  flameLie: { dur: 1500, stops: [0, 0.3, 0.6, 1], poses: [{ sx: 1, sy: 1, rot: 0 }, { sx: 0.94, sy: 1.08, rot: -4 }, { sx: 1.05, sy: 0.96, rot: 4 }, { sx: 1, sy: 1, rot: 0 }], rest: 0 },
+  flameDim: { dur: 3000, stops: THREE, poses: [{ sx: 0.7, sy: 0.6, o: 0.75 }, { sx: 0.75, sy: 0.68, o: 0.9 }, { sx: 0.7, sy: 0.6, o: 0.75 }], rest: 0 },
+  ruffle: { dur: 4600, stops: [0, 0.78, 0.82, 0.86, 0.9, 1], poses: [{ sy: 1 }, { sy: 1 }, { sy: 1.08 }, { sy: 0.96 }, { sy: 1.04 }, { sy: 1 }], rest: 0 },
+  sprout: { dur: 2600, stops: THREE, poses: [{ rot: -10 }, { rot: 10 }, { rot: -10 }], rest: 0.25 },
+  // ---- Journal desk (JournalArt.tsx) ----
+  pageTurn: { dur: 7000, stops: [0, 0.1, 0.74, 0.88, 0.94, 1], poses: [{ sx: 1, o: 0 }, { sx: 1, o: 1 }, { sx: 1, o: 1 }, { sx: -1, o: 1 }, { sx: -1, o: 0 }, { sx: -1, o: 0 }], rest: 0.3, linear: true },
+  quill: { dur: 3500, stops: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1], poses: [{ tx: 0, ty: 0, rot: 0 }, { tx: 6, ty: -2, rot: -6 }, { tx: 12, ty: 0, rot: 2 }, { tx: 18, ty: -2, rot: -6 }, { tx: 24, ty: 0, rot: 2 }, { tx: 30, ty: -2, rot: -6 }, { tx: 36, ty: 0, rot: 0 }, { tx: 0, ty: 0, rot: 0 }], rest: 0 },
+  petalDrift: { dur: 8000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 0.9, tx: 6, ty: 8, rot: 30 }, { o: 0.9, tx: 50, ty: 70, rot: 260 }, { o: 0, tx: 56, ty: 78, rot: 300 }], rest: 0, linear: true },
+  sway4: { dur: 2800, stops: THREE, poses: [{ rot: -5 }, { rot: 6 }, { rot: -5 }], rest: 0.25 },
 } satisfies Record<string, Preset>;
 
 export type FxKind = keyof typeof PRESETS;
@@ -244,4 +275,23 @@ export function FadeInG({ delay = 0, duration = 2600, children }: { delay?: numb
   }, [p, enabled, delay, duration]);
   const animatedProps = useAnimatedProps(() => ({ opacity: p.value }));
   return <AG animatedProps={animatedProps}>{children}</AG>;
+}
+
+/** A soft halo of light that fades out at the edge (a flat circle reads as a disk on the dark screens). */
+export function SoftGlow({ cx, cy, r, color, kind = 'glowb' }: { cx: number; cy: number; r: number; color: string; kind?: FxKind }) {
+  const id = `lieglow${color.slice(1)}`;
+  return (
+    <>
+      <Defs>
+        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={color} stopOpacity={0.9} />
+          <Stop offset="0.55" stopColor={color} stopOpacity={0.35} />
+          <Stop offset="1" stopColor={color} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Fx kind={kind}>
+        <Circle cx={cx} cy={cy} r={r} fill={`url(#${id})`} />
+      </Fx>
+    </>
+  );
 }

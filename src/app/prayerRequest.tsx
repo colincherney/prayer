@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PopHearts, ScreenPet, petFeetOffset } from '@/components/pets/ScreenPet';
 import { PrimaryButton, SectionLabel, Squiggle } from '@/components/saint/Common';
 import {
   ArrowIcon,
@@ -26,6 +27,7 @@ import {
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { usePetChoice } from '@/lib/pet';
 import { supabase } from '@/lib/supabase';
 
 const CATEGORIES = [
@@ -59,12 +61,18 @@ export default function SubmitPrayerScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sensitive, setSensitive] = useState<string | null>(null);
+  // The companion on the prayer box: hops when you lift a prayer, pops a heart when you pick a category.
+  const { name: petName } = usePetChoice();
+  const [hopTick, setHopTick] = useState(0);
+  const [heartTick, setHeartTick] = useState(0);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
   const onSubmit = async () => {
     if (!text.trim() || busy) return;
     setError(null);
+    setHopTick(t => t + 1);
+    setHeartTick(t => t + 1);
 
     if (share === 'private') {
       setStep('confirm');
@@ -105,6 +113,10 @@ export default function SubmitPrayerScreen() {
         <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
         <View style={styles.confirmRoot}>
           <View style={styles.confirmInner}>
+            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+              <ScreenPet size={104} hop={1} interactive />
+              <PopHearts trigger={1} style={{ right: -4, top: 0 }} />
+            </View>
             <View style={styles.confirmIconWrap}>
               <PrayingIcon size={40} color={THEME.pillInk} />
             </View>
@@ -119,6 +131,7 @@ export default function SubmitPrayerScreen() {
                   ? `It rests with ${groupName ?? 'your group'} now. Your circle will lift it up — without ever knowing it's you.`
                   : "It has been placed gently before the community. Hearts you'll never meet will lift it up."}
             </Text>
+            <Text style={[styles.confirmVerse, { marginTop: 14 }]}>{petName} is praying with you.</Text>
             <View style={{ marginTop: 24 }}>
               <Text style={styles.confirmVerse}>
                 &ldquo;Be still, and know that I am God.&rdquo;
@@ -189,7 +202,8 @@ export default function SubmitPrayerScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 22 }}>
-          {/* Textarea */}
+          {/* Textarea, with your companion sitting on its top corner */}
+          <View style={{ marginTop: 64 }}>
           <View style={styles.textareaCard}>
             <TextInput
               value={text}
@@ -210,6 +224,11 @@ export default function SubmitPrayerScreen() {
               <Text style={styles.textareaFootText}>{text.length}/500</Text>
             </View>
           </View>
+          <View pointerEvents="box-none" style={{ position: 'absolute', right: 20, top: 4 - petFeetOffset(92) }}>
+            <ScreenPet size={92} lean={text.trim().length > 0} hop={hopTick} scene="perch" interactive />
+          </View>
+          <PopHearts trigger={heartTick} style={{ right: 4, top: -66 }} />
+          </View>
 
           <SectionLabel>
             Category <Text style={{ fontFamily: FONTS.body }}>(optional)</Text>
@@ -220,7 +239,10 @@ export default function SubmitPrayerScreen() {
               return (
                 <Pressable
                   key={c.id}
-                  onPress={() => setCategory(c.id)}
+                  onPress={() => {
+                    setCategory(c.id);
+                    setHeartTick(t => t + 1);
+                  }}
                   style={[
                     styles.chip,
                     {

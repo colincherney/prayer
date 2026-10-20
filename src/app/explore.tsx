@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { ScreenPet } from '@/components/pets/ScreenPet';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -561,7 +562,13 @@ export default function PrayForOthersScreen() {
             contentContainerStyle={styles.bodyScroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
+            <View>
+              <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
+              {/* Your companion keeps vigil beside the candle: warmed by the flame once it is lit, hopping when you light it or send encouragement. */}
+              <View pointerEvents="box-none" style={{ position: 'absolute', right: '50%', marginRight: 42, bottom: 10 }}>
+                <ScreenPet size={96} warm={lit} hop={(lit ? 1 : 0) + notesSent.size} scene="vigil" interactive />
+              </View>
+            </View>
 
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>

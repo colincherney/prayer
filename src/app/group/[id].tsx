@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,10 +12,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Hearth, HearthMember, HEARTH_SEATS } from '@/components/pets/Hearth';
+import { isPetId } from '@/components/pets/registry';
 import { Pill, PrimaryButton, ScreenHeader, SectionLabel } from '@/components/saint/Common';
 import {
   CheckIcon,
@@ -28,6 +31,7 @@ import {
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { usePetProgress } from '@/lib/pet';
 import { supabase } from '@/lib/supabase';
 import { relativeTime } from '@/lib/time';
 
@@ -63,6 +67,13 @@ export default function GroupScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // The hearth: everyone else's companions (no names), the group's decor, and the flare when someone shares.
+  const { width: screenW } = useWindowDimensions();
+  const { petId: myPetId, progress: myProgress } = usePetProgress();
+  const [others, setOthers] = useState<HearthMember[]>([]);
+  const [decor, setDecor] = useState<string[]>([]);
+  const [flare, setFlare] = useState(0);
+
   // Anonymous encouragement notes — one open composer at a time.
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -74,13 +85,13 @@ export default function GroupScreen() {
     if (!session || !id) return;
     const me = session.user.id;
 
-    const [groupRes, membersRes, prayersRes] = await Promise.all([
+    const [groupRes, membersRes, prayersRes, nookRes] = await Promise.all([
       supabase
         .from('groups')
         .select('id, name, description, is_public, invite_code')
         .eq('id', id)
         .maybeSingle(),
-      supabase.from('group_members').select('user_id, role').eq('group_id', id),
+      supabase.from('group_members').select('user_id, role, pet_id, pet_stage').eq('group_id', id),
       supabase
         .from('prayers')
         .select('id, body, category, created_at, user_id, prayer_interactions(action, user_id)')
@@ -88,6 +99,7 @@ export default function GroupScreen() {
         .eq('approved', 'y')
         .order('created_at', { ascending: false })
         .limit(100),
+      supabase.from('group_nooks').select('decor').eq('group_id', id).maybeSingle(),
     ]);
 
     if (groupRes.error || !groupRes.data) {
@@ -97,6 +109,16 @@ export default function GroupScreen() {
     }
 
     const members = membersRes.data ?? [];
+    setOthers(
+      members
+        .filter(m => m.user_id !== me)
+        .map(m => ({
+          petId: isPetId(m.pet_id) ? m.pet_id : 'lamb',
+          stage: ([1, 2, 3].includes(m.pet_stage as number) ? m.pet_stage : 1) as HearthMember['stage'],
+        })),
+    );
+    const savedDecor = (nookRes.data?.decor as unknown) ?? [];
+    setDecor(Array.isArray(savedDecor) ? savedDecor.filter((d): d is string => typeof d === 'string') : []);
     const myMembership = members.find(m => m.user_id === me);
 
     setGroup({
@@ -141,7 +163,37 @@ export default function GroupScreen() {
     }, [load]),
   );
 
+  const isMember = !!group?.myRole;
+  const groupId = group?.id;
+  useEffect(() => {
+    if (!groupId || !isMember) return;
+    supabase
+      .rpc('set_my_group_pet', { p_group: groupId, p_pet: myPetId, p_stage: myProgress.stage })
+      .then(({ error: e }) => {
+        if (e) console.warn('Could not share pet with the group', e.message);
+      });
+  }, [groupId, isMember, myPetId, myProgress.stage]);
+
+  const hearthMembers = useMemo<HearthMember[]>(
+    () => (isMember ? [{ petId: myPetId, stage: myProgress.stage }, ...others] : others),
+    [isMember, myPetId, myProgress.stage, others],
+  );
+
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
+
+  const openNook = () => {
+    if (group?.myRole) router.push({ pathname: '/groupNook', params: { id: group.id } });
+  };
+
+  const onShareToGroup = () => {
+    if (!group) return;
+    // The fire flares and every companion hops, then the composer opens.
+    setFlare(f => f + 1);
+    setTimeout(
+      () => router.push({ pathname: '/prayerRequest', params: { groupId: group.id, groupName: group.name } }),
+      900,
+    );
+  };
 
   const onPray = async (prayer: GroupPrayer) => {
     if (!session || prayer.prayedByMe || prayer.mine) return;
@@ -333,6 +385,26 @@ export default function GroupScreen() {
               </Pill>
             </View>
 
+            {/* The hearth: every member's companion rests here. Double-tap to decorate. */}
+            <View style={styles.hearthHead}>
+              <Text style={styles.hearthLabel}>THE HEARTH</Text>
+              <Text style={styles.hearthCount}>
+                {hearthMembers.length} {hearthMembers.length === 1 ? 'companion' : 'companions'} resting
+              </Text>
+            </View>
+            <Hearth
+              width={screenW - 44}
+              members={hearthMembers}
+              decor={decor}
+              flare={flare}
+              onDoubleTap={group.myRole ? openNook : undefined}
+            />
+            <Text style={styles.hearthNote}>
+              Every member&apos;s companion rests by this fire. No names, ever.
+              {group.myRole ? ' Double-tap the hearth to decorate it.' : ''}
+              {hearthMembers.length >= HEARTH_SEATS ? ' (The first six fit by the fire.)' : ''}
+            </Text>
+
             {/* Invite code — every member can pass it along */}
             {group.myRole && group.invite_code ? (
               <Pressable onPress={onShareCode} style={styles.codeCard}>
@@ -349,12 +421,7 @@ export default function GroupScreen() {
             {group.myRole ? (
               <PrimaryButton
                 label="Share a prayer with this group"
-                onPress={() =>
-                  router.push({
-                    pathname: '/prayerRequest',
-                    params: { groupId: group.id, groupName: group.name },
-                  })
-                }
+                onPress={onShareToGroup}
                 style={{ marginTop: 16 }}
               />
             ) : null}
@@ -508,6 +575,23 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     paddingHorizontal: 32,
   },
   metaRow: { flexDirection: 'row', gap: 8 },
+  hearthHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: 22,
+    marginBottom: 12,
+  },
+  hearthLabel: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 2, color: THEME.ink },
+  hearthCount: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
+  hearthNote: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 13,
+    lineHeight: 19,
+    color: THEME.inkSoft,
+    marginTop: 10,
+  },
   codeCard: {
     marginTop: 16,
     backgroundColor: THEME.surface,

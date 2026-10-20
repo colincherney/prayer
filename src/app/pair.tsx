@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { lyingFeetOffset } from '@/components/pets/LyingPets';
+import { ScreenPet } from '@/components/pets/ScreenPet';
 import {
   Pill,
   PrimaryButton,
@@ -237,19 +239,31 @@ const IntentPhase: React.FC<{
         </View>
 
         {error ? <Text style={styles.intentError}>{error}</Text> : null}
-        <PrimaryButton
-          label={submitting ? '' : 'Find a prayer partner'}
-          rightIcon={
-            submitting ? (
-              <ActivityIndicator color={THEME.accentInk} />
-            ) : (
-              <ArrowIcon size={16} color={THEME.accentInk} />
-            )
-          }
-          disabled={!intent.trim() || !!submitting}
-          onPress={onNext}
-          style={{ marginTop: 24 }}
-        />
+        {/* Your companion dozes on the button, wakes when you start typing, and watches while a partner is found. */}
+        <View style={{ marginTop: 76 }}>
+          <PrimaryButton
+            label={submitting ? '' : 'Find a prayer partner'}
+            rightIcon={
+              submitting ? (
+                <ActivityIndicator color={THEME.accentInk} />
+              ) : (
+                <ArrowIcon size={16} color={THEME.accentInk} />
+              )
+            }
+            disabled={!intent.trim() || !!submitting}
+            onPress={onNext}
+          />
+          <View pointerEvents="box-none" style={{ position: 'absolute', right: 22, top: 4 - lyingFeetOffset(132) }}>
+            <ScreenPet
+              size={132}
+              pose="lie"
+              sleepy={!intent.trim() && !submitting}
+              watching={!!submitting}
+              zAt={{ x: 44, y: -8 }}
+              interactive
+            />
+          </View>
+        </View>
         <Text style={styles.endVerse}>
           &ldquo;Where two or three gather in my name, there am I.&rdquo; — Matthew 18:20
         </Text>

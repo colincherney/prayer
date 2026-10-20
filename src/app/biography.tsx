@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -24,15 +25,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import Svg, {
-  Circle,
-  Rect,
-  Path,
-  Defs,
-  LinearGradient,
-  Stop,
-  G,
-} from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets/JournalArt';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
@@ -138,33 +132,6 @@ function formatEntryDateLong(iso: string): string {
   const m = ['January','February','March','April','May','June',
     'July','August','September','October','November','December'];
   return `${m[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-// ── Book icon (themed) ────────────────────────────────────────────────────────
-function BookIcon({ accent, bg }: { accent: string; bg: string }) {
-  return (
-    <Svg width={52} height={62} viewBox="0 0 52 62">
-      <Defs>
-        <LinearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor={accent} stopOpacity={0.9} />
-          <Stop offset="100%" stopColor={accent} stopOpacity={0.6} />
-        </LinearGradient>
-      </Defs>
-      {/* Book shadow */}
-      <Rect x="6" y="8" width="40" height="52" rx="4" fill={accent} opacity={0.12} />
-      {/* Book cover */}
-      <Rect x="3" y="4" width="40" height="52" rx="4" fill="url(#cover)" />
-      {/* Spine */}
-      <Rect x="3" y="4" width="6" height="52" rx="3" fill={accent} opacity={0.4} />
-      {/* Pages edge */}
-      <Rect x="43" y="6" width="4" height="48" rx="1" fill={bg} opacity={0.55} />
-      {/* Cross */}
-      <Rect x="20" y="20" width="10" height="24" rx="2" fill={bg} opacity={0.85} />
-      <Rect x="14" y="27" width="22" height="10" rx="2" fill={bg} opacity={0.85} />
-      {/* Bookmark */}
-      <Path d="M32 54 L38 54 L38 62 L35 58 L32 62 Z" fill={bg} opacity={0.6} />
-    </Svg>
-  );
 }
 
 // ── Small components ──────────────────────────────────────────────────────────
@@ -981,6 +948,7 @@ export default function BiographyScreen() {
   const { theme: THEME } = useTheme();
   const { session, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
   const [view, setView] = useState<'list' | 'detail' | 'new' | 'edit'>('list');
   const [openEntry, setOpenEntry] = useState<Entry | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -1141,9 +1109,11 @@ export default function BiographyScreen() {
             </Text>
             <BibleVersionPicker version={bibleVersion} onSelect={setBibleVersion} />
           </View>
-          <View style={styles.bookIconWrap}>
-            <BookIcon accent={THEME.accent} bg={THEME.bg} />
-          </View>
+        </View>
+
+        {/* The study: your companion keeps you company at the desk while you write. */}
+        <View style={{ paddingHorizontal: 22, marginTop: 14 }}>
+          <JournalDesk width={screenW - 44} accent={THEME.accent} entryCount={allEntries.length} />
         </View>
 
         {/* Write new entry prompt */}
@@ -1222,6 +1192,11 @@ export default function BiographyScreen() {
                 <EntryCard key={e.id} entry={e}
                   onOpen={entry => { setOpenEntry(entry); setView('detail'); }} />
               ))}
+              {filtered.length === 0 && !loading && allEntries.length === 0 && (
+                <View style={{ alignItems: 'center', marginTop: 18 }}>
+                  <JournalEmptyArt accent={THEME.accent} />
+                </View>
+              )}
               {filtered.length === 0 && !loading && (
                 <Text style={[styles.emptyState, { color: THEME.muted }]}>
                   {allEntries.length === 0
@@ -1234,8 +1209,11 @@ export default function BiographyScreen() {
             </>
           )}
 
-          <Text style={[styles.footer, { color: THEME.muted }]}>
-            ✥{'\n'}The beginning is in here somewhere.
+          <View style={{ alignItems: 'center', marginTop: 28 }}>
+            <JournalFlourish color={THEME.accent} />
+          </View>
+          <Text style={[styles.footer, { color: THEME.muted, marginTop: 6 }]}>
+            The beginning is in here somewhere.
           </Text>
         </View>
       </ScrollView>
@@ -1315,11 +1293,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     marginBottom: 2,
-  },
-  bookIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
   },
 
   // Bible version picker

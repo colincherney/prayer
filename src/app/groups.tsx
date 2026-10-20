@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { lyingFeetOffset } from '@/components/pets/LyingPets';
+import { PeekingPet } from '@/components/pets/ScreenPet';
 import { Pill, ScreenHeader, SectionLabel } from '@/components/saint/Common';
 import {
   ArrowIcon,
@@ -246,6 +248,11 @@ export default function GroupsScreen() {
 
           {/* My groups */}
           <SectionLabel theme={THEME}>Your groups</SectionLabel>
+          {/* Your companion climbs up from behind this card, lies along its top, dozes, and slips back down. */}
+          <View style={{ marginTop: 76 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', right: 26, top: 3 - lyingFeetOffset(124) }}>
+            <PeekingPet size={124} />
+          </View>
           {loading ? (
             <ActivityIndicator color={THEME.accent} style={{ marginVertical: 20 }} />
           ) : myGroups.length === 0 ? (
@@ -263,6 +270,7 @@ export default function GroupsScreen() {
               ))}
             </View>
           )}
+          </View>
 
           {/* Create */}
           <Pressable

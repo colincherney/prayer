@@ -152,6 +152,34 @@ To remove the new function, delete `revenuecat-webhook` in the dashboard.
 
 ---
 
+## 5. `group_nook` (2026-10-19): the group hearth
+
+**What:** Each group gets a shared "hearth" where every member's pet rests (no names) and members can decorate it.
+
+- `group_members`: added `pet_id` and `pet_stage` (which pet a member shows). Checked to known pets, stage 1 to 3. Existing rows stay empty until that member opens the group.
+- New table `group_nooks` (one row per group: the list of decor ids). Row level security: only members of the group can read it. The app has read-only access.
+- New function `set_my_group_pet(group, pet, stage)`: updates only the caller's own membership row, only those two columns.
+- New function `save_group_nook(group, decor)`: only members can call it; only the 8 known decor ids are accepted, no duplicates, at most 12.
+- Both functions need a session (anonymous sign-ins count) and are not callable without one.
+
+**Tested afterwards (simulated signed-in member):** saving a pet and decor worked, an unknown decor id was dropped, an outsider was refused with `not_a_member`, and a direct insert into `group_nooks` was refused.
+
+**Applied as:** `supabase/migrations/20261019_group_nook.sql`
+
+**Revert (deletes every group's decor and the saved pet choices):**
+
+```sql
+drop function if exists public.save_group_nook(uuid, jsonb);
+drop function if exists public.set_my_group_pet(uuid, text, int);
+drop table if exists public.group_nooks;
+alter table public.group_members drop constraint if exists group_members_pet_id_check;
+alter table public.group_members drop constraint if exists group_members_pet_stage_check;
+alter table public.group_members drop column if exists pet_id;
+alter table public.group_members drop column if exists pet_stage;
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

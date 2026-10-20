@@ -97,6 +97,7 @@ function RootStack() {
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />
       <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
     </Stack>
   );
