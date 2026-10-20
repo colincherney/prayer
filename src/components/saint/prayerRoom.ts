@@ -175,6 +175,12 @@ export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
 
 const STORAGE_KEY = 'saint.prayerRoom';
 
+/**
+ * The room everyone sees until they pick one themselves. Change this each season (e.g. to a Thanksgiving or
+ * Christmas room once those exist). It never overrides a choice: a room is saved only when the person picks it.
+ */
+export const SEASONAL_DEFAULT_ROOM: PrayerRoomName = 'halloween';
+
 type PrayerRoomCtx = {
   name: PrayerRoomName;
   palette: PrayerRoomPalette;
@@ -182,15 +188,15 @@ type PrayerRoomCtx = {
 };
 
 const PrayerRoomContext = createContext<PrayerRoomCtx>({
-  name: 'stars',
-  palette: STARS,
+  name: SEASONAL_DEFAULT_ROOM,
+  palette: PRAYER_ROOMS[SEASONAL_DEFAULT_ROOM],
   setRoom: () => {},
 });
 
 export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [name, setName] = useState<PrayerRoomName>('stars');
+  const [name, setName] = useState<PrayerRoomName>(SEASONAL_DEFAULT_ROOM);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
