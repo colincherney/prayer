@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId } from '@/components/pets/registry';
@@ -24,9 +24,9 @@ export function petProgressFromXp(xp: number): PetProgress {
   return { xp, level, xpInLevel: xp % XP_PER_LEVEL, stage: pipStageForLevel(level) };
 }
 
-/** XP is derived from rows the app already writes, so no schema change is needed. */
-export function xpFromCounts(c: { prayed: number; shared: number; journal: number }): number {
-  return c.prayed * XP.prayed + c.shared * XP.share + c.journal * XP.journal;
+/** XP comes from rows the app already writes, plus whatever finished quests were worth (public.quest_completions). */
+export function xpFromCounts(c: { prayed: number; shared: number; journal: number; quests?: number }): number {
+  return c.prayed * XP.prayed + c.shared * XP.share + c.journal * XP.journal + (c.quests ?? 0);
 }
 
 const PET_KEY = 'pet.id';
@@ -110,45 +110,53 @@ export function usePetProgress() {
   const [progress, setProgress] = useState<PetProgress>(petProgressFromXp(0));
   const [leveledUp, setLeveledUp] = useState(false);
 
+  // Bumped to throw away a load that finished after a newer one started (or after the screen lost focus).
+  const loadId = useRef(0);
+
+  const reload = useCallback(async () => {
+    if (!session) return;
+    const id = ++loadId.current;
+    const userId = session.user.id;
+    try {
+      const [prayed, shared, journal, quests] = await Promise.all([
+        supabase
+          .from('prayer_interactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('action', 'prayed'),
+        supabase.from('prayers').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('biography_entries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('quest_completions').select('xp').eq('user_id', userId),
+      ]);
+      if (id !== loadId.current) return;
+      const questXp = (quests.data ?? []).reduce((sum, r) => sum + ((r.xp as number) ?? 0), 0);
+      const next = petProgressFromXp(
+        xpFromCounts({
+          prayed: prayed.count ?? 0,
+          shared: shared.count ?? 0,
+          journal: journal.count ?? 0,
+          quests: questXp,
+        }),
+      );
+      setProgress(next);
+      const up = await consumeLevelUp(next.level);
+      if (id === loadId.current && up) {
+        setLeveledUp(true);
+        setTimeout(() => setLeveledUp(false), 2200);
+      }
+    } catch (e) {
+      console.warn('Pet progress failed', e);
+    }
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        if (!session) return;
-        const userId = session.user.id;
-        try {
-          const [prayed, shared, journal] = await Promise.all([
-            supabase
-              .from('prayer_interactions')
-              .select('id', { count: 'exact', head: true })
-              .eq('user_id', userId)
-              .eq('action', 'prayed'),
-            supabase.from('prayers').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('biography_entries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-          ]);
-          if (cancelled) return;
-          const next = petProgressFromXp(
-            xpFromCounts({
-              prayed: prayed.count ?? 0,
-              shared: shared.count ?? 0,
-              journal: journal.count ?? 0,
-            }),
-          );
-          setProgress(next);
-          const up = await consumeLevelUp(next.level);
-          if (!cancelled && up) {
-            setLeveledUp(true);
-            setTimeout(() => setLeveledUp(false), 2200);
-          }
-        } catch (e) {
-          console.warn('Pet progress failed', e);
-        }
-      })();
+      reload();
       return () => {
-        cancelled = true;
+        loadId.current += 1;
       };
-    }, [session]),
+    }, [reload]),
   );
 
-  return { progress, leveledUp, ...choice };
+  return { progress, leveledUp, reload, ...choice };
 }

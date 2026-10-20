@@ -13,7 +13,7 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 
-import { FadeInG, FlowPath, Fx, TravelDot, TwinkleDot, TwinkleStar } from './Fx';
+import { FadeInG, FlowPath, Fx, SoftGlow, TravelDot, TwinkleDot, TwinkleStar } from './Fx';
 import { SceneId } from './nookData';
 
 export const NOOK_W = 342;
@@ -485,6 +485,26 @@ export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
             <Ellipse cx={70} cy={311} rx={4} ry={7} fill="#FFE08A" />
           </Fx>
           <Rect x={56} y={328} width={28} height={6} rx={2} fill="#C9A24B" />
+        </>
+      );
+    case 'pilgrimlantern':
+      // Earned on the Quests page: the guide's own lantern, hanging from a shepherd's crook.
+      return (
+        <>
+          <Path d="M54 342 L56 262" stroke="#7A5232" strokeWidth={5} strokeLinecap="round" />
+          <Path d="M56 264 C56 246 78 244 78 260" stroke="#7A5232" strokeWidth={5} fill="none" strokeLinecap="round" />
+          <Ellipse cx={55} cy={342} rx={12} ry={3} fill="#5A3A24" />
+          <Fx kind="swing" ox={78} oy={260}>
+            <Path d="M78 260 L78 270" stroke="#C9A24B" strokeWidth={1.6} />
+            <SoftGlow cx={78} cy={288} r={lanternBright ? 44 : 32} color="#F2C462" kind={lanternBright ? 'glowb' : 'glow'} />
+            <Polygon points="69,276 78,268 87,276" fill="#C9A24B" />
+            <Rect x={69} y={276} width={18} height={26} rx={3} fill="#2A2236" stroke="#C9A24B" strokeWidth={2} />
+            <Path d="M78 280 V298 M73 285 H83" stroke="#C9A24B" strokeWidth={1.2} opacity={0.6} />
+            <Fx kind="flicker" ox={78} oy={296}>
+              <Ellipse cx={78} cy={290} rx={3.6} ry={6} fill="#FFE08A" />
+            </Fx>
+            <Rect x={67} y={301} width={22} height={4} rx={2} fill="#C9A24B" />
+          </Fx>
         </>
       );
     case 'censer':

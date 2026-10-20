@@ -180,6 +180,34 @@ alter table public.group_members drop column if exists pet_stage;
 
 ---
 
+## 6. `quests` (2026-10-20): the Quests page
+
+**What:** Daily quests from the pet guide, XP for the pet, and weekly journeys.
+
+- New table `quest_completions` (one row per finished quest: quest id, category, tier, XP, the phone's local day). Row level security: each person can read only their own rows. The app has read-only access.
+- New function `complete_quest(quest, category, tier, day)` is the only way to record a quest. It sets the XP itself (regular 10, advanced 30, special 60, journey step 5, the fifth journey step 85) and enforces per-day limits: one regular quest per category, one bonus challenge, one journey step. It rejects unknown quest ids and dates more than a day from the server's date. It needs a session (anonymous sign-ins count).
+- New product `item:pilgrimlantern` in `cosmetic_products`, **inactive** (never sold). Finishing a weekly journey grants it in `user_cosmetics` with source `grant`.
+- Pet XP now also adds the XP from `quest_completions`.
+
+**Tested afterwards (simulated signed-in user, rolled back):**
+- A regular quest gave 10 XP, and a second prayer quest the same day was refused.
+- A bonus (A) quest gave 30 XP, and a second bonus was refused.
+- An unknown quest id, a date five days old, and a direct insert were all refused.
+- The first journey step gave 5 XP. The fifth gave 85 and granted the lantern.
+
+**Applied as:** `supabase/migrations/20261020_quests.sql`
+
+**Revert (deletes everyone's quest history and quest XP, and removes earned lanterns):**
+
+```sql
+drop function if exists public.complete_quest(text, text, text, date);
+drop table if exists public.quest_completions;
+delete from public.user_cosmetics where product_id = 'item:pilgrimlantern';
+delete from public.cosmetic_products where id = 'item:pilgrimlantern';
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

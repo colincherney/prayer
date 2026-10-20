@@ -29,6 +29,7 @@ import { Pet, petStageName } from '@/components/pets/registry';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
+import { useQuests } from '@/lib/quests';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -311,6 +312,8 @@ export default function PrayLauncherScreen() {
   const { theme: THEME, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { progress, name, setName, petId, leveledUp } = usePetProgress();
+  const quests = useQuests();
+  const questsDone = quests.quests.filter(x => x.slot !== 'bonus' && quests.statusOf(x) === 'done').length;
   const [hero, setHero] = useState<Size | null>(null);
   const [actions, setActions] = useState<Size | null>(null);
 
@@ -591,6 +594,19 @@ export default function PrayLauncherScreen() {
       <View style={{ flex: 1, paddingBottom: TAB_BAR_SPACE }}>
         <View style={{ flex: 1.1 }} onLayout={onHero}>
           {heroNode}
+          {/* Your companion, dressed as a pilgrim, has today's quests waiting. */}
+          <Pressable
+            onPress={() => router.push('/quests')}
+            accessibilityRole="button"
+            accessibilityLabel={`Quests, ${questsDone} of 4 done today`}
+            style={({ pressed }) => [styles.questBadge, pressed && { transform: [{ scale: 0.95 }] }]}>
+            <Svg width={18} height={18} viewBox="0 0 24 24">
+              <Path d="M6 3h11a2 2 0 0 1 2 2v12H8a2 2 0 0 0 0 4h11" stroke={THEME.accent} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M8 21a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 M10 8h6 M10 12h4" stroke={THEME.accent} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+            </Svg>
+            <Text style={styles.questBadgeText}>Quests</Text>
+            <Text style={styles.questBadgeCount}>{questsDone}/4</Text>
+          </Pressable>
         </View>
         <View style={{ flex: 1 }} onLayout={onActions}>
           {gridNode}
@@ -635,6 +651,22 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     backgroundColor: THEME.accent,
   },
   toastText: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 14, color: THEME.accentInk },
+  questBadge: {
+    position: 'absolute',
+    right: 16,
+    top: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: THEME.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+  },
+  questBadgeText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.ink },
+  questBadgeCount: { fontFamily: FONTS.bodySemi, fontSize: 11.5, color: THEME.accent },
   nameBlock: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   petName: { fontFamily: FONTS.displaySemi, color: THEME.ink },

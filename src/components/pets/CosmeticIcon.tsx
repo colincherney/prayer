@@ -295,6 +295,17 @@ function ItemArt({ id }: { id: string }) {
           <Circle cx={16} cy={29} r={1.8} fill="#C9A24B" />
         </>
       );
+    case 'pilgrimlantern':
+      return (
+        <>
+          <Path d="M8 29 L9 6 C9 1 17 1 17 6" stroke="#7A5232" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+          <Circle cx={18} cy={17} r={9} fill="#F2C462" opacity={0.22} />
+          <Path d="M17 6 V9" stroke="#C9A24B" strokeWidth={1.2} />
+          <Polygon points="13,12 17,9 21,12" fill="#C9A24B" />
+          <Rect x={13} y={12} width={8} height={11} rx={1.4} fill="#2A2236" stroke="#C9A24B" strokeWidth={1.2} />
+          <Ellipse cx={17} cy={17.5} rx={1.8} ry={3} fill="#FFE08A" />
+        </>
+      );
     case 'jackolantern':
       return (
         <>

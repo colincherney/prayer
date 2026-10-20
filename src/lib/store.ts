@@ -52,7 +52,7 @@ export function defaultCatalog(): Product[] {
   }));
   const items: Product[] = ROWS.flatMap(row =>
     row.items
-      .filter(it => it.locked)
+      .filter(it => it.locked && !it.earned)
       .map(
         (it): Product => ({
           id: itemProductId(it.id),

@@ -198,6 +198,10 @@ export default function MeScreen() {
     ),
   );
   const previewing = unownedInNook(nook, owned).length > 0;
+  // An earned piece (like the Pilgrim's lantern) is unlocked on the Quests page rather than bought.
+  const earnedPreview = ROWS.flatMap(r => r.items).find(
+    it => it.earned && nook.items.includes(it.id) && !owns(owned, itemProductId(it.id)),
+  );
 
   // As the nook scrolls off the top, a smaller copy fades in and docks under the status bar, so cosmetics can be
   // tried on while browsing. Its fade follows the scroll position, so it eases in rather than popping.
@@ -433,10 +437,12 @@ export default function MeScreen() {
               {previewing ? (
                 <View style={styles.previewBanner}>
                   <Text style={styles.previewText}>
-                    Previewing cosmetics you don&apos;t own yet. They won&apos;t be saved.
+                    {earnedPreview
+                      ? `Previewing the ${earnedPreview.name}. ${earnedPreview.earned} to keep it.`
+                      : "Previewing cosmetics you don't own yet. They won't be saved."}
                   </Text>
-                  <Pressable onPress={() => router.push('/store')} style={styles.unlockBtn}>
-                    <Text style={styles.unlockText}>Unlock</Text>
+                  <Pressable onPress={() => router.push(earnedPreview ? '/quests' : '/store')} style={styles.unlockBtn}>
+                    <Text style={styles.unlockText}>{earnedPreview ? 'Quests' : 'Unlock'}</Text>
                   </Pressable>
                 </View>
               ) : null}

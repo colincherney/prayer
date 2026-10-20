@@ -61,6 +61,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
   chimes: { slot: 'hang', base: { x: 62, y: 0 }, hit: { x: 146, y: 88, w: 50, h: 54 } },
   hay: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 176, y: 290, w: 78, h: 44 } },
   jackolantern: { slot: 'left', base: { x: 38, y: 0 }, hit: { x: 50, y: 296, w: 42, h: 46 } },
+  pilgrimlantern: { slot: 'left', base: { x: 72, y: 0 }, hit: { x: 46, y: 244, w: 56, h: 100 } },
   wheat: { slot: 'right', base: { x: 0, y: 0 }, hit: { x: 302, y: 268, w: 32, h: 76 } },
   autumnwreath: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 266, y: 74, w: 52, h: 56 } },
   web: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 108, h: 108 } },
@@ -83,7 +84,14 @@ export function hasItem(n: NookState, id: string): boolean {
 }
 
 export type SceneDef = { id: SceneId; name: string; sw: string; bg: string; locked: boolean };
-export type ItemDef = { id: string; name: string; sw: string; locked: boolean };
+export type ItemDef = {
+  id: string;
+  name: string;
+  sw: string;
+  locked: boolean;
+  /** Earned rather than sold: how to get it. Earned pieces never appear in the store. */
+  earned?: string;
+};
 export type RowDef = { slot: SlotId; label: string; items: ItemDef[] };
 
 export const SCENES: SceneDef[] = [
@@ -116,6 +124,7 @@ export const ROWS: RowDef[] = [
       { id: 'lantern', name: 'Lantern', sw: '#F2C462', locked: false },
       { id: 'censer', name: 'Incense', sw: '#B9BFC9', locked: true },
       { id: 'jackolantern', name: "Jack-o'-lantern", sw: '#E07E34', locked: true },
+      { id: 'pilgrimlantern', name: "Pilgrim's lantern", sw: '#C9A24B', locked: true, earned: 'Finish a weekly journey on the Quests page' },
     ],
   },
   {
