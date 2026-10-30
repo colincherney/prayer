@@ -96,7 +96,7 @@ export default function PetsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">

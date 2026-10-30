@@ -513,7 +513,7 @@ export default function PrayForOthersScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={NIGHT.bg} />
+      <StatusBar barStyle="light-content" />
       <VigilBackdrop night={NIGHT} glowIntensity={glowIntensity} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>

@@ -577,7 +577,7 @@ export default function PrayLauncherScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <Text
           style={[styles.title, needsContrastBoost && { fontFamily: FONTS.displaySemi }]}

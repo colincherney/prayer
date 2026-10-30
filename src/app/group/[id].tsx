@@ -340,7 +340,7 @@ export default function GroupScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       {loading ? (
         <View style={styles.centerFill}>
           <ActivityIndicator color={THEME.accent} />

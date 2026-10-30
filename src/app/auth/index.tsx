@@ -41,7 +41,7 @@ export default function AuthWelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       <View style={{ marginTop: 8, marginBottom: 14 }}>
         <ScriptureTicker verses={VERSES.slice(0, 3)} speed={26} />

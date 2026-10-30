@@ -59,7 +59,7 @@ export default function SignUpScreen() {
   if (confirmSent) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.confirmRoot}>
           <View style={styles.confirmIcon}>
             <CheckIcon size={28} color={THEME.pillInk} />
@@ -90,7 +90,7 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

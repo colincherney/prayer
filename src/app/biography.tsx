@@ -1078,7 +1078,7 @@ export default function BiographyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={{ flex: 1 }}

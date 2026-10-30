@@ -110,7 +110,7 @@ export default function SubmitPrayerScreen() {
   if (step === 'confirm') {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.confirmRoot}>
           <View style={styles.confirmInner}>
             <View style={{ alignItems: 'center', marginBottom: 6 }}>
@@ -189,7 +189,7 @@ export default function SubmitPrayerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         <View style={{ paddingHorizontal: 22, paddingTop: 8 }}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>

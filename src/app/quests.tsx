@@ -188,7 +188,7 @@ export default function QuestsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} backgroundColor={THEME.bg} />
+      <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">

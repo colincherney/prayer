@@ -599,7 +599,7 @@ export default function CustomizationScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <Pressable onPress={() => router.back()} style={styles.iconBtnSurface}>

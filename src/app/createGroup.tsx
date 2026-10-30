@@ -71,7 +71,7 @@ export default function CreateGroupScreen() {
   if (created) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.doneRoot}>
           <View style={styles.doneInner}>
             <View style={styles.doneIconWrap}>
@@ -117,7 +117,7 @@ export default function CreateGroupScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}

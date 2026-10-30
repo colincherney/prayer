@@ -55,7 +55,7 @@ function ThemeHomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       {/* Top scripture ticker */}
       <View style={{ marginTop: 8, marginBottom: 14 }}>
@@ -319,7 +319,7 @@ function RoomHomeScreen() {
       <DustMotes count={26} />
 
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle={ROOM.statusBar} backgroundColor="transparent" translucent />
+        <StatusBar barStyle={ROOM.statusBar} />
 
         {/* Top scripture ticker */}
         <View style={{ marginTop: 8, marginBottom: 14 }}>

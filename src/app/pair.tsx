@@ -193,7 +193,7 @@ const IntentPhase: React.FC<{
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -301,7 +301,7 @@ const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.searchRoot}>
         <View style={styles.searchRippleWrap}>
           {ripples.map((v, i) => (
@@ -346,7 +346,7 @@ const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => v
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
       <View style={{ paddingTop: 20, paddingHorizontal: 22, alignItems: 'center' }}>
         <Pill icon={<SparkleIcon size={11} color={THEME.pillInk} />}>Paired anonymously</Pill>
@@ -422,7 +422,7 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: THEME.cardDark }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.cardDark} />
+      <StatusBar barStyle="light-content" />
       <View style={styles.prayingRoot}>
         <Animated.View
           style={[
@@ -469,7 +469,7 @@ const BlessingPhase: React.FC<{ onAgain: () => void; onDone: () => void }> = ({ 
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <View style={styles.blessRoot}>
       <View style={styles.blessInner}>
         <View style={styles.blessIconWrap}>

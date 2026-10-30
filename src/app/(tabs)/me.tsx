@@ -305,7 +305,7 @@ export default function MeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']} {...pageDoubleTap}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
