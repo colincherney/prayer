@@ -14,6 +14,7 @@ import { FONTS } from '@/components/saint/theme';
 
 import { keyframe } from './anim';
 import { PipStage } from './PipLamb';
+import { Look, LookPetId, LOOKS } from './petLooks';
 import type { PetId } from './registry';
 
 // Tap reactions from design ANIMATIONS.md: the pet squashes and springs, a speech bubble and particles pop out,
@@ -78,7 +79,7 @@ const drops = (color: string, w: number, h: number, left: number, top: number, d
   delay,
 });
 
-export const REACTIONS: Record<PetId, [Reaction, Reaction, Reaction]> = {
+const OWN_REACTIONS: Record<Exclude<PetId, LookPetId>, [Reaction, Reaction, Reaction]> = {
   lamb: [
     { text: 'Baa!', bubble: { left: 18, top: 60 }, bursts: [], particles: [heart('#E8998A', 26, 66, 70), heart('#E8998A', 18, 74, 104, 150)] },
     {
@@ -146,6 +147,26 @@ export const REACTIONS: Record<PetId, [Reaction, Reaction, Reaction]> = {
   ],
 };
 
+/** The seasonal and monthly companions say their own sound (petLooks.tsx); hearts, then a burst at stage 3. */
+function lookReactions(look: Look): [Reaction, Reaction, Reaction] {
+  const [a, b, c] = look.sounds;
+  return [
+    { text: a, bubble: { left: 18, top: 64 }, bursts: [], particles: [] },
+    { text: b, bubble: { left: 14, top: 46 }, bursts: [], particles: [heart(look.bed[1], 22, 70, 62), heart(look.mote, 16, 26, 84, 150)] },
+    {
+      text: c,
+      bubble: { left: 8, top: 26 },
+      bursts: [{ color: look.mote, width: 3, top: 62 }, { color: '#FFE08A', width: 2, delay: 200, top: 62 }],
+      particles: [heart(look.bed[1], 22, 72, 56)],
+    },
+  ];
+}
+
+export const REACTIONS = {
+  ...OWN_REACTIONS,
+  ...Object.fromEntries(Object.entries(LOOKS).map(([id, look]) => [id, lookReactions(look)])),
+} as Record<PetId, [Reaction, Reaction, Reaction]>;
+
 const POP_MS = 1500;
 const SHOW_MS = 1600;
 
@@ -154,13 +175,13 @@ function Pop({ delay = 0, reduced, style, children }: { delay?: number; reduced:
   const p = useSharedValue(reduced ? 0.2 : 0);
   useEffect(() => {
     if (reduced) return;
-    p.value = withDelay(delay, withTiming(1, { duration: POP_MS, easing: Easing.out(Easing.quad) }));
+    p.set(withDelay(delay, withTiming(1, { duration: POP_MS, easing: Easing.out(Easing.quad) })));
   }, [p, delay, reduced]);
   const anim = useAnimatedStyle(() => ({
-    opacity: reduced ? 1 : keyframe(p.value, [0, 0.2, 0.7, 1], [0, 1, 1, 0]),
+    opacity: reduced ? 1 : keyframe(p.get(), [0, 0.2, 0.7, 1], [0, 1, 1, 0]),
     transform: [
-      { translateY: keyframe(p.value, [0, 0.2, 0.7, 1], [10, 0, -14, -40]) },
-      { scale: keyframe(p.value, [0, 0.2, 0.7, 1], [0.6, 1.1, 1, 1]) },
+      { translateY: keyframe(p.get(), [0, 0.2, 0.7, 1], [10, 0, -14, -40]) },
+      { scale: keyframe(p.get(), [0, 0.2, 0.7, 1], [0.6, 1.1, 1, 1]) },
     ],
   }));
   return (
@@ -174,11 +195,11 @@ function Pop({ delay = 0, reduced, style, children }: { delay?: number; reduced:
 function BurstRing({ color, width, delay = 0, size, top }: { color: string; width: number; delay?: number; size: number; top: string }) {
   const p = useSharedValue(0);
   useEffect(() => {
-    p.value = withDelay(delay, withTiming(1, { duration: 1000, easing: Easing.out(Easing.quad) }));
+    p.set(withDelay(delay, withTiming(1, { duration: 1000, easing: Easing.out(Easing.quad) })));
   }, [p, delay]);
   const anim = useAnimatedStyle(() => ({
-    opacity: p.value === 0 && delay > 0 ? 0 : 0.9 * (1 - p.value),
-    transform: [{ scale: 0.3 + 1.5 * p.value }],
+    opacity: p.get() === 0 && delay > 0 ? 0 : 0.9 * (1 - p.get()),
+    transform: [{ scale: 0.3 + 1.5 * p.get() }],
   }));
   return (
     <Animated.View
@@ -279,9 +300,9 @@ export function TapPet({ id, stage, size, children, onTap }: Props) {
   const sq = useSharedValue(1);
   const squash = useAnimatedStyle(() => ({
     transform: [
-      { translateY: keyframe(sq.value, [0, 0.2, 0.45, 0.75, 1], [0, 4 * k, -26 * k, 0, 0]) },
-      { scaleX: keyframe(sq.value, [0, 0.2, 0.45, 0.75, 1], [1, 1.08, 0.95, 1.04, 1]) },
-      { scaleY: keyframe(sq.value, [0, 0.2, 0.45, 0.75, 1], [1, 0.9, 1.06, 0.96, 1]) },
+      { translateY: keyframe(sq.get(), [0, 0.2, 0.45, 0.75, 1], [0, 4 * k, -26 * k, 0, 0]) },
+      { scaleX: keyframe(sq.get(), [0, 0.2, 0.45, 0.75, 1], [1, 1.08, 0.95, 1.04, 1]) },
+      { scaleY: keyframe(sq.get(), [0, 0.2, 0.45, 0.75, 1], [1, 0.9, 1.06, 0.96, 1]) },
     ],
   }));
 

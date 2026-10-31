@@ -4,6 +4,7 @@ import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
 import { keyframe, useLoop } from './anim';
 import { Fx, SoftGlow } from './Fx';
+import { getLook, LookDangle, LookPaws, LookPetId, LOOKS } from './petLooks';
 import type { PetId } from './registry';
 
 // Per-pet personality: how each companion moves when it is just living somewhere (the group hearth, the peek over
@@ -23,7 +24,7 @@ type Track = {
 /** `main` loops all the time; `action` is a rarer signature move. Amounts are for a pet drawn 100 wide. */
 type Personality = { main: Track; action: Track };
 
-export const PERSONALITY: Record<PetId, Personality> = {
+const OWN_PERSONALITY: Record<Exclude<PetId, LookPetId>, Personality> = {
   // Lamb: bouncy. Little squash-and-hops, then every so often a double hop.
   lamb: {
     main: { dur: 4200, stops: [0, 0.4, 0.46, 0.52, 0.58, 0.64, 1], ty: [0, 0, -12, 0, -8, 0, 0], sy: [1, 1, 1.07, 0.93, 1.04, 0.97, 1], sx: [1, 1, 0.97, 1.05, 0.98, 1.02, 1] },
@@ -55,6 +56,12 @@ export const PERSONALITY: Record<PetId, Personality> = {
     action: { dur: 10000, stops: [0, 0.8, 0.9, 1], rot: [0, 0, 360, 360], tx: [0, 0, 6, 0], ty: [0, 0, -8, 0] },
   },
 };
+
+/** The seasonal and monthly companions move like whichever first-six pet suits them (petLooks.tsx). */
+export const PERSONALITY = Object.fromEntries([
+  ...Object.entries(OWN_PERSONALITY),
+  ...Object.entries(LOOKS).map(([id, look]) => [id, OWN_PERSONALITY[look.movesLike]]),
+]) as Record<PetId, Personality>;
 
 function TrackView({ track, offset, scale, enabled, children }: { track: Track; offset: number; scale: number; enabled: boolean; children: React.ReactNode }) {
   const p = useLoop(track.dur, offset % track.dur, enabled, 0);
@@ -158,6 +165,19 @@ export function PetParticles({ petId, size }: { petId: PetId; size: number }) {
         </>
       );
       break;
+    default: {
+      // seasonal and monthly companions: sparkles in their own color, and a heart
+      const look = getLook(petId);
+      if (look) {
+        art = (
+          <>
+            <Fx kind="sparkE" delay={0}><Circle cx={92} cy={96} r={3} fill={look.mote} /></Fx>
+            <Fx kind="sparkE" delay={900}><Circle cx={148} cy={104} r={2.6} fill={look.mote} /></Fx>
+            <Fx kind="heartUp" delay={1800}><Heart x={156} y={86} size={16} fill={look.bed[1]} /></Fx>
+          </>
+        );
+      }
+    }
   }
   return (
     <Svg pointerEvents="none" width={size} height={h} viewBox="0 0 240 260" style={{ position: 'absolute', left: 0, top: 0 }}>
@@ -170,6 +190,8 @@ export function PetParticles({ petId, size }: { petId: PetId; size: number }) {
 
 /** A pair of front paws/hands/hooves for each pet, drawn in a 68x18 box (left paw at x=14, right at x=54). */
 export function PawArt({ petId }: { petId: PetId }) {
+  const look = getLook(petId);
+  if (look) return <LookPaws look={look} />;
   switch (petId) {
     case 'lamb':
       return (
@@ -216,8 +238,7 @@ export function PawArt({ petId }: { petId: PetId }) {
           <Path d="M45 8 q-5 -1 -4 -5 M63 5 q5 -3 2 -6" stroke="#8DAA62" strokeWidth={2} fill="none" strokeLinecap="round" />
         </>
       );
-    default:
-      // lion
+    case 'lion':
       return (
         <>
           <Ellipse cx={14} cy={9} rx={12} ry={8} fill="#EDB565" />
@@ -231,6 +252,8 @@ export function PawArt({ petId }: { petId: PetId }) {
 
 /** What hangs over the front edge of the prayer box where the pet sits: each pet's own tail or feet. */
 function Dangle({ petId }: { petId: PetId }) {
+  const look = getLook(petId);
+  if (look) return <LookDangle look={look} />;
   switch (petId) {
     case 'lamb':
       return (
@@ -271,8 +294,8 @@ function Dangle({ petId }: { petId: PetId }) {
           <Path d="M158 238 q12 -6 14 4 q-10 6 -14 -4 z" fill="#8DAA62" />
         </Fx>
       );
-    default:
-      // lion: front paws hanging over the edge
+    case 'lion':
+      // front paws hanging over the edge
       return (
         <>
           <Ellipse cx={103} cy={246} rx={11} ry={9} fill="#EDB565" />
@@ -283,7 +306,7 @@ function Dangle({ petId }: { petId: PetId }) {
   }
 }
 
-const BLANKET: Record<PetId, [string, string]> = {
+const BLANKET: Partial<Record<PetId, [string, string]>> = {
   lamb: ['#7FA4D8', '#B5CDEE'],
   dove: ['#F2D98B', '#FBEFC4'],
   lion: ['#B8433A', '#E08A7E'],
@@ -294,7 +317,7 @@ const BLANKET: Record<PetId, [string, string]> = {
 
 /** A little quilt tucked over the sleeping pet. */
 function Blanket({ petId }: { petId: PetId }) {
-  const [a, b] = BLANKET[petId];
+  const [a, b] = BLANKET[petId] ?? getLook(petId)?.bed ?? ['#7FA4D8', '#B5CDEE'];
   return (
     <>
       <Path d="M62 214 Q120 196 178 214 L184 246 Q120 258 56 246 Z" fill={a} opacity={0.94} />

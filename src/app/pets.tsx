@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PETS, Pet, PetDef } from '@/components/pets/registry';
+import { Pet, PetDef, useAvailablePets } from '@/components/pets/registry';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { usePetProgress } from '@/lib/pet';
+import { petProgressFromXp, usePetProgress } from '@/lib/pet';
 
 /**
  * Size of each companion's picture (dp), and of the evolution stages under it. ART_SIZE is also the width of the
@@ -25,6 +25,7 @@ function PetCard({
   def,
   selected,
   stage,
+  level,
   onPick,
   expanded,
   onToggle,
@@ -32,6 +33,8 @@ function PetCard({
   def: PetDef;
   selected: boolean;
   stage: 1 | 2 | 3;
+  /** This pet's own level; pets level up separately. */
+  level: number;
   onPick: () => void;
   /** Whether this card shows all three evolution stages. The chosen companion's card is always open. */
   expanded: boolean;
@@ -60,7 +63,9 @@ function PetCard({
             {def.season ? `  ·  ${def.season.toUpperCase()}` : ''}
           </Text>
           <Text style={styles.tagline}>{def.tagline}</Text>
-          {selected ? <Text style={styles.badge}>YOUR COMPANION</Text> : null}
+          <Text style={styles.badge}>
+            {selected ? 'YOUR COMPANION  ·  ' : ''}LEVEL {level}
+          </Text>
         </View>
       </View>
       {expanded ? (
@@ -89,7 +94,8 @@ export default function PetsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { petId, setPetId, progress } = usePetProgress();
+  const { petId, setPetId, xpByPet } = usePetProgress();
+  const pets = useAvailablePets();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -108,11 +114,13 @@ export default function PetsScreen() {
             Your <Text style={styles.titleItalic}>companion</Text>
           </Text>
           <Text style={styles.subtitle}>
-            Pick who walks with you. Praying grows them, and each one evolves at levels 5 and 10.
+            Pick who walks with you. Praying grows whoever is with you, each at their own pace, and each one evolves at levels 5 and 10.
           </Text>
         </View>
         <View style={styles.list}>
-          {PETS.map(def => (
+          {pets.map(def => {
+            const own = petProgressFromXp(xpByPet[def.id] ?? 0);
+            return (
             <PetCard
               key={def.id}
               def={def}
@@ -126,10 +134,12 @@ export default function PetsScreen() {
                   return next;
                 })
               }
-              stage={progress.stage}
+              stage={own.stage}
+              level={own.level}
               onPick={() => setPetId(def.id)}
             />
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>

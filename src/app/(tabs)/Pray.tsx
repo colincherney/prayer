@@ -175,8 +175,8 @@ function ActionCell({ name, xp, label, onPress, icon, colW, orb, slot, primary, 
 
 function Ring({ v, color, width, size }: { v: SharedValue<number>; color: string; width: number; size: number }) {
   const style = useAnimatedStyle(() => ({
-    opacity: v.value === 0 ? 0 : 0.95 * (1 - v.value),
-    transform: [{ scale: 0.3 + 1.6 * v.value }],
+    opacity: v.get() === 0 ? 0 : 0.95 * (1 - v.get()),
+    transform: [{ scale: 0.3 + 1.6 * v.get() }],
   }));
   return (
     <Animated.View
@@ -197,10 +197,10 @@ function LevelUpRings({ trigger, box }: { trigger: boolean; box: { top: number; 
   const b = useSharedValue(0);
   useEffect(() => {
     if (!trigger) return;
-    a.value = 0;
-    b.value = 0;
-    a.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) });
-    b.value = withDelay(180, withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }));
+    a.set(0);
+    b.set(0);
+    a.set(withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }));
+    b.set(withDelay(180, withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) })));
   }, [trigger, a, b]);
   return (
     <View
@@ -232,9 +232,9 @@ function PulseRing({ orb, color }: { orb: number; color: string }) {
   const p = useLoop(2600, 0, enabled, 0);
   const widest = orb + 28;
   const style = useAnimatedStyle(() => {
-    const spread = keyframe(p.value, [0, 0.5, 1], [8, 14, 8]);
+    const spread = keyframe(p.get(), [0, 0.5, 1], [8, 14, 8]);
     return {
-      opacity: keyframe(p.value, [0, 0.5, 1], [0.14, 0.05, 0.14]),
+      opacity: keyframe(p.get(), [0, 0.5, 1], [0.14, 0.05, 0.14]),
       transform: [{ scale: (orb + spread * 2) / widest }],
     };
   });
@@ -270,11 +270,11 @@ type HeroArcProps = {
 function HeroArc({ width, height, top, path, len, cx, cy, r, stroke, knobR, pct, track, fill, knobColor }: HeroArcProps) {
   const p = useSharedValue(pct);
   useEffect(() => {
-    p.value = withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) });
+    p.set(withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) }));
   }, [pct, p]);
-  const fillProps = useAnimatedProps(() => ({ strokeDashoffset: len * (1 - p.value / 100) }));
+  const fillProps = useAnimatedProps(() => ({ strokeDashoffset: len * (1 - p.get() / 100) }));
   const knobProps = useAnimatedProps(() => {
-    const rad = ((ARC_START_DEG - ARC_SWEEP_DEG * (p.value / 100)) * Math.PI) / 180;
+    const rad = ((ARC_START_DEG - ARC_SWEEP_DEG * (p.get() / 100)) * Math.PI) / 180;
     return { cx: cx + r * Math.cos(rad), cy: cy - r * Math.sin(rad) };
   });
   const start = arcPoint(cx, cy, r, ARC_START_DEG);
@@ -299,9 +299,9 @@ function HeroArc({ width, height, top, path, len, cx, cy, r, stroke, knobR, pct,
 function XpFill({ pct, color }: { pct: number; color: string }) {
   const p = useSharedValue(pct);
   useEffect(() => {
-    p.value = withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) });
+    p.set(withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) }));
   }, [pct, p]);
-  const style = useAnimatedStyle(() => ({ width: `${p.value}%` }));
+  const style = useAnimatedStyle(() => ({ width: `${p.get()}%` }));
   return <Animated.View style={[{ height: '100%', borderRadius: 999, backgroundColor: color }, style]} />;
 }
 
@@ -321,13 +321,13 @@ export default function PrayLauncherScreen() {
   const hop = useSharedValue(1);
   useEffect(() => {
     if (!leveledUp) return;
-    hop.value = 0;
-    hop.value = withTiming(1, { duration: 900, easing: Easing.linear });
+    hop.set(0);
+    hop.set(withTiming(1, { duration: 900, easing: Easing.linear }));
   }, [leveledUp, hop]);
   const hopStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: keyframe(hop.value, [0, 0.3, 0.62, 1], [0, -40, 0, 0]) },
-      { scale: keyframe(hop.value, [0, 0.3, 0.62, 1], [1, 1.12, 0.94, 1]) },
+      { translateY: keyframe(hop.get(), [0, 0.3, 0.62, 1], [0, -40, 0, 0]) },
+      { scale: keyframe(hop.get(), [0, 0.3, 0.62, 1], [1, 1.12, 0.94, 1]) },
     ],
   }));
 
@@ -335,25 +335,25 @@ export default function PrayLauncherScreen() {
   const petScale = 1 + Math.min((progress.level - 1) * 0.02, 0.08);
   const growth = useSharedValue(petScale);
   useEffect(() => {
-    growth.value = withSpring(petScale, { damping: 8, stiffness: 140 });
+    growth.set(withSpring(petScale, { damping: 8, stiffness: 140 }));
   }, [petScale, growth]);
-  const growthStyle = useAnimatedStyle(() => ({ transform: [{ scale: growth.value }] }));
+  const growthStyle = useAnimatedStyle(() => ({ transform: [{ scale: growth.get() }] }));
 
   // Level-up toast: slides in over the first ~12% of 2.2s, holds, fades out by the end.
   const toastIn = useSharedValue(0);
   useEffect(() => {
     if (!leveledUp) {
-      toastIn.value = 0;
+      toastIn.set(0);
       return;
     }
-    toastIn.value = withSequence(
+    toastIn.set(withSequence(
       withTiming(1, { duration: 264 }),
       withDelay(1600, withTiming(0, { duration: 336 })),
-    );
+    ));
   }, [leveledUp, toastIn]);
   const toastStyle = useAnimatedStyle(() => ({
-    opacity: toastIn.value,
-    transform: [{ translateY: (1 - toastIn.value) * -10 }, { scale: 0.9 + 0.1 * toastIn.value }],
+    opacity: toastIn.get(),
+    transform: [{ translateY: (1 - toastIn.get()) * -10 }, { scale: 0.9 + 0.1 * toastIn.get() }],
   }));
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;

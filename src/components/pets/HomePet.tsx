@@ -2,6 +2,7 @@ import React from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Svg, { Ellipse, G, Path, Rect } from 'react-native-svg';
 
+import { MONTHLY_ROOM_NAMES, MonthlyRoomName } from '@/components/saint/monthlyRooms';
 import { PrayerRoomName } from '@/components/saint/prayerRoom';
 import { usePetProgress } from '@/lib/pet';
 
@@ -32,6 +33,11 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   jungle: { size: 124, x: 0.78, feetY: 163 },
   // All Hallows' Eve: sitting on top of the big pumpkin in the scene.
   halloween: { size: 96, x: 0.744, feetY: 184 },
+  // Give Thanks: on the hay bale; God With Us: on the snowy stump (both where the design's mascot sits).
+  thanksgiving: { size: 96, x: 0.744, feetY: 184 },
+  christmas: { size: 96, x: 0.744, feetY: 184 },
+  // 2027 monthly rooms: every design stands its companion on a perch at the same spot (a 150-wide box at 226, 196).
+  ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(n => [n, { size: 116, x: 0.772, feetY: 202 }])) as Record<MonthlyRoomName, Spot>),
   theme: { size: 72, x: 0.644, feetY: 192 },
 };
 

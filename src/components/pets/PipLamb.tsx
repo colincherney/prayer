@@ -64,7 +64,7 @@ const STAR_PATH = 'M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8 Z';
 function Ear({ side, p }: { side: 'l' | 'r'; p: SharedValue<number> }) {
   const sign = side === 'l' ? -1 : 1;
   const animatedProps = useAnimatedProps(() => ({
-    rotation: sign * keyframe(p.value, WIGGLE.stops, WIGGLE.vals),
+    rotation: sign * keyframe(p.get(), WIGGLE.stops, WIGGLE.vals),
   }));
   const left = side === 'l';
   return (
@@ -83,7 +83,7 @@ function Ear({ side, p }: { side: 'l' | 'r'; p: SharedValue<number> }) {
 
 function Wing({ p, mirror }: { p: SharedValue<number>; mirror?: boolean }) {
   const animatedProps = useAnimatedProps(() => ({
-    rotation: keyframe(p.value, FLAP.stops, FLAP.vals),
+    rotation: keyframe(p.get(), FLAP.stops, FLAP.vals),
   }));
   const wing = (
     <AG animatedProps={animatedProps} originX={67} originY={107}>
@@ -111,8 +111,8 @@ function Sparkle({
   p: SharedValue<number>;
 }) {
   const animatedProps = useAnimatedProps(() => ({
-    opacity: keyframe(p.value, TWINKLE_OPACITY.stops, TWINKLE_OPACITY.vals),
-    scale: keyframe(p.value, TWINKLE_SCALE.stops, TWINKLE_SCALE.vals),
+    opacity: keyframe(p.get(), TWINKLE_OPACITY.stops, TWINKLE_OPACITY.vals),
+    scale: keyframe(p.get(), TWINKLE_SCALE.stops, TWINKLE_SCALE.vals),
   }));
   return (
     <G transform={`translate(${x} ${y})`}>
@@ -148,16 +148,16 @@ export function PipLamb({ stage, size = 220, animated = true }: PipLambProps) {
 
   const moveStyle = useAnimatedStyle(() => {
     const k = stage === 1 ? HOP : BOB;
-    return { transform: [{ translateY: keyframe(move.value, k.stops, k.vals) }] };
+    return { transform: [{ translateY: keyframe(move.get(), k.stops, k.vals) }] };
   });
   const blinkProps = useAnimatedProps(() => ({
-    scaleY: keyframe(blink.value, BLINK.stops, BLINK.vals),
+    scaleY: keyframe(blink.get(), BLINK.stops, BLINK.vals),
   }));
   const haloProps = useAnimatedProps(() => ({
-    y: keyframe(halo.value, HALO.stops, HALO.vals),
+    y: keyframe(halo.get(), HALO.stops, HALO.vals),
   }));
   const glowProps = useAnimatedProps(() => ({
-    opacity: keyframe(glow.value, GLOW.stops, GLOW.vals),
+    opacity: keyframe(glow.get(), GLOW.stops, GLOW.vals),
   }));
 
   const art = (

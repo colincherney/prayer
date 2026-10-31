@@ -1,5 +1,16 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, {
   Circle,
   Defs,
@@ -68,108 +79,90 @@ const FLARE_STARS: Array<[number, number]> = [
 // One firefly — a small glowing dot that drifts upward + pulses in brightness.
 // Mirrors the CSS `firefly-drift` + `firefly-pulse` animations in the design.
 const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
-  const drift = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
+  const drift = useSharedValue(0);
+  const pulse = useSharedValue(0);
 
   useEffect(() => {
-    const driftLoop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(f.delay * 1000),
-        Animated.timing(drift, {
-          toValue: 1,
-          duration: f.duration * 1000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.timing(drift, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ]),
+    drift.set(
+      withRepeat(
+        withSequence(
+          withDelay(
+            f.delay * 1000,
+            withTiming(1, { duration: f.duration * 1000, easing: Easing.linear }),
+          ),
+          withTiming(0, { duration: 0 }),
+        ),
+        -1,
+      ),
     );
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: f.pulse * 1000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: f.pulse * 1000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
+    pulse.set(
+      withRepeat(
+        withTiming(1, { duration: f.pulse * 1000, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
     );
-    driftLoop.start();
-    pulseLoop.start();
     return () => {
-      driftLoop.stop();
-      pulseLoop.stop();
+      cancelAnimation(drift);
+      cancelAnimation(pulse);
     };
   }, [drift, pulse, f.delay, f.duration, f.pulse]);
 
-  const translateX = drift.interpolate({ inputRange: [0, 1], outputRange: [0, f.tx] });
-  const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [0, f.ty] });
-  // Fade in at 15% and out after 85% — same shape as the CSS keyframes.
-  const driftOpacity = drift.interpolate({
-    inputRange: [0, 0.15, 0.85, 1],
-    outputRange: [0, 0.95, 0.95, 0],
+  const animatedStyle = useAnimatedStyle(() => {
+    const d = drift.get();
+    // Fade in at 15% and out after 85% — same shape as the CSS keyframes.
+    const driftOpacity = interpolate(d, [0, 0.15, 0.85, 1], [0, 0.95, 0.95, 0]);
+    const brightness = interpolate(pulse.get(), [0, 1], [0.65, 1]);
+    return {
+      opacity: driftOpacity * brightness,
+      transform: [
+        { translateX: interpolate(d, [0, 1], [0, f.tx]) },
+        { translateY: interpolate(d, [0, 1], [0, f.ty]) },
+      ],
+    };
   });
-  const brightness = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] });
-  const opacity = Animated.multiply(driftOpacity, brightness);
 
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: `${f.x}%`,
-        top: `${f.y}%`,
-        width: f.size,
-        height: f.size,
-        borderRadius: f.size / 2,
-        backgroundColor: '#fff4a8',
-        shadowColor: '#f5d36a',
-        shadowOpacity: 0.9,
-        shadowRadius: 8,
-        opacity,
-        transform: [{ translateX }, { translateY }],
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: `${f.x}%`,
+          top: `${f.y}%`,
+          width: f.size,
+          height: f.size,
+          borderRadius: f.size / 2,
+          backgroundColor: '#fff4a8',
+          shadowColor: '#f5d36a',
+          shadowOpacity: 0.9,
+          shadowRadius: 8,
+        },
+        animatedStyle,
+      ]}
     />
   );
 };
 
 // Pulsing warm window of the hut in the canopy.
 const HutWindowGlow: React.FC = () => {
-  const t = useRef(new Animated.Value(0)).current;
+  const t = useSharedValue(0);
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, {
-          toValue: 1,
-          duration: 2500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(t, {
-          toValue: 0,
-          duration: 2500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
+    t.set(
+      withRepeat(
+        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
     );
-    loop.start();
-    return () => loop.stop();
+    return () => cancelAnimation(t);
   }, [t]);
-  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
+  }));
   return (
     <Animated.View
-      style={{ width: 8, height: 8, backgroundColor: '#f5b96a', opacity }}
+      style={[{ width: 8, height: 8, backgroundColor: '#f5b96a' }, animatedStyle]}
     />
   );
 };

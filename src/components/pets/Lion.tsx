@@ -18,8 +18,8 @@ const MANE = '#C77A35';
 const NOSE = '#6B3F2A';
 const CHEEK = '#E8998A';
 
-/** Face parts shared by the young lion and the crowned lion. */
-function LionFace({ crowned }: { crowned?: boolean }) {
+/** Face parts shared by the young lion and the crowned lion. `yawns` adds the young lion's slow yawn. */
+function LionFace({ crowned, yawns }: { crowned?: boolean; yawns?: boolean }) {
   return (
     <>
       <Circle cx={74} cy={64} r={11} fill={FACE} />
@@ -33,6 +33,12 @@ function LionFace({ crowned }: { crowned?: boolean }) {
         <Circle cx={112} cy={90} r={3.8} fill="#2B2420" />
       </Fx>
       {crowned ? <Path d="M84 84 L93 86 M116 84 L107 86" stroke="#B87A3A" strokeWidth={2.5} strokeLinecap="round" /> : null}
+      {/* The yawn opens below the nose and is drawn under it, inside the face so it moves with the head. */}
+      {yawns ? (
+        <Fx kind="yawn" ox={100} oy={108}>
+          <Ellipse cx={100} cy={115} rx={6.5} ry={7} fill={NOSE} />
+        </Fx>
+      ) : null}
       <Path d="M94 102 L106 102 L100 109 Z" fill={NOSE} />
       <Path d="M100 109 Q95 115 91 112 M100 109 Q105 115 109 112" stroke={NOSE} strokeWidth={2} fill="none" strokeLinecap="round" />
       {crowned ? null : (
@@ -107,7 +113,7 @@ function YoungJudah() {
             <Circle cx={100} cy={138} r={16} />
           </G>
         </Fx>
-        <LionFace />
+        <LionFace yawns />
       </G>
     </Fx>
   );

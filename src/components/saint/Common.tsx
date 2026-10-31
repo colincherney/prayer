@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
   GestureResponderEvent,
   Pressable,
   StyleProp,
@@ -10,6 +8,14 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { FONTS, THEME, Theme } from './theme';
 import { BackIcon } from './Icons';
@@ -103,30 +109,27 @@ export const ScriptureTicker: React.FC<{
   speed?: number; // pixels per second
 }> = ({ verses, theme = THEME, speed = 28 }) => {
   const text = verses.map(v => `${v.text}  •  ${v.ref}`).join('   •   ');
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useSharedValue(0);
   const [textWidth, setTextWidth] = useState(0);
 
   useEffect(() => {
     if (textWidth <= 0) return;
-    translateX.setValue(0);
+    translateX.set(0);
     const duration = (textWidth / speed) * 1000;
-    Animated.loop(
-      Animated.timing(translateX, {
-        toValue: -textWidth,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
+    translateX.set(
+      withRepeat(withTiming(-textWidth, { duration, easing: Easing.linear }), -1),
+    );
+    return () => cancelAnimation(translateX);
   }, [textWidth, speed, translateX]);
+
+  const tickerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.get() }],
+  }));
 
   return (
     <View style={{ width: '100%', overflow: 'hidden', height: 22, justifyContent: 'center' }}>
       <Animated.View
-        style={{
-          flexDirection: 'row',
-          transform: [{ translateX }],
-        }}>
+        style={[{ flexDirection: 'row' }, tickerStyle]}>
         <Text
           onLayout={e => setTextWidth(e.nativeEvent.layout.width)}
           numberOfLines={1}

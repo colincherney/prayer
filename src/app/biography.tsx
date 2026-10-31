@@ -20,7 +20,7 @@ import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
   interpolate,
-  Extrapolate,
+  Extrapolation,
   SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -255,12 +255,12 @@ function EntryDetail({
   const [verseLoading, setVerseLoading] = useState(false);
 
   const detailAnimStyle = useAnimatedStyle(() => ({
-    opacity: anim.value,
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [40, 0], Extrapolate.CLAMP) }],
+    opacity: anim.get(),
+    transform: [{ translateY: interpolate(anim.get(), [0, 1], [40, 0], Extrapolation.CLAMP) }],
   }));
 
   useEffect(() => {
-    anim.value = withTiming(visible ? 1 : 0, { duration: 280 });
+    anim.set(withTiming(visible ? 1 : 0, { duration: 280 }));
   }, [visible]);
 
   useEffect(() => {
@@ -405,16 +405,16 @@ function WheelItem({ item, index, scrollY, onPress }: {
 
   const animStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [center - band * 2, center - band, center, center + band, center + band * 2],
       [0.12, 0.4, 1, 0.4, 0.12],
-      Extrapolate.CLAMP,
+      Extrapolation.CLAMP,
     );
     const scale = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [center - band * 2, center - band, center, center + band, center + band * 2],
       [0.8, 0.9, 1, 0.9, 0.8],
-      Extrapolate.CLAMP,
+      Extrapolation.CLAMP,
     );
     return { opacity, transform: [{ scale }] };
   });
@@ -444,12 +444,12 @@ function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
   useEffect(() => {
     if (!isScrolling.current) {
       ref.current?.scrollTo({ y: selectedIdx * WHEEL_ITEM_H, animated: false });
-      scrollY.value = selectedIdx * WHEEL_ITEM_H;
+      scrollY.set(selectedIdx * WHEEL_ITEM_H);
     }
   }, [selectedIdx, items.length]);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
+    scrollY.set(event.contentOffset.y);
   });
 
   return (
@@ -640,11 +640,11 @@ function NewEntryComposer({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const composerAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [800, 0], Extrapolate.CLAMP) }],
+    transform: [{ translateY: interpolate(anim.get(), [0, 1], [800, 0], Extrapolation.CLAMP) }],
   }));
 
   useEffect(() => {
-    anim.value = withTiming(visible ? 1 : 0, { duration: 340 });
+    anim.set(withTiming(visible ? 1 : 0, { duration: 340 }));
     if (!visible) {
       Keyboard.dismiss();
       setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);

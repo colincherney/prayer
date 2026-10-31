@@ -1,19 +1,29 @@
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StatusBar,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   View,
+  ViewStyle,
 } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { lyingFeetOffset } from '@/components/pets/LyingPets';
@@ -275,48 +285,39 @@ const IntentPhase: React.FC<{
 };
 
 /* -------------------- Phase 2: searching -------------------- */
+// One expanding ring; each starts 800ms after the previous so they stagger.
+const SearchRipple: React.FC<{ index: number; style: StyleProp<ViewStyle> }> = ({ index, style }) => {
+  const v = useSharedValue(0);
+
+  useEffect(() => {
+    v.set(
+      withDelay(
+        index * 800,
+        withRepeat(withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }), -1),
+      ),
+    );
+    return () => cancelAnimation(v);
+  }, [v, index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(v.get(), [0, 1], [0.6, 0]),
+    transform: [{ scale: interpolate(v.get(), [0, 1], [0.6, 1.4]) }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]} />;
+};
+
 const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const ripples = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
-
-  useEffect(() => {
-    const loops = ripples.map((v, i) => {
-      v.setValue(0);
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * 800),
-          Animated.timing(v, {
-            toValue: 1,
-            duration: 2400,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-    });
-    loops.forEach(l => l.start());
-    return () => loops.forEach(l => l.stop());
-  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.searchRoot}>
         <View style={styles.searchRippleWrap}>
-          {ripples.map((v, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.searchRipple,
-                {
-                  opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-                  transform: [
-                    { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.4] }) },
-                  ],
-                },
-              ]}
-            />
+          {[0, 1, 2].map(i => (
+            <SearchRipple key={i} index={i} style={styles.searchRipple} />
           ))}
           <View style={styles.searchCore}>
             <PrayingIcon size={36} color={THEME.cardDarkInk} />
@@ -403,18 +404,19 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const breathe = useRef(new Animated.Value(0)).current;
+  const breathe = useSharedValue(0);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, { toValue: 1, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(breathe, { toValue: 0, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
+    breathe.set(
+      withRepeat(withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }), -1, true),
     );
-    loop.start();
-    return () => loop.stop();
-  }, []);
+    return () => cancelAnimation(breathe);
+  }, [breathe]);
+
+  const breatheStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(breathe.get(), [0, 1], [0.6, 1]),
+    transform: [{ scale: interpolate(breathe.get(), [0, 1], [0.85, 1.1]) }],
+  }));
 
   const mm = String(Math.floor(timer / 60));
   const ss = String(timer % 60).padStart(2, '0');
@@ -425,15 +427,7 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
       <StatusBar barStyle="light-content" />
       <View style={styles.prayingRoot}>
         <Animated.View
-          style={[
-            styles.breathe,
-            {
-              opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }),
-              transform: [
-                { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.1] }) },
-              ],
-            },
-          ]}
+          style={[styles.breathe, breatheStyle]}
         />
         <View style={styles.prayingTop}>
           <Pill bg="rgba(255,255,255,0.1)" fg={THEME.cardDarkInk} icon={<SparkleIcon size={11} color={THEME.cardDarkInk} />}>

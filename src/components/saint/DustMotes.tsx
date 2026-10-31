@@ -1,5 +1,16 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 type Mote = {
   startX: number;
@@ -31,55 +42,53 @@ function seededMotes(count: number, seed: number): Mote[] {
 }
 
 const Mote: React.FC<{ mote: Mote }> = ({ mote }) => {
-  const progress = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(mote.delay),
-        Animated.timing(progress, {
-          toValue: 1,
-          duration: mote.duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.timing(progress, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ]),
+    progress.set(
+      withRepeat(
+        withSequence(
+          withDelay(
+            mote.delay,
+            withTiming(1, { duration: mote.duration, easing: Easing.linear }),
+          ),
+          withTiming(0, { duration: 0 }),
+        ),
+        -1,
+      ),
     );
-    loop.start();
-    return () => loop.stop();
+    return () => cancelAnimation(progress);
   }, [progress, mote.delay, mote.duration]);
 
-  const translateX = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, mote.tx],
-  });
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, mote.ty],
-  });
-  const opacity = progress.interpolate({
-    inputRange: [0, 0.1, 0.9, 1],
-    outputRange: [0, mote.peakOpacity, mote.peakOpacity, 0],
+  const animatedStyle = useAnimatedStyle(() => {
+    const p = progress.get();
+    return {
+      opacity: interpolate(p, [0, 0.1, 0.9, 1], [0, mote.peakOpacity, mote.peakOpacity, 0]),
+      transform: [
+        { translateX: interpolate(p, [0, 1], [0, mote.tx]) },
+        { translateY: interpolate(p, [0, 1], [0, mote.ty]) },
+      ],
+    };
   });
 
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: `${mote.startX}%`,
-        top: `${mote.startY}%`,
-        width: mote.size,
-        height: mote.size,
-        borderRadius: mote.size / 2,
-        backgroundColor: '#fde4c6',
-        shadowColor: '#fde4c6',
-        shadowOpacity: 0.9,
-        shadowRadius: mote.size * 2,
-        opacity,
-        transform: [{ translateX }, { translateY }],
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: `${mote.startX}%`,
+          top: `${mote.startY}%`,
+          width: mote.size,
+          height: mote.size,
+          borderRadius: mote.size / 2,
+          backgroundColor: '#fde4c6',
+          shadowColor: '#fde4c6',
+          shadowOpacity: 0.9,
+          shadowRadius: mote.size * 2,
+        },
+        animatedStyle,
+      ]}
     />
   );
 };

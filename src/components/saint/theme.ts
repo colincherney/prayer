@@ -264,6 +264,28 @@ export const HALLOWEEN_VERSES = [
   { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
 ];
 
+/** Verses for the Give Thanks room: three for the top ticker, two for the middle, two for the bottom. */
+export const THANKSGIVING_VERSES = [
+  { text: 'Give thanks to the Lord, for He is good', ref: 'Psalm 107:1' },
+  { text: 'In everything give thanks', ref: '1 Thessalonians 5:18' },
+  { text: 'Enter His gates with thanksgiving', ref: 'Psalm 100:4' },
+  { text: 'Every good and perfect gift is from above', ref: 'James 1:17' },
+  { text: 'Come before Him with thanksgiving', ref: 'Psalm 95:2' },
+  { text: 'This is the day the Lord has made', ref: 'Psalm 118:24' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the God With Us room, laid out the same way. */
+export const CHRISTMAS_VERSES = [
+  { text: 'For unto us a child is born', ref: 'Isaiah 9:6' },
+  { text: 'Glory to God in the highest', ref: 'Luke 2:14' },
+  { text: 'The people in darkness have seen a great light', ref: 'Isaiah 9:2' },
+  { text: 'They shall call His name Emmanuel', ref: 'Matthew 1:23' },
+  { text: 'The Word became flesh', ref: 'John 1:14' },
+  { text: 'Sing to the Lord a new song', ref: 'Psalm 98:1' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
 export const VERSES = [
   { text: 'Pray without ceasing', ref: '1 Thessalonians 5:17' },
   { text: 'Be still, and know that I am God', ref: 'Psalm 46:10' },
