@@ -89,7 +89,7 @@ const PRESETS = {
   trail: { dur: 2000, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.9, tx: -8, ty: 1.2 }, { o: 0, tx: -40, ty: 6 }], rest: 0 },
   flutter: { dur: 7000, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ tx: 0, ty: 0 }, { tx: 30, ty: -20 }, { tx: 60, ty: 4 }, { tx: 26, ty: 18 }, { tx: 0, ty: 0 }], rest: 0 },
   wingBeat: { dur: 300, stops: THREE, poses: [{ sx: 1 }, { sx: 0.25 }, { sx: 1 }], rest: 0 },
-  yawn: { dur: 6000, stops: [0, 0.78, 0.84, 0.92, 1], poses: [{ sy: 0 }, { sy: 0 }, { sy: 1 }, { sy: 1 }, { sy: 0 }], rest: 0 },
+  yawn: { dur: 6000, stops: [0, 0.78, 0.84, 0.92, 1], poses: [{ sy: 0.05, o: 0 }, { sy: 0.05, o: 0 }, { sy: 1, o: 1 }, { sy: 1, o: 1 }, { sy: 0.05, o: 0 }], rest: 0 },
   moteLion: { dur: 4000, stops: THREE, poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.8, tx: 6, ty: -16 }, { o: 0, tx: 0, ty: 0 }], rest: 0 },
   flash: { dur: 3400, stops: [0, 0.7, 0.8, 0.9, 1], poses: [{ o: 0, s: 0.3 }, { o: 0, s: 0.3 }, { o: 1, s: 1.2 }, { o: 0, s: 0.6 }, { o: 0, s: 0.3 }], rest: 0.8 },
   wind: { dur: 4000, stops: [0, 0.3, 1], poses: [{ o: 0, tx: -20 }, { o: 0.5, tx: -2 }, { o: 0, tx: 40 }], rest: 0, linear: true },
@@ -148,6 +148,106 @@ const PRESETS = {
   quill: { dur: 3500, stops: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1], poses: [{ tx: 0, ty: 0, rot: 0 }, { tx: 6, ty: -2, rot: -6 }, { tx: 12, ty: 0, rot: 2 }, { tx: 18, ty: -2, rot: -6 }, { tx: 24, ty: 0, rot: 2 }, { tx: 30, ty: -2, rot: -6 }, { tx: 36, ty: 0, rot: 0 }, { tx: 0, ty: 0, rot: 0 }], rest: 0 },
   petalDrift: { dur: 8000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 0.9, tx: 6, ty: 8, rot: 30 }, { o: 0.9, tx: 50, ty: 70, rot: 260 }, { o: 0, tx: 56, ty: 78, rot: 300 }], rest: 0, linear: true },
   sway4: { dur: 2800, stops: THREE, poses: [{ rot: -5 }, { rot: 6 }, { rot: -5 }], rest: 0.25 },
+  // ---- Monthly companions (design/ZodiacEvo.dc.html, zodiacArt.tsx). Pivots come from each element's own box. ----
+  zBabyHop: { dur: 2200, stops: [0, 0.62, 0.68, 0.78, 0.88, 1], poses: [{ ty: 0, sx: 1, sy: 1 }, { ty: 0, sx: 1, sy: 1 }, { ty: 2, sx: 1.06, sy: 0.94 }, { ty: -12, sx: 0.96, sy: 1.04 }, { ty: 0, sx: 1, sy: 1 }, { ty: 0, sx: 1, sy: 1 }], rest: 0 },
+  zFloat: { dur: 3600, stops: THREE, poses: [{ ty: 0 }, { ty: -9 }, { ty: 0 }], rest: 0 },
+  zSwish: { dur: 1800, stops: THREE, poses: [{ rot: 0 }, { rot: -14 }, { rot: 0 }], rest: 0 },
+  zEar: { dur: 3000, stops: [0, 0.8, 0.86, 0.92, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: -14 }, { rot: 6 }, { rot: 0 }], rest: 0 },
+  zEarR: { dur: 3000, stops: [0, 0.8, 0.86, 0.92, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: 14 }, { rot: -6 }, { rot: 0 }], rest: 0 },
+  zTwinkle: { dur: 1800, stops: THREE, poses: [{ o: 0.2, s: 0.6 }, { o: 1, s: 1.15 }, { o: 0.2, s: 0.6 }], rest: 0.5 },
+  zRise: { dur: 4000, stops: [0, 0.2, 1], poses: [{ o: 0, ty: 0 }, { o: 1, ty: -12 }, { o: 0, ty: -60 }], rest: 0 },
+  zFloaty: { dur: 3000, stops: THREE, poses: [{ rot: -6 }, { rot: 6 }, { rot: -6 }], rest: 0.25 },
+  zSway: { dur: 2800, stops: THREE, poses: [{ rot: -6 }, { rot: 6 }, { rot: -6 }], rest: 0.25 },
+  zNod: { dur: 3600, stops: [0, 0.6, 0.7, 0.8, 0.86, 0.92, 1], poses: [{ ty: 0 }, { ty: 0 }, { ty: 5 }, { ty: 0 }, { ty: 3 }, { ty: 0 }, { ty: 0 }], rest: 0 },
+  zLglow: { dur: 1400, stops: THREE, poses: [{ o: 0.25 }, { o: 0.5 }, { o: 0.25 }], rest: 0.25 },
+  zDrift: { dur: 16000, stops: THREE, poses: [{ tx: -8 }, { tx: 8 }, { tx: -8 }], rest: 0.25 },
+  zMist: { dur: 12000, stops: THREE, poses: [{ tx: -10 }, { tx: 10 }, { tx: -10 }], rest: 0.25 },
+  zWingL: { dur: 1400, stops: THREE, poses: [{ rot: 0 }, { rot: 14 }, { rot: 0 }], rest: 0 },
+  zGlint: { dur: 2000, stops: THREE, poses: [{ o: 0.45 }, { o: 1 }, { o: 0.45 }], rest: 0.5 },
+  zPearl: { dur: 2400, stops: THREE, poses: [{ o: 0.45 }, { o: 1 }, { o: 0.45 }], rest: 0.5 },
+  zRays: { dur: 3000, stops: THREE, poses: [{ o: 0.55 }, { o: 1 }, { o: 0.55 }], rest: 0.5 },
+  zTwitch: { dur: 1200, stops: [0, 0.7, 0.78, 0.86, 1], poses: [{ sx: 1, sy: 1 }, { sx: 1, sy: 1 }, { sx: 1.25, sy: 0.85 }, { sx: 0.9, sy: 1.1 }, { sx: 1, sy: 1 }], rest: 0 },
+  zTilt: { dur: 4000, stops: [0, 0.6, 0.7, 0.85, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: -8 }, { rot: -8 }, { rot: 0 }], rest: 0 },
+  zFan: { dur: 2400, stops: THREE, poses: [{ rot: 0 }, { rot: -14 }, { rot: 0 }], rest: 0 },
+  zSnow: { dur: 5000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 0.6, ty: 17 }, { o: 1, tx: 5.4, ty: 153 }, { o: 0, tx: 6, ty: 170 }], rest: 0, linear: true },
+  zPetal: { dur: 5000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 1, tx: -1.4, ty: 14, rot: 20 }, { o: 1, tx: -12.6, ty: 126, rot: 180 }, { o: 0, tx: -14, ty: 140, rot: 200 }], rest: 0, linear: true },
+  zWhisker: { dur: 1400, stops: [0, 0.6, 0.7, 0.8, 1], poses: [{ sx: 1 }, { sx: 1 }, { sx: 1.12 }, { sx: 0.94 }, { sx: 1 }], rest: 0 },
+  zFlop: { dur: 3400, stops: [0, 0.65, 0.75, 0.88, 1], poses: [{ rot: 0 }, { rot: 0 }, { rot: -28 }, { rot: -28 }, { rot: 0 }], rest: 0 },
+  zFlopL: { dur: 2600, stops: THREE, poses: [{ rot: 0 }, { rot: 10 }, { rot: 0 }], rest: 0 },
+  zFlopR: { dur: 2600, stops: THREE, poses: [{ rot: 0 }, { rot: -10 }, { rot: 0 }], rest: 0 },
+  // The tongue: hidden (not just squashed) between flicks so no sliver shows.
+  zFlick: { dur: 2400, stops: [0, 0.7, 0.76, 0.84, 1], poses: [{ sy: 0.05, o: 0 }, { sy: 0.05, o: 0 }, { sy: 1, o: 1 }, { sy: 1, o: 1 }, { sy: 0.05, o: 0 }], rest: 0 },
+  // The design skews the mane; a small lean about its base reads the same.
+  zMane: { dur: 2600, stops: THREE, poses: [{ rot: 0 }, { rot: -4 }, { rot: 0 }], rest: 0 },
+  zWave: { dur: 1600, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ rot: 0 }, { rot: -18 }, { rot: 4 }, { rot: -14 }, { rot: 0 }], rest: 0 },
+  zComb: { dur: 1200, stops: THREE, poses: [{ rot: -5 }, { rot: 5 }, { rot: -5 }], rest: 0.25 },
+  zWag: { dur: 500, stops: THREE, poses: [{ rot: -12 }, { rot: 12 }, { rot: -12 }], rest: 0.25 },
+  zPant: { dur: 600, stops: THREE, poses: [{ sy: 0.8 }, { sy: 1.15 }, { sy: 0.8 }], rest: 0.5 },
+  zCurly: { dur: 1000, stops: THREE, poses: [{ rot: -10 }, { rot: 14 }, { rot: -10 }], rest: 0.25 },
+  zLantern: { dur: 2800, stops: THREE, poses: [{ rot: -9 }, { rot: 9 }, { rot: -9 }], rest: 0.25 },
+  zYarn: { dur: 2400, stops: THREE, poses: [{ rot: -24, tx: -3 }, { rot: 24, tx: 3 }, { rot: -24, tx: -3 }], rest: 0.25 },
+  zPound: { dur: 1100, stops: [0, 0.45, 0.7, 1], poses: [{ ty: 0 }, { ty: -12 }, { ty: 2 }, { ty: 0 }], rest: 0 },
+  zOrbit: { dur: 9000, stops: [0, 1], poses: [{ rot: 0 }, { rot: 360 }], rest: 0, linear: true },
+  // ---- Gobbles and Noel (design/Seasonal.dc.html, HolidayPets.tsx) ----
+  fanT: { dur: 3000, stops: THREE, poses: [{ sx: 1, sy: 1 }, { sx: 1.06, sy: 1.08 }, { sx: 1, sy: 1 }], rest: 0 },
+  gobble: { dur: 2400, stops: [0, 0.6, 0.66, 0.72, 0.78, 0.84, 1], poses: [{ ty: 0 }, { ty: 0 }, { ty: 4 }, { ty: -2 }, { ty: 4 }, { ty: 0 }, { ty: 0 }], rest: 0 },
+  floatyN: { dur: 2400, stops: THREE, poses: [{ rot: -8 }, { rot: 8 }, { rot: -8 }], rest: 0.25 },
+  swishN: { dur: 2000, stops: THREE, poses: [{ rot: 0 }, { rot: 10 }, { rot: 0 }], rest: 0 },
+  earN: { dur: 3200, stops: [0, 0.75, 0.85, 1], poses: [{ rot: -6 }, { rot: -6 }, { rot: -22 }, { rot: -6 }], rest: 0 },
+  earNR: { dur: 3200, stops: [0, 0.75, 0.85, 1], poses: [{ rot: 6 }, { rot: 6 }, { rot: 22 }, { rot: 6 }], rest: 0 },
+  snowN: { dur: 6000, stops: [0, 0.1, 0.5, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 1.6, ty: 22 }, { o: 1, tx: 8, ty: 110 }, { o: 1, tx: -2.4, ty: 198 }, { o: 0, tx: -4, ty: 220 }], rest: 0, linear: true },
+  // ---- Thanksgiving and Christmas home scenes ----
+  birdsT: { dur: 30000, stops: [0, 1], poses: [{ tx: 470 }, { tx: -120 }], rest: 0.4, linear: true },
+  glowC: { dur: 4000, stops: THREE, poses: [{ o: 0.65 }, { o: 1 }, { o: 0.65 }], rest: 0.5 },
+  beam: { dur: 5000, stops: THREE, poses: [{ o: 0.04 }, { o: 0.11 }, { o: 0.04 }], rest: 0.5 },
+  starPulse: { dur: 2600, stops: THREE, poses: [{ s: 0.92 }, { s: 1.08 }, { s: 0.92 }], rest: 0.5 },
+  snowC: { dur: 10000, stops: [0, 0.06, 0.5, 0.94, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.95, tx: 1.7, ty: 52 }, { o: 0.95, tx: 14, ty: 430 }, { o: 0.95, tx: -3.6, ty: 817 }, { o: 0, tx: -6, ty: 870 }], rest: 0, linear: true },
+  // ---- Prayer nook trinkets (design/Trinkets.dc.html, trinketArt.tsx) ----
+  tFlicker: { dur: 1300, stops: [0, 0.3, 0.6, 1], poses: [{ sx: 1, sy: 1 }, { sx: 0.9, sy: 1.08 }, { sx: 1.06, sy: 0.94 }, { sx: 1, sy: 1 }], rest: 0 },
+  tSwing: { dur: 3000, stops: THREE, poses: [{ rot: -7 }, { rot: 7 }, { rot: -7 }], rest: 0.25 },
+  tGrow: { dur: 4000, stops: [0, 0.4, 0.85, 1], poses: [{ s: 0.2 }, { s: 1 }, { s: 1 }, { s: 0.2 }], rest: 0.5 },
+  tSway: { dur: 3200, stops: THREE, poses: [{ rot: -4 }, { rot: 4 }, { rot: -4 }], rest: 0.25 },
+  tBob: { dur: 2600, stops: THREE, poses: [{ ty: 0 }, { ty: -3 }, { ty: 0 }], rest: 0 },
+  tNod: { dur: 3600, stops: [0, 0.6, 0.7, 0.8, 1], poses: [{ ty: 0 }, { ty: 0 }, { ty: 3 }, { ty: 0 }, { ty: 0 }], rest: 0 },
+  tWrite: { dur: 1600, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ tx: 0, ty: 0, rot: 0 }, { tx: -3, ty: 1, rot: -4 }, { tx: -6, ty: 0, rot: 2 }, { tx: -3, ty: -1, rot: -3 }, { tx: 0, ty: 0, rot: 0 }], rest: 0 },
+  tChime: { dur: 2400, stops: THREE, poses: [{ rot: -3 }, { rot: 3 }, { rot: -3 }], rest: 0.25 },
+  tNote: { dur: 3000, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 1.2, ty: -6 }, { o: 0, tx: 6, ty: -30 }], rest: 0 },
+  tSandT: { dur: 6000, stops: [0, 0.9, 1], poses: [{ sy: 1 }, { sy: 0.1 }, { sy: 1 }], rest: 0.4, linear: true },
+  tSandB: { dur: 6000, stops: [0, 0.9, 1], poses: [{ sy: 0.15 }, { sy: 1 }, { sy: 0.15 }], rest: 0.4, linear: true },
+  tSpinY: { dur: 3000, stops: [0, 0.25, 0.5, 0.75, 1], poses: [{ sx: 1 }, { sx: 0.2 }, { sx: -1 }, { sx: -0.2 }, { sx: 1 }], rest: 0, linear: true },
+  tOrbit5: { dur: 5000, stops: [0, 1], poses: [{ rot: 0 }, { rot: 360 }], rest: 0, linear: true },
+  tOrbit7: { dur: 7000, stops: [0, 1], poses: [{ rot: 0 }, { rot: 360 }], rest: 0, linear: true },
+  tOrbit30: { dur: 30000, stops: [0, 1], poses: [{ rot: 0 }, { rot: 360 }], rest: 0, linear: true },
+  tPluck: { dur: 1800, stops: [0, 0.7, 0.75, 0.8, 0.85, 1], poses: [{ sx: 1 }, { sx: 1 }, { sx: 2.4 }, { sx: 0.4 }, { sx: 1.6 }, { sx: 1 }], rest: 0 },
+  tManna: { dur: 3000, stops: [0, 0.15, 0.85, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 0.6, ty: 7 }, { o: 1, tx: 3.4, ty: 39 }, { o: 0, tx: 4, ty: 46 }], rest: 0 },
+  tBeam: { dur: 4000, stops: THREE, poses: [{ sx: 1 }, { sx: -1 }, { sx: 1 }], rest: 0 },
+  tWave: { dur: 4000, stops: THREE, poses: [{ tx: -4 }, { tx: 4 }, { tx: -4 }], rest: 0.25 },
+  tSwim: { dur: 7200, stops: THREE, poses: [{ tx: -8 }, { tx: 10 }, { tx: -8 }], rest: 0.25 },
+  tGlass: { dur: 3000, stops: THREE, poses: [{ o: 0.85 }, { o: 0.55 }, { o: 0.85 }], rest: 0 },
+  tRock: { dur: 3000, stops: THREE, poses: [{ rot: -5 }, { rot: 5 }, { rot: -5 }], rest: 0.25 },
+  tTwinkle: { dur: 2400, stops: THREE, poses: [{ o: 0.3, s: 0.8 }, { o: 1, s: 1.1 }, { o: 0.3, s: 0.8 }], rest: 0.5 },
+  tNebula: { dur: 12000, stops: THREE, poses: [{ tx: -3 }, { tx: 3 }, { tx: -3 }], rest: 0.25 },
+  tFan: { dur: 3000, stops: THREE, poses: [{ sx: 0.92 }, { sx: 1.05 }, { sx: 0.92 }], rest: 0.5 },
+  tEmber: { dur: 2400, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 1, tx: 0.8, ty: -3.6 }, { o: 0, tx: 4, ty: -18 }], rest: 0 },
+  tClimb: { dur: 4500, stops: [0, 0.1, 0.85, 1], poses: [{ o: 0, ty: 0 }, { o: 1, ty: -8.4 }, { o: 1, ty: -71.4 }, { o: 0, ty: -84 }], rest: 0, linear: true },
+  tClam: { dur: 4000, stops: [0, 0.2, 0.45, 0.75, 1], poses: [{ ty: 0, rot: 0 }, { ty: 0, rot: 0 }, { ty: -14, rot: -14 }, { ty: -14, rot: -14 }, { ty: 0, rot: 0 }], rest: 0 },
+  // ---- 2027 monthly home scenes (design/saint-central-home-2027, monthlyScenes.tsx) ----
+  hSnow: { dur: 8000, stops: [0, 0.08, 0.5, 0.92, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.95, tx: 1.6, ty: 35 }, { o: 0.95, tx: 10, ty: 220 }, { o: 0.95, tx: -3.4, ty: 405 }, { o: 0, tx: -6, ty: 440 }], rest: 0, linear: true },
+  hRain: { dur: 1400, stops: [0, 0.1, 1], poses: [{ o: 0, tx: 0, ty: 0 }, { o: 0.9, tx: -3, ty: 42 }, { o: 0, tx: -30, ty: 420 }], rest: 0, linear: true },
+  hLeaf: { dur: 9000, stops: [0, 0.08, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 1, tx: -3.2, ty: 35, rot: 34 }, { o: 1, tx: -36, ty: 396, rot: 378 }, { o: 0, tx: -40, ty: 440, rot: 420 }], rest: 0, linear: true },
+  hRise: { dur: 7000, stops: [0, 0.2, 1], poses: [{ o: 0, tx: 0, ty: 380 }, { o: 1, tx: 2, ty: 324 }, { o: 0, tx: 10, ty: 100 }], rest: 0 },
+  hDrift: { dur: 28000, stops: THREE, poses: [{ tx: -14 }, { tx: 14 }, { tx: -14 }], rest: 0.25 },
+  hBirds: { dur: 22000, stops: [0, 1], poses: [{ tx: -60 }, { tx: 280 }], rest: 0.4, linear: true },
+  hStarPulse: { dur: 2600, stops: THREE, poses: [{ s: 0.9 }, { s: 1.1 }, { s: 0.9 }], rest: 0.5 },
+  hBeam: { dur: 5000, stops: THREE, poses: [{ o: 0.04 }, { o: 0.1 }, { o: 0.04 }], rest: 0.5 },
+  hGlow: { dur: 3400, stops: THREE, poses: [{ o: 0.75 }, { o: 1 }, { o: 0.75 }], rest: 0.5 },
+  hRays: { dur: 3400, stops: THREE, poses: [{ o: 0.55 }, { o: 1 }, { o: 0.55 }], rest: 0.5 },
+  hSteam: { dur: 2400, stops: THREE, poses: [{ ty: 0 }, { ty: -3 }, { ty: 0 }], rest: 0 },
+  bob4: { dur: 3200, stops: THREE, poses: [{ ty: 0 }, { ty: -4 }, { ty: 0 }], rest: 0 },
+  hKite: { dur: 3000, stops: THREE, poses: [{ rot: -8, ty: 0 }, { rot: 8, ty: -6 }, { rot: -8, ty: 0 }], rest: 0.25 },
+  hFlap: { dur: 500, stops: THREE, poses: [{ sx: 1 }, { sx: 0.3 }, { sx: 1 }], rest: 0 },
+  hWander: { dur: 12000, stops: THREE, poses: [{ tx: 0, ty: 0 }, { tx: 20, ty: -24 }, { tx: 0, ty: 0 }], rest: 0 },
+  leafT: { dur: 7000, stops: [0, 0.1, 0.9, 1], poses: [{ o: 0, tx: 0, ty: 0, rot: 0 }, { o: 1, tx: -2.4, ty: 21, rot: 28 }, { o: 1, tx: -21.6, ty: 189, rot: 252 }, { o: 0, tx: -24, ty: 210, rot: 280 }], rest: 0, linear: true },
 } satisfies Record<string, Preset>;
 
 export type FxKind = keyof typeof PRESETS;
@@ -155,6 +255,8 @@ export type FxKind = keyof typeof PRESETS;
 type FxProps = {
   kind: FxKind;
   delay?: number;
+  /** Overrides the preset's loop length (ms), for the odd element the design slows down or speeds up. */
+  dur?: number;
   /** Pivot for rotation and scale, in the parent's coordinate space. */
   ox?: number;
   oy?: number;
@@ -162,24 +264,24 @@ type FxProps = {
 };
 
 /** A group that loops one of the Me-page CSS animations via Reanimated. */
-export function Fx({ kind, delay = 0, ox = 0, oy = 0, children }: FxProps) {
+export function Fx({ kind, delay = 0, dur, ox = 0, oy = 0, children }: FxProps) {
   const allowed = useContext(PetMotion);
   const enabled = useMotionEnabled(allowed);
   const preset: Preset = PRESETS[kind];
-  const p = useLoop(preset.dur, delay, enabled, preset.rest);
+  const p = useLoop(dur ?? preset.dur, delay, enabled, preset.rest);
   const animatedProps = useAnimatedProps(() => {
     const out: Record<string, number> = {};
     const { stops, poses } = preset;
     const kf = preset.linear ? lerpKeyframe : keyframe;
     const has = (k: keyof Pose) => poses.some(q => q[k] !== undefined);
     const vals = (k: keyof Pose, d: number) => poses.map(q => q[k] ?? d);
-    if (has('o')) out.opacity = kf(p.value, stops, vals('o', 1));
-    if (has('tx')) out.translateX = kf(p.value, stops, vals('tx', 0));
-    if (has('ty')) out.translateY = kf(p.value, stops, vals('ty', 0));
-    if (has('rot')) out.rotation = kf(p.value, stops, vals('rot', 0));
-    if (has('s')) out.scale = kf(p.value, stops, vals('s', 1));
-    if (has('sx')) out.scaleX = kf(p.value, stops, vals('sx', 1));
-    if (has('sy')) out.scaleY = kf(p.value, stops, vals('sy', 1));
+    if (has('o')) out.opacity = kf(p.get(), stops, vals('o', 1));
+    if (has('tx')) out.translateX = kf(p.get(), stops, vals('tx', 0));
+    if (has('ty')) out.translateY = kf(p.get(), stops, vals('ty', 0));
+    if (has('rot')) out.rotation = kf(p.get(), stops, vals('rot', 0));
+    if (has('s')) out.scale = kf(p.get(), stops, vals('s', 1));
+    if (has('sx')) out.scaleX = kf(p.get(), stops, vals('sx', 1));
+    if (has('sy')) out.scaleY = kf(p.get(), stops, vals('sy', 1));
     return out;
   });
   return (
@@ -225,7 +327,7 @@ export function TwinkleStar({ x, y, fill, delay = 0 }: { x: number; y: number; f
 export function FlowPath({ d, stroke }: { d: string; stroke: string }) {
   const enabled = useMotionEnabled(true);
   const p = useLoop(1400, 0, enabled, 0);
-  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: -12 * p.value }));
+  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: -12 * p.get() }));
   return (
     <APath
       d={d}
@@ -238,6 +340,41 @@ export function FlowPath({ d, stroke }: { d: string; stroke: string }) {
       animatedProps={animatedProps}
     />
   );
+}
+
+type DashFlowSpec = {
+  dur: number;
+  dash?: string;
+  /** Dash offset keyframes (linear), and optional opacity keyframes, at `stops`. */
+  stops: number[];
+  offset: number[];
+  opacity?: number[];
+};
+
+const DASH_FLOWS = {
+  // Ribbon the snake's gold stripe slides along her body.
+  slither: { dur: 1600, stops: [0, 1], offset: [0, -28] },
+  // Dash the horse's speed streaks.
+  streak: { dur: 1400, dash: '18 40', stops: [0, 1], offset: [0, -58] },
+  // 2027 home scenes: March's wind streaks, and July's shooting star (a dash that flies along and fades).
+  streakH: { dur: 2000, dash: '20 60', stops: [0, 1], offset: [0, -80] },
+  // Trinkets: the quill's line of ink writing itself, and the hourglass's falling stream of sand.
+  inkT: { dur: 3200, dash: '30', stops: [0, 0.6, 1], offset: [30, 0, 0] },
+  streamT: { dur: 400, dash: '3 4', stops: [0, 1], offset: [0, -7] },
+  shootH: { dur: 4000, dash: '60 400', stops: [0, 0.05, 0.25, 1], offset: [60, 36, -60, -60], opacity: [0, 1, 0, 0] },
+} satisfies Record<string, DashFlowSpec>;
+
+/** A path whose dashes march along it (CSS stroke-dashoffset loops). Takes the usual Path props. */
+export function DashFlow({ kind, ...props }: React.ComponentProps<typeof Path> & { kind: keyof typeof DASH_FLOWS }) {
+  const flow: DashFlowSpec = DASH_FLOWS[kind];
+  const enabled = useMotionEnabled(useContext(PetMotion));
+  const p = useLoop(flow.dur, 0, enabled, 0);
+  const animatedProps = useAnimatedProps(() => {
+    const out: Record<string, number> = { strokeDashoffset: lerpKeyframe(p.get(), flow.stops, flow.offset) };
+    if (flow.opacity) out.opacity = lerpKeyframe(p.get(), flow.stops, flow.opacity);
+    return out;
+  });
+  return <APath strokeDasharray={flow.dash} {...props} animatedProps={animatedProps} />;
 }
 
 /** A gold dot that travels from (x0, y0) to (x1, y1) forever, fading in and out. */
@@ -255,9 +392,9 @@ export function TravelDot({
   const enabled = useMotionEnabled(true);
   const p = useLoop(3000, delay, enabled, 0.5);
   const animatedProps = useAnimatedProps(() => ({
-    cx: from[0] + (to[0] - from[0]) * p.value,
-    cy: from[1] + (to[1] - from[1]) * p.value,
-    opacity: keyframe(p.value, [0, 0.33, 0.66, 1], [0, 1, 1, 0]),
+    cx: from[0] + (to[0] - from[0]) * p.get(),
+    cy: from[1] + (to[1] - from[1]) * p.get(),
+    opacity: keyframe(p.get(), [0, 0.33, 0.66, 1], [0, 1, 1, 0]),
   }));
   return <ACircle r={3} fill={fill} animatedProps={animatedProps} />;
 }
@@ -268,12 +405,12 @@ export function FadeInG({ delay = 0, duration = 2600, children }: { delay?: numb
   const p: SharedValue<number> = useSharedValue(enabled ? 0 : 1);
   useEffect(() => {
     if (!enabled) {
-      p.value = 1;
+      p.set(1);
       return;
     }
-    p.value = withDelay(delay, withTiming(1, { duration, easing: Easing.out(Easing.quad) }));
+    p.set(withDelay(delay, withTiming(1, { duration, easing: Easing.out(Easing.quad) })));
   }, [p, enabled, delay, duration]);
-  const animatedProps = useAnimatedProps(() => ({ opacity: p.value }));
+  const animatedProps = useAnimatedProps(() => ({ opacity: p.get() }));
   return <AG animatedProps={animatedProps}>{children}</AG>;
 }
 

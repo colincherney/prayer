@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { ITEM_META, Offset } from './nookData';
 import { ItemLayer, NOOK_H, NOOK_W } from './NookScene';
@@ -57,9 +58,9 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
 
   const layerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: base.x + x.value },
-      { translateY: base.y + y.value },
-      { scale: 1 + 0.05 * lift.value },
+      { translateX: base.x + x.get() },
+      { translateY: base.y + y.get() },
+      { scale: 1 + 0.05 * lift.get() },
     ],
     transformOrigin: `${hit.x + hit.w / 2}px ${hit.y + hit.h / 2}px`,
   }));
@@ -78,7 +79,7 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
       y.set(clamp(startY.get() + e.translationY / scale, minY, maxY));
     })
     .onEnd(() => {
-      if (onMove) runOnJS(onMove)(id, { x: x.get(), y: y.get() });
+      if (onMove) scheduleOnRN(onMove, id, { x: x.get(), y: y.get() });
     })
     .onFinalize(() => {
       lift.set(withTiming(0, { duration: 160 }));
@@ -87,7 +88,7 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
   const tap = Gesture.Tap()
     .maxDuration(LONG_PRESS_MS)
     .onEnd((_e, success) => {
-      if (success && onTap) runOnJS(onTap)();
+      if (success && onTap) scheduleOnRN(onTap);
     });
 
   const zoneStyle = { position: 'absolute' as const, left: hit.x, top: hit.y, width: hit.w, height: hit.h };

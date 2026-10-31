@@ -141,7 +141,7 @@ function GleamEllipse({ perimeter }: { perimeter: number }) {
   const allowed = useContext(PetMotion);
   const enabled = useMotionEnabled(allowed);
   const p = useLoop(2600, 0, enabled, 0.1);
-  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: perimeter * (1 - p.value) }));
+  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: perimeter * (1 - p.get()) }));
   return (
     <AEllipse
       cx={120}
@@ -214,7 +214,7 @@ export function DoveExtras({ stage }: { stage: PipStage }) {
   );
 }
 
-/** Judah: a butterfly; a yawn and dust motes; a crown flash and wind wisps. */
+/** Judah: a butterfly; dust motes (the yawn is part of his face, see Lion.tsx); a crown flash and wind wisps. */
 export function LionExtras({ stage }: { stage: PipStage }) {
   if (stage === 1) {
     return (
@@ -230,9 +230,6 @@ export function LionExtras({ stage }: { stage: PipStage }) {
   if (stage === 2) {
     return (
       <>
-        <Fx kind="yawn" ox={120} oy={157}>
-          <Ellipse cx={120} cy={166} rx={7} ry={9} fill="#6B3F2A" />
-        </Fx>
         <G fill="#F7E3B5">
           <Fx kind="moteLion">
             <Circle cx={54} cy={150} r={2} />

@@ -16,16 +16,17 @@ import {
 } from 'react-native';
 import Animated, {
   FadeIn,
-  runOnJS,
   useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CosmeticIcon } from '@/components/pets/CosmeticIcon';
 import { NOOK_H, NOOK_W } from '@/components/pets/NookScene';
+import { TrinketShelf } from '@/components/pets/Trinket';
 import { Nook, NookView, useDoubleTap } from '@/components/pets/Nook';
 import { FrameKind, NookFrameBack, NookFrameFront } from '@/components/pets/NookFrame';
 import {
@@ -63,6 +64,7 @@ import { supabase } from '@/lib/supabase';
 import { usePetProgress } from '@/lib/pet';
 import { itemProductId, owns, sceneProductId, stripUnowned, unownedInNook, useOwned } from '@/lib/store';
 import { relativeTime } from '@/lib/time';
+import { useTrinkets } from '@/lib/trinkets';
 
 const NOOK_KEY = 'nook.v1';
 const FRAME_KEY = 'nook.frame';
@@ -145,6 +147,7 @@ export default function MeScreen() {
   const [deleting, setDeleting] = useState(false);
   const { petId, progress: petProgress } = usePetProgress();
   const { width: screenW } = useWindowDimensions();
+  const { trinkets } = useTrinkets();
   const nookW = Math.min(screenW - 44, 420);
   const [nook, setNook] = useState<NookState>(DEFAULT_NOOK);
   const lighting = useMemo(() => lightingForHour(new Date().getHours()), []);
@@ -219,17 +222,17 @@ export default function MeScreen() {
     nookBottom.set(y + height);
   };
   const onScroll = useAnimatedScrollHandler(e => {
-    scrollY.value = e.contentOffset.y;
+    scrollY.set(e.contentOffset.y);
   });
   // Mount the pinned copy only while it can be seen, so the page does not run two animated nooks all the time.
   useAnimatedReaction(
-    () => scrollY.value > nookBottom.value - 200,
+    () => scrollY.get() > nookBottom.get() - 200,
     (now, prev) => {
-      if (now !== prev) runOnJS(setPinned)(now);
+      if (now !== prev) scheduleOnRN(setPinned, now);
     },
   );
   const pinnedStyle = useAnimatedStyle(() => {
-    const t = Math.min(1, Math.max(0, (scrollY.value - (nookBottom.value - 180)) / 110));
+    const t = Math.min(1, Math.max(0, (scrollY.get() - (nookBottom.get() - 180)) / 110));
     return { opacity: t, transform: [{ translateY: (1 - t) * -18 }] };
   });
   const { height: screenH } = useWindowDimensions();
@@ -449,6 +452,11 @@ export default function MeScreen() {
               <Text style={styles.hint}>
                 Tap to add or remove a piece, and mix as many as you like. Press and hold a piece in your nook, then drag it where you want it. Taking a piece out puts it back to its starting spot.
               </Text>
+            </View>
+
+            <SectionLabel style={{ paddingHorizontal: 22 }}>Trinket shelf</SectionLabel>
+            <View style={{ paddingHorizontal: 22, marginBottom: 18 }}>
+              <TrinketShelf earned={trinkets.filter(t => t.earned).map(t => t.id)} width={screenW - 44} onPress={() => router.push('/trinkets')} />
             </View>
 
             <SectionLabel style={{ paddingHorizontal: 22 }}>Your requests</SectionLabel>

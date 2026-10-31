@@ -220,7 +220,7 @@ function Zzz({ top }: { top: number }) {
 function ZLetter({ left, top, size, delay, enabled }: { left: number; top: number; size: number; delay: number; enabled: boolean }) {
   const p = useLoop(3600, delay, enabled, 0.2);
   const style = useAnimatedStyle(() => {
-    const v = p.value;
+    const v = p.get();
     return {
       opacity: v < 0.2 ? v / 0.2 : 1 - (v - 0.2) / 0.8,
       transform: [{ translateX: 18 * v }, { translateY: -46 * v }, { scale: 0.7 + 0.45 * v }],
@@ -280,7 +280,7 @@ export function NookView({
   }, []);
 
   const hop = useSharedValue(0);
-  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value }] }));
+  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: hop.get() }] }));
   const wake = () => {
     setAwake(true);
     hop.set(withSequence(
@@ -312,9 +312,9 @@ export function NookView({
           : undefined;
   const petTopSV = useSharedValue(petTop);
   useEffect(() => {
-    petTopSV.value = withTiming(petTop, { duration: 400, easing: Easing.inOut(Easing.quad) });
+    petTopSV.set(withTiming(petTop, { duration: 400, easing: Easing.inOut(Easing.quad) }));
   }, [petTop, petTopSV]);
-  const petPosStyle = useAnimatedStyle(() => ({ top: petTopSV.value }));
+  const petPosStyle = useAnimatedStyle(() => ({ top: petTopSV.get() }));
   const sceneBgStyle = useAnimatedStyle(() => ({
     backgroundColor: withTiming(scene.bg, { duration: 600 }),
   }));

@@ -705,13 +705,13 @@ const AnimG = Animated.createAnimatedComponent(G);
 function FallOnce({ children }: { children: React.ReactNode }) {
   const t = useSharedValue(0);
   React.useEffect(() => {
-    t.value = withTiming(1, { duration: 1600, easing: Easing.in(Easing.quad) });
+    t.set(withTiming(1, { duration: 1600, easing: Easing.in(Easing.quad) }));
   }, [t]);
   const animatedProps = useAnimatedProps(() => ({
-    translateX: 16 * t.value,
-    translateY: 60 * t.value,
-    rotation: 170 * t.value,
-    opacity: 1 - t.value,
+    translateX: 16 * t.get(),
+    translateY: 60 * t.get(),
+    rotation: 170 * t.get(),
+    opacity: 1 - t.get(),
   }));
   return (
     <AnimG animatedProps={animatedProps} originX={296} originY={286}>

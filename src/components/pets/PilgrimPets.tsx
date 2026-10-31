@@ -4,6 +4,7 @@ import { Circle, Ellipse, G, Path, Polygon, Rect } from 'react-native-svg';
 import { Fx, SoftGlow, TwinkleStar } from './Fx';
 import { PetFrame } from './PetFrame';
 import { PipStage } from './PipLamb';
+import { getLook, Look, LookEars, LOOKS, LookSnout, LookTail } from './petLooks';
 import type { PetId } from './registry';
 
 // The quest guide: your companion dressed as a hooded pilgrim (an original costume) with a satchel and a shepherd's
@@ -17,7 +18,7 @@ const GOLD = '#E8C27A';
 
 type Cloak = { back: string; front: string; hood: string; rim: string };
 
-const CLOAKS: Record<PetId, Cloak> = {
+const CLOAKS: Partial<Record<PetId, Cloak>> = {
   lion: { back: '#26407A', front: '#2F4B8A', hood: '#26407A', rim: '#3E5E9E' },
   lamb: { back: '#5A4636', front: '#6B5442', hood: '#5A4636', rim: '#7E6650' },
   dove: { back: '#4A5578', front: '#56628A', hood: '#4A5578', rim: '#6A77A0' },
@@ -431,7 +432,44 @@ function pumpkinParts(stage: PipStage): Parts {
   };
 }
 
-const PARTS: Record<PetId, (stage: PipStage) => Parts> = {
+/** The seasonal and monthly companions, from their look (petLooks.tsx). */
+function lookParts(look: Look) {
+  return (stage: PipStage): Parts => ({
+    tail: <LookTail look={look} x={150} y={236} />,
+    body: (
+      <>
+        <Ellipse cx={120} cy={206} rx={32} ry={34} fill={look.fur} />
+        <Ellipse cx={120} cy={214} rx={18} ry={20} fill={look.light} />
+      </>
+    ),
+    feet: (
+      <>
+        <Ellipse cx={104} cy={250} rx={12} ry={7} fill={look.snout === 'beak' ? '#E8A24B' : look.dark} />
+        <Ellipse cx={136} cy={250} rx={12} ry={7} fill={look.snout === 'beak' ? '#E8A24B' : look.dark} />
+      </>
+    ),
+    paw: <Ellipse cx={180} cy={188} rx={10} ry={9} fill={look.fur} />,
+    face: (
+      <>
+        <Circle cx={120} cy={144} r={28} fill={look.fur} />
+        <Eyes />
+        <LookSnout look={look} cx={120} cy={154} r={26} />
+        <Cheeks y={152} />
+      </>
+    ),
+    out: (
+      <>
+        <LookEars look={look} cx={120} top={98} r={28} />
+        <LookEars look={look} cx={120} top={98} r={28} front />
+      </>
+    ),
+    crown: stage === 3 ? (
+      <Polygon points="102,84 106,62 113,74 120,54 127,74 134,62 138,84" fill="#F2C462" stroke="#C99A2E" strokeWidth={2} strokeLinejoin="round" />
+    ) : undefined,
+  });
+}
+
+const PARTS: Partial<Record<PetId, (stage: PipStage) => Parts>> = {
   lion: lionParts,
   lamb: lambParts,
   dove: doveParts,
@@ -443,8 +481,9 @@ const PARTS: Record<PetId, (stage: PipStage) => Parts> = {
 /* ------------------------------------------------------------------ the costume */
 
 function Pilgrim({ id, stage }: { id: PetId; stage: PipStage }) {
-  const c = CLOAKS[id];
-  const p = PARTS[id](stage);
+  const look = getLook(id);
+  const c = CLOAKS[id] ?? { back: look?.bed[0] ?? '#3A2A5A', front: look?.bed[0] ?? '#46336A', hood: look?.bed[0] ?? '#3A2A5A', rim: look?.bed[1] ?? '#5A4680' };
+  const p = (PARTS[id] ?? lookParts(look ?? LOOKS.rat))(stage);
   const trim = stage === 3 ? GOLD : 'none';
   return (
     <>

@@ -5,7 +5,6 @@ import Animated, {
   Easing,
   FadeInUp,
   FadeOut,
-  runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
   useReducedMotion,
@@ -14,6 +13,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import Svg, {
   Circle,
   Defs,
@@ -397,7 +397,7 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
     .numberOfTaps(2)
     .maxDuration(250)
     .onEnd((_e, success) => {
-      if (success && onDoubleTap) runOnJS(onDoubleTap)();
+      if (success && onDoubleTap) scheduleOnRN(onDoubleTap);
     });
 
   const body = (

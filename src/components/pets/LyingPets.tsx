@@ -2,6 +2,7 @@ import React from 'react';
 import Svg, { Circle, Ellipse, G, Path, Polygon, Rect } from 'react-native-svg';
 
 import { Fx, PetMotion, SoftGlow as Glow, TwinkleStar } from './Fx';
+import { getLook, LookEars, LookSnout, LookTail } from './petLooks';
 import { PipStage } from './PipLamb';
 import type { PetId } from './registry';
 
@@ -52,7 +53,7 @@ function Eyes({ l, r, y, mode, rad = 3.6, iris, pupil = INK }: { l: number; r: n
 }
 
 
-const PILLOW: Record<PetId, [string, string]> = {
+const PILLOW: Partial<Record<PetId, [string, string]>> = {
   lamb: ['#7FA4D8', '#B5CDEE'],
   dove: ['#F2D98B', '#FBEFC4'],
   lion: ['#B8433A', '#E08A7E'],
@@ -63,7 +64,7 @@ const PILLOW: Record<PetId, [string, string]> = {
 
 /** A little pillow under the head while it sleeps. */
 function Pillow({ id, x = 46 }: { id: PetId; x?: number }) {
-  const [a, b] = PILLOW[id];
+  const [a, b] = PILLOW[id] ?? getLook(id)?.bed ?? ['#7FA4D8', '#B5CDEE'];
   return (
     <>
       <Path d={`M${x - 30} 90 Q${x - 32} 80 ${x - 22} 80 L${x + 22} 80 Q${x + 32} 80 ${x + 30} 90 Q${x + 32} 98 ${x + 22} 98 L${x - 22} 98 Q${x - 32} 98 ${x - 30} 90 Z`} fill={a} />
@@ -478,6 +479,49 @@ function PumpkinLying({ stage, eyes }: { stage: PipStage; eyes: LieEyes }) {
   );
 }
 
+/**
+ * The seasonal and monthly companions lying down, drawn from their look (petLooks.tsx): curled up with the head on
+ * the left, ears or horns, tail curling behind. Asleep, the head rests on a pillow in its own colors.
+ */
+function LookLying({ id, stage, eyes }: { id: PetId; stage: PipStage; eyes: LieEyes }) {
+  const look = getLook(id);
+  if (!look) return null;
+  const snake = look.tail === 'coil' && look.ears === 'none';
+  return (
+    <>
+      {stage === 3 ? <Glow cx={92} cy={64} r={58} color={look.mote} /> : null}
+      {eyes === 'sleep' ? <Pillow id={id} x={46} /> : null}
+      {snake ? null : <LookTail look={look} x={146} y={78} s={0.9} />}
+      <Fx kind="breatheLie" ox={100} oy={96}>
+        {snake ? (
+          <>
+            <Ellipse cx={104} cy={82} rx={52} ry={14} fill={look.fur} />
+            <Ellipse cx={100} cy={68} rx={40} ry={12} fill={look.light} />
+            <Path d="M70 82 L80 76 M96 84 L106 78 M122 82 L132 76" stroke={look.dark} strokeWidth={3} strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <Ellipse cx={104} cy={76} rx={50} ry={20} fill={look.fur} />
+            <Ellipse cx={106} cy={84} rx={34} ry={10} fill={look.light} />
+            <Ellipse cx={82} cy={94} rx={10} ry={5} fill={look.light} />
+            <Ellipse cx={128} cy={94} rx={10} ry={5} fill={look.light} />
+          </>
+        )}
+      </Fx>
+      <Fx kind="headNod" ox={52} oy={86}>
+        <LookEars look={look} cx={52} top={42} r={24} />
+        <Circle cx={52} cy={64} r={24} fill={look.fur} />
+        <LookEars look={look} cx={52} top={42} r={24} front />
+        <Eyes l={43} r={61} y={62} mode={eyes} rad={3.4} />
+        <LookSnout look={look} cx={52} cy={74} r={22} />
+        <Circle cx={36} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
+        <Circle cx={68} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
+        {stage === 3 ? <Polygon points="40,40 44,26 49,34 52,22 55,34 60,26 64,40" fill="#F2C462" stroke="#C99A2E" strokeWidth={1.5} strokeLinejoin="round" /> : null}
+      </Fx>
+    </>
+  );
+}
+
 /** A little friend or flourish near each lying pet while it is awake (asleep, the world goes quiet). */
 function Friend({ id, eyes }: { id: PetId; eyes: LieEyes }) {
   if (eyes === 'sleep') return null;
@@ -553,7 +597,7 @@ function Friend({ id, eyes }: { id: PetId; eyes: LieEyes }) {
 
 /* ------------------------------------------------------------------ */
 
-const ART: Record<PetId, React.ComponentType<{ stage: PipStage; eyes: LieEyes }>> = {
+const ART: Partial<Record<PetId, React.ComponentType<{ stage: PipStage; eyes: LieEyes }>>> = {
   lion: LionLying,
   lamb: LambLying,
   dove: DoveLying,
@@ -566,18 +610,13 @@ const LABELS: Record<LieEyes, string> = { sleep: 'asleep', open: 'lying down', u
 
 /** A companion lying down. `size` is the width in dp. Stage 1 is drawn a little smaller. */
 export function LyingPet({ id, stage, size = 136, eyes = 'open', animated = true }: { id: PetId; stage: PipStage; size?: number; eyes?: LieEyes; animated?: boolean }) {
-  const Art = ART[id];
+  const Own = ART[id];
+  const art = Own ? <Own stage={stage} eyes={eyes} /> : <LookLying id={id} stage={stage} eyes={eyes} />;
   return (
     <PetMotion.Provider value={animated}>
       <Svg viewBox={`${-PAD} ${-PAD} ${VB_W + 2 * PAD} ${VB_H + 2 * PAD}`} width={size} height={lyingHeight(size)} accessibilityRole="image" accessibilityLabel={`Your companion ${LABELS[eyes]}`}>
         <Ellipse cx={92} cy={98} rx={72} ry={4} fill="#000" opacity={0.25} />
-        {stage === 1 ? (
-          <G transform="translate(8.5 9.6) scale(0.9)">
-            <Art stage={stage} eyes={eyes} />
-          </G>
-        ) : (
-          <Art stage={stage} eyes={eyes} />
-        )}
+        {stage === 1 ? <G transform="translate(8.5 9.6) scale(0.9)">{art}</G> : art}
         <Friend id={id} eyes={eyes} />
       </Svg>
     </PetMotion.Provider>

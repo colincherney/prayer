@@ -208,6 +208,65 @@ delete from public.cosmetic_products where id = 'item:pilgrimlantern';
 
 ---
 
+## 7. `pet_levels` (2026-10-30): each pet levels up on its own
+
+**What:** Pets no longer share one level. A pet only grows from XP earned while it is the active pet.
+
+- New table `public.pet_xp` (user, pet, banked_xp): XP each pet banked during its earlier turns as the active pet.
+- New table `public.pet_state` (user, active_pet, active_since_xp): the active pet and the account's total XP when it became active.
+- Row level security on both. Users can read only their own rows, and the app can't write either table directly.
+- New function `switch_pet(from, to, total)` is the only way to write them. The pet that was active banks `total - active_since_xp`, then `to` becomes active from `total`.
+- Existing users: on their first load the app creates their `pet_state` with their current pet active from 0, so that pet keeps all XP earned so far. Every other pet starts at level 1.
+- Until this is applied the app falls back to the old shared level, so nothing breaks.
+
+**Applied as:** `supabase/migrations/20261030_pet_levels.sql` (paste into the dashboard SQL editor)
+
+**Revert (deletes every pet's separate XP; the app goes back to one shared level automatically):**
+
+```sql
+drop function if exists public.switch_pet(text, text, int);
+drop table if exists public.pet_xp;
+drop table if exists public.pet_state;
+```
+
+---
+
+## 8. `content_releases` (2026-10-30): seasonal scenes, companions and trinkets that unlock on a date
+
+**What:** These all ship in the app hidden, and this table says when each one appears:
+
+- the Thanksgiving and Christmas home scenes
+- the twelve 2027 monthly home scenes
+- Gobbles the Turkey and Noel the Donkey
+- the twelve monthly companions
+- the 24 prayer nook trinkets
+
+- New table `public.content_releases` (id, release_at, note). Ids are `pet:<pet id>`, `room:<room name>` or `trinket:<trinket id>`.
+- The read policy only returns rows whose `release_at` has passed, by the server's clock. Anyone (signed in or not) can read released rows. Nobody can write through the app.
+- Schedule, all at midnight US Eastern:
+  - Nov 14, 2026: Give Thanks scene and Gobbles.
+  - Dec 1, 2026: God With Us scene and Noel.
+  - The 1st of each month in 2027, January through December: that month's home scene (`room:m2027jan` … `room:m2027dec`) and companion (Nib the Rat, Bao the Ox, Rory the Tiger, Mochi the Rabbit, Long the Dragon, Ribbon the Snake, Dash the Horse, Clover the Goat, Kiki the Monkey, Dawn the Rooster, Biscuit the Dog, Rosie the Pig).
+  - Trinkets, two at a time: two on Nov 14, two on Dec 1, then two on the 1st of each month from January to October 2027. The order is in `src/lib/trinkets.ts`.
+- New table `public.user_trinkets` (user, trinket, earned_at): the trinkets each person has earned. Users can read only their own rows, and the app can't write it directly.
+- New function `earn_trinket(trinket)` is the only way to write it. It refuses a trinket whose release date hasn't come. The app checks the goal itself: automatically where it can see the activity, and on the honor system for the rest.
+- The pet-id checks on `group_members`, `pet_xp` and `pet_state`, and `switch_pet()`, now accept the 14 new pets.
+- **To change a date:** `update public.content_releases set release_at = '2026-11-20 00:00'::timestamp at time zone 'America/New_York' where id = 'pet:turkey';`
+
+**Applied as:** `supabase/migrations/20261030_content_releases.sql` (paste into the dashboard after #7)
+
+**Revert (deletes everyone's earned trinkets; scheduled content falls back to the app's built-in copy of the schedule):**
+
+```sql
+drop function if exists public.earn_trinket(text);
+drop table if exists public.user_trinkets;
+drop table if exists public.content_releases;
+```
+
+To also put back the old pet-id checks, re-run the `group_nook` and `pet_levels` migrations. Do that only if nobody has picked one of the new pets yet, or the checks will fail.
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

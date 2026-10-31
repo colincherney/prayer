@@ -17,12 +17,12 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
   Circle,
@@ -1011,28 +1011,28 @@ const ReflectSheet: React.FC<{
       setNote('');
       setError(null);
       setMounted(true);
-      slide.value = SCREEN_HEIGHT;
-      fade.value = 0;
-      fade.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) });
-      slide.value = withTiming(0, {
+      slide.set(SCREEN_HEIGHT);
+      fade.set(0);
+      fade.set(withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) }));
+      slide.set(withTiming(0, {
         duration: 320,
         easing: Easing.bezier(0.22, 1, 0.36, 1),
-      });
+      }));
     } else if (mounted) {
-      fade.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.quad) });
-      slide.value = withTiming(
+      fade.set(withTiming(0, { duration: 160, easing: Easing.in(Easing.quad) }));
+      slide.set(withTiming(
         SCREEN_HEIGHT,
         { duration: 240, easing: Easing.in(Easing.cubic) },
         finished => {
-          if (finished) runOnJS(setMounted)(false);
+          if (finished) scheduleOnRN(setMounted, false);
         },
-      );
+      ));
     }
   }, [visible, mounted, slide, fade]);
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slide.value }],
+    transform: [{ translateY: slide.get() }],
   }));
 
   const canSubmit = note.trim().length > 0 && !busy;
@@ -1206,28 +1206,28 @@ const useSheetAnimation = (open: boolean) => {
   useEffect(() => {
     if (open) {
       setMounted(true);
-      slide.value = SCREEN_HEIGHT;
-      fade.value = 0;
-      fade.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
-      slide.value = withTiming(0, {
+      slide.set(SCREEN_HEIGHT);
+      fade.set(0);
+      fade.set(withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) }));
+      slide.set(withTiming(0, {
         duration: 380,
         easing: Easing.bezier(0.22, 1, 0.36, 1),
-      });
+      }));
     } else if (mounted) {
-      fade.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) });
-      slide.value = withTiming(
+      fade.set(withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }));
+      slide.set(withTiming(
         SCREEN_HEIGHT,
         { duration: 280, easing: Easing.in(Easing.cubic) },
         finished => {
-          if (finished) runOnJS(setMounted)(false);
+          if (finished) scheduleOnRN(setMounted, false);
         },
-      );
+      ));
     }
   }, [open, mounted, slide, fade]);
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slide.value }],
+    transform: [{ translateY: slide.get() }],
   }));
   return { mounted, backdropStyle, sheetStyle };
 };
@@ -1507,21 +1507,21 @@ const PulsingHalo: React.FC<{ color: string }> = ({ color }) => {
   const opacity = useSharedValue(0.55);
 
   useEffect(() => {
-    scale.value = withRepeat(
+    scale.set(withRepeat(
       withTiming(1.18, { duration: 2400, easing: Easing.out(Easing.cubic) }),
       -1,
       true,
-    );
-    opacity.value = withRepeat(
+    ));
+    opacity.set(withRepeat(
       withTiming(0.15, { duration: 2400, easing: Easing.in(Easing.cubic) }),
       -1,
       true,
-    );
+    ));
   }, [scale, opacity]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    transform: [{ scale: scale.get() }],
+    opacity: opacity.get(),
   }));
 
   return (

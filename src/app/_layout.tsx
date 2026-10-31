@@ -13,6 +13,7 @@ import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
+import { ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
 
@@ -99,6 +100,7 @@ function RootStack() {
       <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
       <Stack.Screen name="quests" options={{ presentation: 'card' }} />
+      <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
     </Stack>
   );
@@ -109,6 +111,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ReleasesProvider>
         <SaintThemeProvider>
           <PrayerRoomProvider>
             <AppearanceModeProvider>
@@ -118,6 +121,7 @@ export default function RootLayout() {
             </AppearanceModeProvider>
           </PrayerRoomProvider>
         </SaintThemeProvider>
+        </ReleasesProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

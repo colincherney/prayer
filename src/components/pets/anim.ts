@@ -41,14 +41,14 @@ export function useLoop(durationMs: number, delayMs: number, enabled: boolean, r
   useEffect(() => {
     if (!enabled) {
       cancelAnimation(p);
-      p.value = rest;
+      p.set(rest);
       return;
     }
-    p.value = 0;
-    p.value = withDelay(
+    p.set(0);
+    p.set(withDelay(
       delayMs,
       withRepeat(withTiming(1, { duration: durationMs, easing: Easing.linear }), -1, false),
-    );
+    ));
     return () => cancelAnimation(p);
   }, [p, durationMs, delayMs, enabled, rest]);
   return p;
