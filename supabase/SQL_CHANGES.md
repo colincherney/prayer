@@ -219,7 +219,7 @@ delete from public.cosmetic_products where id = 'item:pilgrimlantern';
 - Existing users: on their first load the app creates their `pet_state` with their current pet active from 0, so that pet keeps all XP earned so far. Every other pet starts at level 1.
 - Until this is applied the app falls back to the old shared level, so nothing breaks.
 
-**Applied as:** `supabase/migrations/20261030_pet_levels.sql` (paste into the dashboard SQL editor)
+**Applied as:** `supabase/migrations/20261030_pet_levels.sql`. Applied to the live project on 2026-10-30 through the Supabase connector.
 
 **Revert (deletes every pet's separate XP; the app goes back to one shared level automatically):**
 
@@ -253,7 +253,7 @@ drop table if exists public.pet_state;
 - The pet-id checks on `group_members`, `pet_xp` and `pet_state`, and `switch_pet()`, now accept the 14 new pets.
 - **To change a date:** `update public.content_releases set release_at = '2026-11-20 00:00'::timestamp at time zone 'America/New_York' where id = 'pet:turkey';`
 
-**Applied as:** `supabase/migrations/20261030_content_releases.sql` (paste into the dashboard after #7)
+**Applied as:** `supabase/migrations/20261030_content_releases.sql`. Applied to the live project on 2026-10-30 through the Supabase connector, right after #7. Checked afterwards: 52 release rows, and the app (anon role) sees none of them before Nov 14.
 
 **Revert (deletes everyone's earned trinkets; scheduled content falls back to the app's built-in copy of the schedule):**
 
