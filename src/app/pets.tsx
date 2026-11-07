@@ -81,7 +81,8 @@ const PetCard = memo(function PetCard({
       <View style={styles.cardTop}>
         <View style={[styles.artBox, { width: ART_COLUMN, height: Math.round((artSize * 260) / 240) }]}>
           <View style={{ position: 'absolute', bottom: 0, left: (ART_COLUMN - artSize) / 2, width: artSize }}>
-            <Pet id={def.id} stage={stage} size={artSize} interactive={selected} />
+            {/* Still on the list; only the evolution stages below move. */}
+            <Pet id={def.id} stage={stage} size={artSize} interactive={selected} animated={false} />
           </View>
         </View>
         <View style={{ flex: 1 }}>
