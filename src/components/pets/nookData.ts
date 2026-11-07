@@ -24,12 +24,14 @@ export type NookState = {
   scene: SceneId;
   items: string[];
   offsets: Record<string, Offset>;
-  /** 2 since the prayer lights became a removable piece. Older saves had them built in. */
-  v?: 2;
+  /** 3 since the great web and the prayer lights became two removable pieces. Older saves had both built in. */
+  v?: 3;
 };
 
-/** The big glowing web with light lines to the centre. It grows with prayers offered, and is drawn by NookView. */
+/** The light lines running to the centre, with the lights that travel along them. Drawn by NookView. */
 export const PRAYER_LIGHTS = 'prayerlights';
+/** The big web of rings and spokes behind them. It grows with prayers offered. Drawn by NookView. */
+export const GREAT_WEB = 'greatweb';
 
 /** The pet always stands on one rug. The blue one is the default, and choosing another swaps it out. */
 export const DEFAULT_RUG = 'bluerug';
@@ -44,9 +46,9 @@ function withOneRug(items: string[]): string[] {
 
 export const DEFAULT_NOOK: NookState = {
   scene: 'grove',
-  items: ['bluerug', 'cross', 'treeL', 'treeR', 'prayerweb', PRAYER_LIGHTS],
+  items: ['bluerug', 'cross', 'treeL', 'treeR', 'prayerweb', GREAT_WEB, PRAYER_LIGHTS],
   offsets: {},
-  v: 2,
+  v: 3,
 };
 
 /** Turns anything read from storage into a valid NookState. Understands the older one-item-per-spot format. */
@@ -58,8 +60,10 @@ export function migrateNook(raw: unknown): NookState {
   else if (r.slots) items = [DEFAULT_RUG, ...Object.values(r.slots).filter((id): id is string => typeof id === 'string' && known.has(id))];
   else items = [...DEFAULT_NOOK.items];
   items = withOneRug(Array.from(new Set(items)));
-  // Saves from before the prayer lights could be removed always showed them, so they keep them.
-  if (r.v !== 2 && !items.includes(PRAYER_LIGHTS)) items.push(PRAYER_LIGHTS);
+  // Older saves always showed the web and lights, so they keep them. Version 2 had them as one piece, the lights.
+  const version = r.v ?? 1;
+  if (version < 2 && !items.includes(PRAYER_LIGHTS)) items.push(PRAYER_LIGHTS);
+  if (version < 3 && items.includes(PRAYER_LIGHTS) && !items.includes(GREAT_WEB)) items.push(GREAT_WEB);
   const offsets: Record<string, Offset> = {};
   if (r.offsets && typeof r.offsets === 'object') {
     for (const [id, o] of Object.entries(r.offsets as Record<string, Offset>)) {
@@ -67,7 +71,7 @@ export function migrateNook(raw: unknown): NookState {
     }
   }
   const scene = SCENES.some(sc => sc.id === r.scene) ? (r.scene as SceneId) : DEFAULT_NOOK.scene;
-  return { scene, items, offsets, v: 2 };
+  return { scene, items, offsets, v: 3 };
 }
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -115,6 +119,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
   prayerweb: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 111, y: 2, w: 120, h: 44 } },
   // Fills the nook and stays put, so there's nothing to grab.
   [PRAYER_LIGHTS]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
+  [GREAT_WEB]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
   garland: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 100, y: 14, w: 142, h: 40 } },
 };
 for (const d of SHOWN_COLLECTION_DECOR) {
@@ -221,6 +226,7 @@ export const ROWS: RowDef[] = [
       { id: 'lights', name: 'String lights', sw: '#F2C462', locked: false },
       { id: 'dove', name: 'Hanging dove', sw: '#F7F5F0', locked: true },
       { id: 'prayerweb', name: 'Prayer web', sw: '#B9BFC9', locked: false },
+      { id: GREAT_WEB, name: 'Great web', sw: '#8FC6A9', locked: false },
       { id: PRAYER_LIGHTS, name: 'Prayer lights', sw: '#F2C462', locked: false },
       { id: 'lamp', name: 'Clay oil lamp', sw: '#B5734A', locked: false },
       { id: 'mobile', name: 'Star mobile', sw: '#F7E3B5', locked: true },

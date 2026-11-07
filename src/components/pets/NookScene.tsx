@@ -182,7 +182,8 @@ const NODE_SPOTS: [number, number, number, number][] = [
 ];
 
 /** The prayer web: a mandala that gains rings with prayers offered, plus the four flows from the corner stats. */
-export function PrayerWeb({ level }: { level: 1 | 2 | 3 | 4 }) {
+/** The great web (rings, spokes and the twinkles on them) and the prayer lights (lines and travelling lights), each optional. */
+export function PrayerWeb({ level, web = true, lights = true }: { level: 1 | 2 | 3 | 4; web?: boolean; lights?: boolean }) {
   const opacity = level === 1 ? 0.2 : level === 2 ? 0.28 : 0.36;
   const width = level >= 3 ? 1.3 : 1;
   return (
@@ -193,54 +194,62 @@ export function PrayerWeb({ level }: { level: 1 | 2 | 3 | 4 }) {
           <Stop offset="1" stopColor="#F2C462" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      {level >= 4 && (
+      {lights && level >= 4 && (
         <Fx kind="bigglow">
           <Circle cx={171} cy={230} r={210} fill="url(#webglow)" />
         </Fx>
       )}
-      <Fx kind="shimmer">
-        <G fill="none" stroke="#8FC6A9" strokeOpacity={opacity} strokeWidth={width}>
-          <FadeInG>
-            <Path d={WEB_SPOKES} />
-          </FadeInG>
-          <FadeInG delay={350}>
-            <Path d={RINGS[0]} />
-          </FadeInG>
-          <FadeInG delay={700}>
-            <Path d={RINGS[1]} />
-          </FadeInG>
-          <FadeInG delay={1050}>
-            <Path d={RINGS[2]} />
-          </FadeInG>
-        </G>
-      </Fx>
-      {level >= 2 && (
-        <G fill="#DDF3E8">
-          {NODE_SPOTS.map(([x, y, r, d], i) => (
-            <TwinkleDot key={i} cx={x} cy={y} r={r} delay={d} />
-          ))}
-        </G>
-      )}
-      {level >= 3 &&
-        PLUS_SPOTS.map(([x, y], i) => (
-          <G key={i} transform={`translate(${x} ${y})`}>
-            <Fx kind="twinkle" delay={(i % 3) * 700}>
-              <Path d="M-5 0 L5 0 M0 -6 L0 6" stroke="#F2C462" strokeWidth={1.6} strokeLinecap="round" />
-            </Fx>
-          </G>
-        ))}
-      <FlowPath d="M74 52 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M268 52 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M74 388 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M268 388 L171 230" stroke="#8FC6A9" />
-      <TravelDot from={[74, 52]} to={[171, 230]} fill="#F2C462" />
-      {level >= 2 && (
+      {web ? (
         <>
-          <TravelDot from={[268, 52]} to={[171, 230]} fill="#F2C462" delay={750} />
-          <TravelDot from={[74, 388]} to={[171, 230]} fill="#F2C462" delay={1500} />
-          <TravelDot from={[268, 388]} to={[171, 230]} fill="#F2C462" delay={2250} />
+          <Fx kind="shimmer">
+            <G fill="none" stroke="#8FC6A9" strokeOpacity={opacity} strokeWidth={width}>
+              <FadeInG>
+                <Path d={WEB_SPOKES} />
+              </FadeInG>
+              <FadeInG delay={350}>
+                <Path d={RINGS[0]} />
+              </FadeInG>
+              <FadeInG delay={700}>
+                <Path d={RINGS[1]} />
+              </FadeInG>
+              <FadeInG delay={1050}>
+                <Path d={RINGS[2]} />
+              </FadeInG>
+            </G>
+          </Fx>
+          {level >= 2 && (
+            <G fill="#DDF3E8">
+              {NODE_SPOTS.map(([x, y, r, d], i) => (
+                <TwinkleDot key={i} cx={x} cy={y} r={r} delay={d} />
+              ))}
+            </G>
+          )}
+          {level >= 3 &&
+            PLUS_SPOTS.map(([x, y], i) => (
+              <G key={i} transform={`translate(${x} ${y})`}>
+                <Fx kind="twinkle" delay={(i % 3) * 700}>
+                  <Path d="M-5 0 L5 0 M0 -6 L0 6" stroke="#F2C462" strokeWidth={1.6} strokeLinecap="round" />
+                </Fx>
+              </G>
+            ))}
         </>
-      )}
+      ) : null}
+      {lights ? (
+        <>
+          <FlowPath d="M74 52 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M268 52 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M74 388 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M268 388 L171 230" stroke="#8FC6A9" />
+          <TravelDot from={[74, 52]} to={[171, 230]} fill="#F2C462" />
+          {level >= 2 && (
+            <>
+              <TravelDot from={[268, 52]} to={[171, 230]} fill="#F2C462" delay={750} />
+              <TravelDot from={[74, 388]} to={[171, 230]} fill="#F2C462" delay={1500} />
+              <TravelDot from={[268, 388]} to={[171, 230]} fill="#F2C462" delay={2250} />
+            </>
+          )}
+        </>
+      ) : null}
     </Svg>
   );
 }

@@ -178,12 +178,20 @@ function ItemArt({ id }: { id: string }) {
     case 'prayerlights':
       return (
         <>
-          <Circle cx={16} cy={16} r={11} fill="none" stroke="#8FC6A9" strokeWidth={0.9} opacity={0.6} />
-          <Circle cx={16} cy={16} r={6} fill="none" stroke="#8FC6A9" strokeWidth={0.9} opacity={0.6} />
-          <Path d="M4 4 L16 16 M28 4 L16 16 M4 28 L16 16 M28 28 L16 16" stroke="#8FC6A9" strokeWidth={1} strokeDasharray="1.5 2.5" />
-          <Circle cx={9} cy={9} r={1.8} fill="#F2C462" />
+          <Path d="M4 4 L16 16 M28 4 L16 16 M4 28 L16 16 M28 28 L16 16" stroke="#8FC6A9" strokeWidth={1.1} strokeDasharray="1.5 2.5" />
+          <Circle cx={9} cy={9} r={2} fill="#F2C462" />
+          <Circle cx={23} cy={23} r={1.6} fill="#F2C462" />
           <Circle cx={16} cy={16} r={2.4} fill="#F2C462" />
         </>
+      );
+    case 'greatweb':
+      return (
+        <G fill="none" stroke="#8FC6A9" strokeWidth={1}>
+          <Circle cx={16} cy={16} r={12} opacity={0.7} />
+          <Circle cx={16} cy={16} r={7.5} opacity={0.7} />
+          <Circle cx={16} cy={16} r={3} opacity={0.7} />
+          <Path d="M16 3 V29 M3 16 H29 M7 7 L25 25 M25 7 L7 25" opacity={0.55} />
+        </G>
       );
     case 'cushion':
       return (
