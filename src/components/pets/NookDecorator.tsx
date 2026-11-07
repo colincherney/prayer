@@ -22,7 +22,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CloseIcon } from '@/components/saint/Icons';
 import { FONTS } from '@/components/saint/theme';
-import { itemProductId, owns, sceneProductId } from '@/lib/store';
+import { itemProductId, owns, sceneProductId, stripUnowned, unownedInNook } from '@/lib/store';
 import { useReleases } from '@/lib/releases';
 
 import { CosmeticIcon } from './CosmeticIcon';
@@ -274,15 +274,12 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const latestTaps = useRef<{ scene: (id: string) => void; item: (id: string) => void } | null>(null);
   const onTile = useCallback((kind: 'scene' | 'item', id: string) => latestTaps.current?.[kind](id), []);
 
+  // Anything can be tried on, owned or not. Saving is what needs it to be yours.
   const tapScene = (id: string) => {
     setSelected({ kind: 'scene', id });
-    if (sceneOwned(id)) commit(current => current.scene === id ? current : { ...current, scene: SCENES.find(s => s.id === id)!.id });
+    commit(current => current.scene === id ? current : { ...current, scene: SCENES.find(s => s.id === id)!.id });
   };
   const tapItem = (id: string) => {
-    if (!itemOwned(id)) {
-      setSelected({ kind: 'item', id });
-      return;
-    }
     const isSelected = selected?.kind === 'item' && selected.id === id;
     if (has(id) && isSelected) {
       commit(current => toggleItem(current, id));
@@ -311,9 +308,22 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     commit(current => current.items.length === 0 ? current : { ...current, items: [], offsets: {} });
   };
   const goStore = () => dismiss(() => onBrowse('/store'));
+  /** Locked pieces (and a locked scene) that are only being tried on. */
+  const previews = unownedInNook(draft, owned);
+  const removePreviews = () => {
+    setSelected(null);
+    setError(null);
+    commit(current => stripUnowned(current, owned, nook));
+  };
 
   const save = async () => {
     if (busy) return;
+    if (previews.length) {
+      setError(previews.length === 1
+        ? "One piece is only a preview. Get it in the store, or remove it, to save."
+        : `${previews.length} pieces are only previews. Get them in the store, or remove them, to save.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -333,7 +343,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const selectedOwned = selectedItem ? itemOwned(selectedItem.id) : selectedScene ? sceneOwned(selectedScene.id) : true;
   const selectedPlaced = !!selectedItem && has(selectedItem.id);
   const chipNote = !selectedOwned
-    ? selectedItem?.earned ?? 'Not in your collection yet'
+    ? selectedItem?.earned ?? 'Preview: get it in the store to keep it'
     : selectedScene
       ? 'Your backdrop'
       : selectedPlaced ? 'Hold it to move it' : 'Tap again to add';
@@ -410,7 +420,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
               <CloseIcon size={18} color={INK} />
             </Press>
             <Press onPress={save} disabled={busy} hitSlop={4} accessibilityLabel={saved ? 'Saved' : 'Save your nook'}
-              style={[styles.saveButton, saved && styles.saveDone]}>
+              style={[styles.saveButton, saved && styles.saveDone, previews.length > 0 && styles.saveBlocked]}>
               {saving ? <ActivityIndicator size="small" color={BG} /> : <Text style={styles.saveText}>{saved ? 'Saved' : 'Save'}</Text>}
             </Press>
           </View>
@@ -495,11 +505,28 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
               </View>
             </Animated.View>
           ) : (
+            <>
+            {previews.length ? (
+              <View style={[styles.previewBar, { bottom: 104 + bottomInset }]}>
+                <Text numberOfLines={2} style={styles.previewText}>
+                  Previewing {previews.length} {previews.length === 1 ? 'piece' : 'pieces'} you don&apos;t have yet
+                </Text>
+                <View style={styles.panelActions}>
+                  <Press onPress={goStore} accessibilityRole="link" style={styles.panelStore}>
+                    <Text style={styles.panelStoreText}>Store</Text>
+                  </Press>
+                  <Press onPress={removePreviews} disabled={busy} accessibilityLabel="Remove the previews" style={styles.panelButton}>
+                    <Text style={styles.panelButtonText}>Remove previews</Text>
+                  </Press>
+                </View>
+              </View>
+            ) : null}
             <View pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.readout, { bottom: 30 + bottomInset }]}>
               <Text numberOfLines={1} style={styles.readoutText}>Scene: {scene.name}</Text>
               <Text style={styles.readoutText}>Pieces: {draft.items.length} / {TOTAL_PIECES}</Text>
               <Text numberOfLines={1} style={[styles.readoutText, setDone && styles.readoutDone]}>{setText}</Text>
             </View>
+            </>
           )}
 
           <Press onPress={undo} disabled={busy || history.past.length === 0} accessibilityLabel="Undo"
@@ -555,6 +582,16 @@ const styles = StyleSheet.create({
   title: { fontFamily: FONTS.displaySemi, fontSize: 19, color: INK },
   saveButton: { width: 82, height: 42, borderRadius: 12, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center', ...shadow },
   saveDone: { backgroundColor: SAVED },
+  saveBlocked: { opacity: 0.55 },
+  previewBar: {
+    position: 'absolute',
+    left: 92,
+    right: 14,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(20,17,42,0.92)',
+  },
+  previewText: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 18, color: INK },
   saveText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: BG },
 
   rail: { position: 'absolute', left: 10, width: 68, borderRadius: 14, backgroundColor: RAIL, overflow: 'hidden' },
