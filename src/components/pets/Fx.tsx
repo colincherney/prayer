@@ -296,7 +296,14 @@ function tracksFor(preset: Preset): Track[] {
 }
 
 /** A group that loops one of the Me-page CSS animations via Reanimated. */
+/**
+ * Loops that are switched off: the whole-body squash-and-hop the baby companions did. It squashed and lifted the
+ * entire pet drawing every couple of seconds, which was the laggiest animation. Remove a kind to bring it back.
+ */
+const STILL_KINDS: ReadonlySet<FxKind> = new Set<FxKind>(['zBabyHop', 'hopP']);
+
 export function Fx({ kind, ...props }: FxProps) {
+  if (STILL_KINDS.has(kind)) return <G>{props.children}</G>;
   return <FxLoop preset={PRESETS[kind]} {...props} />;
 }
 
