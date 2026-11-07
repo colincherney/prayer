@@ -22,7 +22,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CloseIcon } from '@/components/saint/Icons';
 import { FONTS } from '@/components/saint/theme';
-import { itemProductId, owns, sceneProductId, stripUnowned, unownedInNook } from '@/lib/store';
+import { itemProductId, owns, sceneProductId, unownedInNook } from '@/lib/store';
 import { useReleases } from '@/lib/releases';
 
 import { CosmeticIcon } from './CosmeticIcon';
@@ -310,11 +310,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const goStore = () => dismiss(() => onBrowse('/store'));
   /** Locked pieces (and a locked scene) that are only being tried on. */
   const previews = unownedInNook(draft, owned);
-  const removePreviews = () => {
-    setSelected(null);
-    setError(null);
-    commit(current => stripUnowned(current, owned, nook));
-  };
 
   const save = async () => {
     if (busy) return;
@@ -511,28 +506,16 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
               </View>
             </Animated.View>
           ) : (
-            <>
-            {previews.length ? (
-              <View style={[styles.previewBar, { bottom: 104 + bottomInset }]}>
-                <Text numberOfLines={2} style={styles.previewText}>
-                  Previewing {previews.length} {previews.length === 1 ? 'piece' : 'pieces'} you don&apos;t have yet
-                </Text>
-                <View style={styles.panelActions}>
-                  <Press onPress={goStore} accessibilityRole="link" style={styles.panelStore}>
-                    <Text style={styles.panelStoreText}>Store</Text>
-                  </Press>
-                  <Press onPress={removePreviews} disabled={busy} accessibilityLabel="Remove the previews" style={styles.panelButton}>
-                    <Text style={styles.panelButtonText}>Remove previews</Text>
-                  </Press>
-                </View>
-              </View>
-            ) : null}
             <View pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.readout, { bottom: 30 + bottomInset }]}>
               <Text numberOfLines={1} style={styles.readoutText}>Scene: {scene.name}</Text>
               <Text style={styles.readoutText}>Pieces: {draft.items.length} / {TOTAL_PIECES}</Text>
               <Text numberOfLines={1} style={[styles.readoutText, setDone && styles.readoutDone]}>{setText}</Text>
+              {previews.length ? (
+                <Text numberOfLines={1} style={styles.previewNote}>
+                  {previews.length} {previews.length === 1 ? 'preview' : 'previews'} · not saved until owned
+                </Text>
+              ) : null}
             </View>
-            </>
           )}
 
           <Press onPress={undo} disabled={busy || history.past.length === 0} accessibilityLabel="Undo"
@@ -590,15 +573,7 @@ const styles = StyleSheet.create({
   saveButton: { width: 82, height: 42, borderRadius: 12, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center', ...shadow },
   saveDone: { backgroundColor: SAVED },
   saveBlocked: { opacity: 0.55 },
-  previewBar: {
-    position: 'absolute',
-    left: 92,
-    right: 14,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(20,17,42,0.92)',
-  },
-  previewText: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 18, color: INK },
+  previewNote: { marginTop: 2, fontFamily: FONTS.bodySemi, fontSize: 11, color: ACCENT, opacity: 0.9 },
   saveText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: BG },
 
   rail: { position: 'absolute', left: 10, width: 68, borderRadius: 14, backgroundColor: RAIL, overflow: 'hidden' },
