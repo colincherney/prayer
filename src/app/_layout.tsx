@@ -12,6 +12,7 @@ import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { markLaunched } from '@/lib/launch';
 import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
 import { preloadPet } from '@/lib/pet';
@@ -49,6 +50,7 @@ function RootStack() {
   useEffect(() => {
     if (navSettled && fontsLoaded) {
       SplashScreen.hideAsync().catch(() => {});
+      markLaunched();
     }
   }, [navSettled, fontsLoaded]);
 

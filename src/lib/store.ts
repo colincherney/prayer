@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { useReleases } from '@/lib/releases';
 import { buyStoreProduct, purchasesAvailable, restoreStorePurchases } from '@/lib/purchases';
+import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
 
 /** The Saint Central+ bundle unlocks every cosmetic. */
@@ -150,9 +151,9 @@ export function useOwned() {
   }, [session]);
 
   useFocusEffect(
-    useCallback(() => {
+    useCallback(() => afterLaunch(() => {
       refresh();
-    }, [refresh]),
+    }), [refresh]),
   );
 
   return { owned, loaded, refresh };

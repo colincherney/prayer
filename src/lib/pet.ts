@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId, PETS, useAvailablePets } from '@/components/pets/registry';
 import { useAuth } from '@/lib/auth';
+import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
 
 /** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level). */
@@ -244,8 +245,12 @@ export function usePetProgress() {
 
   useFocusEffect(
     useCallback(() => {
-      reload();
+      // Saved copies cover the first moments after launch, so the refresh waits until the app has settled.
+      const cancel = afterLaunch(() => {
+        reload();
+      });
       return () => {
+        cancel();
         loadId.current += 1;
       };
     }, [reload]),

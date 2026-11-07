@@ -48,6 +48,7 @@ import { PageAmbience } from '@/components/saint/PageAmbience';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 import { usePetProgress } from '@/lib/pet';
@@ -168,7 +169,8 @@ export default function MeScreen() {
     useCallback(() => {
       if (!session) return;
       let cancelled = false;
-      (async () => {
+      // The saved counts show first; the refresh waits until the app has settled after launch.
+      const cancel = afterLaunch(async () => {
         try {
           const userId = session.user.id;
           const [offered, shared, sent, received] = await Promise.all([
@@ -202,8 +204,9 @@ export default function MeScreen() {
         } catch (e) {
           console.warn('Me stats failed', e);
         }
-      })();
+      });
       return () => {
+        cancel();
         cancelled = true;
       };
     }, [session]),

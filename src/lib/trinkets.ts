@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import type { QuestCategory } from '@/lib/questPool';
 import { useReleases } from '@/lib/releases';
+import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
 
 /** Display order, two per month of the original schedule, matched to the season where one fits. */
@@ -262,8 +263,12 @@ export function useTrinkets() {
 
   useFocusEffect(
     useCallback(() => {
-      reload();
+      // Saved copies cover the first moments after launch, so the refresh waits until the app has settled.
+      const cancel = afterLaunch(() => {
+        reload();
+      });
       return () => {
+        cancel();
         loadId.current += 1;
       };
     }, [reload]),
