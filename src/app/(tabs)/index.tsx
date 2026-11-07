@@ -1,241 +1,634 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Pressable, StatusBar, StyleProp, StyleSheet, Text, useWindowDimensions, View, ViewStyle } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  FadeIn,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import React from 'react';
+import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HomePet } from '@/components/pets/HomePet';
 import { useAppearanceMode } from '@/components/saint/appearanceMode';
-import { ChristmasScene } from '@/components/saint/ChristmasScene';
 import { DustMotes } from '@/components/saint/DustMotes';
-import { HalloweenScene } from '@/components/saint/HalloweenScene';
 import { HeroIllustration } from '@/components/saint/Hero';
-import { PenIcon, PrayingIcon, ShieldIcon, SparkleIcon } from '@/components/saint/Icons';
-import { LamplitScene } from '@/components/saint/LamplitScene';
+import {
+  ArrowIcon,
+  PenIcon,
+  PrayingIcon,
+  ShieldIcon,
+  SparkleIcon,
+  StarIcon,
+} from '@/components/saint/Icons';
+import { HomePet } from '@/components/pets/HomePet';
+import { ChristmasScene } from '@/components/saint/ChristmasScene';
 import { MONTHLY_ROOMS, MonthlyRoomName } from '@/components/saint/monthlyRooms';
 import { MONTHLY_SCENES } from '@/components/saint/monthlyScenes';
-import { PRAYER_ROOM_LABELS, PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
+import { HalloweenScene } from '@/components/saint/HalloweenScene';
+import { LamplitScene } from '@/components/saint/LamplitScene';
 import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
+import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
+import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
 import {
-  CHRISTMAS_VERSES,
+  Pill,
+  RoundIcon,
+  ScriptureTicker,
+  Squiggle,
+} from '@/components/saint/Common';
+import {
   FONTS,
-  HALLOWEEN_VERSES,
-  THANKSGIVING_VERSES,
   Theme,
   useTheme,
+  useThemedStyles,
+  CHRISTMAS_VERSES,
+  HALLOWEEN_VERSES,
+  THANKSGIVING_VERSES,
   VERSES,
 } from '@/components/saint/theme';
-import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
+import { PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const ROOM_SCENES: Partial<Record<PrayerRoomName, React.ComponentType>> = {
-  lamp: LamplitScene,
-  window: WindowSeatScene,
-  stars: StarlitGardenScene,
-  jungle: RainforestVigilScene,
-  halloween: HalloweenScene,
-  thanksgiving: ThanksgivingScene,
-  christmas: ChristmasScene,
-  ...MONTHLY_SCENES,
-};
-const SEASONAL_VERSES: Partial<Record<PrayerRoomName, typeof VERSES>> = {
-  halloween: HALLOWEEN_VERSES,
-  thanksgiving: THANKSGIVING_VERSES,
-  christmas: CHRISTMAS_VERSES,
-};
-
-/** Choose readable button ink for both pale room highlights and saturated theme accents. */
-function accentInk(color: string) {
-  const channels = [1, 3, 5].map(offset => {
-    const channel = parseInt(color.slice(offset, offset + 2), 16) / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-  return luminance > 0.179 ? '#090F0D' : '#FFFFFF';
+export default function HomeScreen() {
+  const { mode } = useAppearanceMode();
+  return mode === 'theme' ? <ThemeHomeScreen /> : <RoomHomeScreen />;
 }
 
-function HomeAction({ onPress, accessibilityLabel, children, style }: {
-  onPress: () => void;
-  accessibilityLabel: string;
-  children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const reducedMotion = useReducedMotion();
-  const press = useSharedValue(0);
-  const feedback = useAnimatedStyle(() => ({
-    opacity: 1 - press.get() * 0.2,
-    transform: [{ scale: reducedMotion ? 1 : 1 - press.get() * 0.025 }],
-  }));
+// Theme mode — flat color palette, the same design across every page. No
+// prayer-room scene, so a theme pick never overlaps with the room art.
+function ThemeHomeScreen() {
+  const fontsLoaded = useSaintFonts();
+  const { theme: THEME } = useTheme();
+  const styles = useThemedStyles(makeThemeStyles);
+
+  if (!fontsLoaded) {
+    return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
+  }
+
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      accessibilityRole="link"
-      accessibilityLabel={accessibilityLabel}
-      onPressIn={() => press.set(withTiming(1, { duration: reducedMotion ? 0 : 120 }))}
-      onPressOut={() => press.set(withTiming(0, { duration: reducedMotion ? 0 : 200 }))}
-      style={[style, feedback]}>
-      {children}
-    </AnimatedPressable>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle="dark-content" />
+
+      {/* Top scripture ticker */}
+      <View style={{ marginTop: 8, marginBottom: 14 }}>
+        <ScriptureTicker verses={VERSES.slice(0, 3)} speed={26} />
+      </View>
+
+      {/* Anonymous Prayer pill */}
+      <View style={styles.pillRow}>
+        <Pill icon={<ShieldIcon size={11} color={THEME.pillInk} />}>
+          Anonymous Prayer
+        </Pill>
+        <View style={styles.sparkles}>
+          <SparkleIcon size={10} color={THEME.muted} />
+          <SparkleIcon size={7} color={THEME.muted} />
+        </View>
+      </View>
+
+      {/* Hero — title + illustration. flex:1 absorbs remaining vertical space */}
+      <View style={styles.hero}>
+        <View style={styles.heroLeft}>
+          <Text style={styles.heroTitle}>Saint{'\n'}Central</Text>
+          <View style={{ marginTop: 12 }}>
+            <Squiggle color={THEME.accent} w={68} />
+          </View>
+          <Text style={styles.heroSubtitle}>
+            Pray anonymously.{'\n'}
+            Lift others. Find <Text style={styles.heroHope}>hope</Text>.
+          </Text>
+          <View style={{ marginTop: 8 }}>
+            <Squiggle color={THEME.accent} w={36} opacity={0.5} />
+          </View>
+        </View>
+        <View style={styles.heroIllustration} pointerEvents="none">
+          <HeroIllustration width={200} height={220} />
+        </View>
+        <HomePet variant="theme" accent={THEME.accent} />
+      </View>
+
+      {/* Mid scripture ticker */}
+      <View style={{ marginTop: 14, marginBottom: 14 }}>
+        <ScriptureTicker verses={VERSES.slice(1, 4)} speed={22} />
+      </View>
+
+      {/* Two cards */}
+      <View style={styles.cardsRow}>
+        <Pressable
+          onPress={() => router.push('/explore')}
+          style={[styles.card, styles.cardDark]}>
+          <View style={styles.cardLightChip}>
+            <PrayingIcon size={22} color={THEME.cardDark} />
+          </View>
+          <View>
+            <Text style={[styles.cardTitle, { color: THEME.cardDarkInk }]}>
+              Pray for{'\n'}Others
+            </Text>
+            <Text style={[styles.cardBody, { color: THEME.cardDarkInk, opacity: 0.85 }]}>
+              Lift someone up today
+            </Text>
+            <Text style={[styles.cardVerse, { color: THEME.cardDarkInk, opacity: 0.5 }]}>
+              Gal 6:2 · Bear one another{"'"}s burdens
+            </Text>
+          </View>
+          <View style={styles.cardFooterRow}>
+            <View style={styles.cardSparkles}>
+              <SparkleIcon size={8} color={THEME.cardDarkInk} />
+              <SparkleIcon size={6} color={THEME.cardDarkInk} />
+            </View>
+            <RoundIcon bg={THEME.accent} size={36}>
+              <ArrowIcon size={16} color="#FFF" />
+            </RoundIcon>
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push('/pair')}
+          style={[styles.card, styles.cardLight]}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.cardSoftChip}>
+              <PenIcon size={18} color={THEME.ink} />
+            </View>
+            <View style={{ opacity: 0.5 }}>
+              <StarIcon size={16} color={THEME.muted} />
+            </View>
+          </View>
+          <View>
+            <Text style={styles.cardCite}>1 Pet 5:7 · Cast your cares on Him</Text>
+            <Text style={[styles.cardTitle, { color: THEME.ink }]}>
+              Pray{'\n'}Right Now
+            </Text>
+            <Text style={[styles.cardBody, { color: THEME.inkSoft }]}>
+              Share what{"'"}s on your heart
+            </Text>
+          </View>
+          <Pill
+            icon={<SparkleIcon size={10} color={THEME.pillInk} />}
+            bg={THEME.pillBg}
+            fg={THEME.pillInk}
+            style={{ alignSelf: 'center' }}>
+            Paired anonymously
+          </Pill>
+        </Pressable>
+      </View>
+
+      {/* Bottom scripture ticker — sits right under the cards */}
+      <View style={{ marginTop: 14 }}>
+        <ScriptureTicker verses={VERSES.slice(2, 5)} speed={24} />
+      </View>
+    </SafeAreaView>
   );
 }
 
-export default function HomeScreen() {
-  const fontsLoaded = useSaintFonts();
-  const { mode } = useAppearanceMode();
-  const { theme } = useTheme();
-  const { name: roomName } = usePrayerRoom();
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const reducedMotion = useReducedMotion();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
-  const isRoom = mode === 'room';
-  const actionInk = accentInk(theme.accent);
-  const canvasWidth = Math.min(width - insets.left - insets.right, 560);
-  const [contentHeight, setContentHeight] = useState<number | null>(null);
-  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(null);
-  // Measure the flex space left by the header and controls, rather than making the page taller than the screen.
-  const portalHeight = Math.max(1, stageSize?.height ?? height - insets.top - insets.bottom - 236);
-  const portalWidth = Math.max(1, Math.min(stageSize?.width ?? canvasWidth - 48, portalHeight * 0.82, 360));
-  const compact = (contentHeight ?? height - insets.top - insets.bottom) < 620;
-  const showVerse = portalHeight >= 330;
-  const classicRoom = ['lamp', 'window', 'stars', 'jungle'].includes(roomName);
-  const artHeight = portalWidth * (classicRoom ? 874 / 402 : 844 / 390);
-  const vignetteSize = Math.max(1, Math.min(portalWidth - 12, portalHeight * 0.64, 260));
-  const Scene = ROOM_SCENES[roomName] ?? LamplitScene;
-  const monthly = isRoom && roomName in MONTHLY_ROOMS ? MONTHLY_ROOMS[roomName as MonthlyRoomName] : undefined;
-  const verse = isRoom ? monthly?.verses.top[0] ?? SEASONAL_VERSES[roomName]?.[0] ?? VERSES[2] : VERSES[2];
-  const settingLabel = isRoom ? PRAYER_ROOM_LABELS[roomName] : `${theme.name} theme`;
+const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: THEME.bg, paddingBottom: 90 },
+  pillRow: {
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sparkles: { flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.4 },
+  hero: {
+    paddingHorizontal: 22,
+    paddingTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minHeight: 220,
+  },
+  heroLeft: { flex: 1, paddingRight: 4, zIndex: 2, justifyContent: 'flex-start' },
+  heroTitle: {
+    fontFamily: FONTS.displaySemi,
+    fontSize: 46,
+    lineHeight: 46,
+    letterSpacing: -1,
+    color: THEME.ink,
+  },
+  heroSubtitle: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: THEME.inkSoft,
+    marginTop: 14,
+    maxWidth: 220,
+  },
+  heroHope: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    color: THEME.accent,
+  },
+  heroIllustration: {
+    position: 'absolute',
+    right: -6,
+    top: 8,
+    width: 200,
+    height: 220,
+  },
+  cardsRow: {
+    flex: 1,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  card: {
+    flex: 1,
+    borderRadius: 22,
+    padding: 16,
+    minHeight: 210,
+    justifyContent: 'space-between',
+  },
+  cardDark: {
+    backgroundColor: THEME.cardDark,
+    shadowColor: '#1F2A44',
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  cardLight: {
+    backgroundColor: THEME.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    shadowColor: '#1F2A44',
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  cardLightChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardSoftChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.bgSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 24,
+    lineHeight: 26,
+    letterSpacing: -0.4,
+  },
+  cardBody: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  cardVerse: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 10.5,
+    marginTop: 8,
+  },
+  cardCite: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 10.5,
+    color: THEME.muted,
+    marginBottom: 6,
+  },
+  cardFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  cardSparkles: { flexDirection: 'row', alignItems: 'center', gap: 3, opacity: 0.4 },
+});
 
-  if (!fontsLoaded) return <View style={styles.root} />;
+// Room mode — the illustrated scene design.
+function RoomHomeScreen() {
+  const fontsLoaded = useSaintFonts();
+  const { name: roomName, palette: ROOM } = usePrayerRoom();
+
+  if (!fontsLoaded) {
+    return <View style={{ flex: 1, backgroundColor: ROOM.bg }} />;
+  }
+
+  const SceneComponent =
+    roomName === 'window'
+      ? WindowSeatScene
+      : roomName === 'stars'
+        ? StarlitGardenScene
+        : roomName === 'jungle'
+          ? RainforestVigilScene
+          : roomName === 'halloween'
+            ? HalloweenScene
+            : roomName === 'thanksgiving'
+              ? ThanksgivingScene
+              : roomName === 'christmas'
+                ? ChristmasScene
+                : roomName in MONTHLY_SCENES
+                  ? MONTHLY_SCENES[roomName as MonthlyRoomName]
+                  : LamplitScene;
+  // Seasonal and monthly rooms have their own verses, pill and tagline word.
+  const seasonal = seasonalCopy(roomName);
+  const topVerses = seasonal ? seasonal.top : VERSES.slice(0, 3);
+  const midVerses = seasonal ? seasonal.mid : VERSES.slice(1, 4);
+  const lowVerses = seasonal ? seasonal.low : VERSES.slice(2, 5);
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
-      <LinearGradient pointerEvents="none" colors={[theme.bg, theme.bgSoft, theme.bg]} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
-        <View onLayout={event => setContentHeight(event.nativeEvent.layout.height)} style={[styles.canvas, { maxWidth: canvasWidth }]}>
-          <View style={styles.header}>
-            <Text maxFontSizeMultiplier={1.4} style={styles.wordmark}>Saint Central</Text>
-            <HomeAction
-              onPress={() => router.push('/customization')}
-              accessibilityLabel={`Change your prayer room or theme. Current setting: ${settingLabel}`}
-              style={styles.appearanceButton}>
-              <SparkleIcon size={19} color={theme.accent} />
-            </HomeAction>
+    <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
+      <SceneComponent />
+      <DustMotes count={26} />
+
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <StatusBar barStyle={ROOM.statusBar} />
+
+        {/* Top scripture ticker */}
+        <View style={{ marginTop: 8, marginBottom: 14 }}>
+          <ScriptureTicker
+            verses={topVerses}
+            speed={26}
+            theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
+          />
+        </View>
+
+        {/* Anonymous Prayer pill */}
+        <View style={styles.pillRow}>
+          <Pill
+            bg={ROOM.pillBg}
+            fg={ROOM.pillInk}
+            icon={<ShieldIcon size={11} color={ROOM.accent} />}>
+            {seasonal ? seasonal.pill : 'Anonymous Prayer'}
+          </Pill>
+          <View style={styles.sparkles}>
+            <SparkleIcon size={10} color={ROOM.muted} />
+            <SparkleIcon size={7} color={ROOM.muted} />
           </View>
+        </View>
 
-          <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(550)} style={styles.welcome}>
-            <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
-              maxFontSizeMultiplier={1.3} style={styles.title}>
-              Come as <Text style={styles.titleItalic}>you are.</Text>
-            </Text>
-            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={styles.roomLabel}>{settingLabel}</Text>
-          </Animated.View>
-
-          <View
-            style={styles.stage}
-            onLayout={event => {
-              const { width: nextWidth, height: nextHeight } = event.nativeEvent.layout;
-              setStageSize(current => current?.width === nextWidth && current.height === nextHeight
-                ? current : { width: nextWidth, height: nextHeight });
-            }}>
-            <Animated.View
-              entering={reducedMotion ? undefined : FadeIn.duration(750)}
-              style={[styles.portal, {
-                width: portalWidth,
-                height: portalHeight,
-                borderTopLeftRadius: portalWidth / 2,
-                borderTopRightRadius: portalWidth / 2,
-              }]}>
-              {isRoom ? (
-                <>
-                  <View pointerEvents="box-none" style={{ position: 'absolute', top: -artHeight * 0.04, width: portalWidth, height: artHeight }}>
-                    <Scene />
-                    <HomePet variant={roomName} accent={theme.accent} sceneSize={{ width: portalWidth, height: artHeight }} />
-                  </View>
-                  <DustMotes count={6} />
-                </>
-              ) : (
-                <View pointerEvents="box-none" style={styles.themeScene}>
-                  <View style={{ width: vignetteSize, height: vignetteSize }}>
-                    <View pointerEvents="none"><HeroIllustration width={vignetteSize} height={vignetteSize} /></View>
-                    <HomePet variant="theme" accent={theme.accent} sceneSize={{ width: vignetteSize, height: vignetteSize }} />
-                  </View>
-                </View>
-              )}
-              <LinearGradient pointerEvents="none" colors={['transparent', theme.bgSoft]}
-                locations={[0, 1]} style={[styles.portalFade, { height: showVerse ? 160 : 40 }]} />
-              {showVerse ? (
-                <View pointerEvents="none" style={styles.verse}>
-                  <View style={styles.verseRule} />
-                  <Text numberOfLines={3} maxFontSizeMultiplier={1.2} style={styles.verseText}>&ldquo;{verse.text}.&rdquo;</Text>
-                  <Text maxFontSizeMultiplier={1.2} style={styles.verseReference}>{verse.ref}</Text>
-                </View>
-              ) : null}
-            </Animated.View>
+        {/* Hero — title + tagline. The room IS the illustration. */}
+        <View style={styles.hero}>
+          <Text
+            style={[
+              styles.heroTitle,
+              {
+                color: ROOM.ink,
+                textShadowColor:
+                  roomName === 'window' ? 'rgba(244,234,213,0.4)' : 'rgba(0,0,0,0.35)',
+              },
+            ]}>
+            Saint{'\n'}Central
+          </Text>
+          <View style={{ marginTop: 12 }}>
+            <Squiggle color={ROOM.accent} w={68} />
           </View>
+          <Text style={[styles.heroSubtitle, { color: ROOM.inkSoft }]}>
+            Pray anonymously.{'\n'}
+            Lift others. Find{' '}
+            <Text style={[styles.heroHope, { color: ROOM.accent }]}>{seasonal ? seasonal.word : 'hope'}</Text>.
+          </Text>
+          <View style={{ marginTop: 8 }}>
+            <Squiggle color={ROOM.accent} w={36} opacity={0.5} />
+          </View>
+          <HomePet variant={roomName} accent={ROOM.accent} />
+        </View>
 
-          <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(650)} style={styles.footer}>
-            {!compact ? <Text maxFontSizeMultiplier={1.3} style={styles.invitation}>A little prayer can be a new beginning.</Text> : null}
-            <View style={styles.actions}>
-              <HomeAction onPress={() => router.push('/pair')} accessibilityLabel="Share a prayer anonymously"
-                style={[styles.action, styles.primaryAction]}>
-                <PenIcon size={17} color={actionInk} />
-                <Text maxFontSizeMultiplier={1.6} style={[styles.actionLabel, { color: actionInk }]}>Share a prayer</Text>
-              </HomeAction>
-              <HomeAction onPress={() => router.push('/explore')} accessibilityLabel="Pray for someone"
-                style={[styles.action, styles.secondaryAction]}>
-                <PrayingIcon size={18} color={theme.ink} />
-                <Text maxFontSizeMultiplier={1.6} style={[styles.actionLabel, { color: theme.ink }]}>Pray for others</Text>
-              </HomeAction>
+        {/* Mid scripture ticker — bracketed by hairline dividers like the
+            mock's mid marquee. */}
+        <View style={[styles.midTickerWrap, { borderColor: ROOM.divider }]}>
+          <ScriptureTicker
+            verses={midVerses}
+            speed={22}
+            theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
+          />
+        </View>
+
+        {/* Two cards */}
+        <View style={styles.cardsRow}>
+          <Pressable
+            onPress={() => router.push('/explore')}
+            style={[styles.card, styles.cardDark, { backgroundColor: ROOM.cardDark }]}>
+            <View style={styles.cardLightChip}>
+              <PrayingIcon size={22} color="#1f2a3a" />
             </View>
-            <View style={styles.reassurance}>
-              <ShieldIcon size={11} color={theme.inkSoft} />
-              <Text maxFontSizeMultiplier={1.4} style={styles.reassuranceText}>Always anonymous. Always welcome.</Text>
+            <View>
+              <Text style={[styles.cardTitle, { color: ROOM.cardDarkInk }]}>
+                Pray for{'\n'}Others
+              </Text>
+              <Text style={[styles.cardBody, { color: ROOM.cardDarkInk, opacity: 0.85 }]}>
+                Lift someone up today
+              </Text>
+              <Text
+                style={[styles.cardVerse, { color: ROOM.cardDarkInk, opacity: 0.5 }]}>
+                Gal 6:2 · Bear one another{"'"}s burdens
+              </Text>
             </View>
-          </Animated.View>
+            <View style={styles.cardFooterRow}>
+              <View style={styles.cardSparkles}>
+                <SparkleIcon size={8} color={ROOM.cardDarkInk} />
+                <SparkleIcon size={6} color={ROOM.cardDarkInk} />
+              </View>
+              <RoundIcon bg="#c25a36" size={36}>
+                <ArrowIcon size={16} color="#FFF" />
+              </RoundIcon>
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/pair')}
+            style={[styles.card, styles.cardLight, { backgroundColor: ROOM.cardLight }]}>
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardSoftChip}>
+                <PenIcon size={18} color={ROOM.cardLightInk} />
+              </View>
+              <View style={{ opacity: 0.5 }}>
+                <StarIcon size={16} color={ROOM.cardLightInkSoft} />
+              </View>
+            </View>
+            <View>
+              <Text style={[styles.cardCite, { color: ROOM.cardLightInkSoft }]}>
+                1 Pet 5:7 · Cast your cares on Him
+              </Text>
+              <Text style={[styles.cardTitle, { color: ROOM.cardLightInk }]}>
+                Pray{'\n'}Right Now
+              </Text>
+              <Text style={[styles.cardBody, { color: ROOM.cardLightInkSoft }]}>
+                Share what{"'"}s on your heart
+              </Text>
+            </View>
+            <Pill
+              icon={<SparkleIcon size={10} color={ROOM.cardLightPillInk} />}
+              bg={ROOM.cardLightPillBg}
+              fg={ROOM.cardLightPillInk}
+              style={{ alignSelf: 'center' }}>
+              Paired anonymously
+            </Pill>
+          </Pressable>
+        </View>
+
+        {/* Bottom scripture ticker */}
+        <View style={{ marginTop: 14 }}>
+          <ScriptureTicker
+            verses={lowVerses}
+            speed={24}
+            theme={{ ...EMPTY_THEME, muted: ROOM.lowMuted ?? ROOM.muted }}
+          />
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
-const makeStyles = (theme: Theme) => StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden', backgroundColor: theme.bg },
-  safe: { flex: 1 },
-  canvas: { flex: 1, width: '100%', alignSelf: 'center' },
-  header: { paddingHorizontal: 24, paddingTop: 8, minHeight: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 },
-  wordmark: { fontFamily: FONTS.display, fontSize: 22, lineHeight: 30, letterSpacing: -0.4, color: theme.ink, flexShrink: 1 },
-  appearanceButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line, alignItems: 'center', justifyContent: 'center' },
-  welcome: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 14, alignItems: 'center' },
-  title: { fontFamily: FONTS.display, fontSize: 34, lineHeight: 44, letterSpacing: -1.2, color: theme.ink, textAlign: 'center' },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: theme.accent },
-  roomLabel: { fontFamily: FONTS.body, fontSize: 10, lineHeight: 17, color: theme.inkSoft, marginTop: 5, letterSpacing: 0.8 },
-  stage: { flex: 1, minHeight: 0, marginHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
-  portal: { overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, backgroundColor: theme.bgSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
-  themeScene: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 30 },
-  portalFade: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  verse: { position: 'absolute', bottom: 21, left: 22, right: 22, alignItems: 'center' },
-  verseRule: { width: 22, height: 1, backgroundColor: theme.accent, opacity: 0.65, marginBottom: 12 },
-  verseText: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 16, lineHeight: 23, textAlign: 'center', color: theme.ink },
-  verseReference: { fontFamily: FONTS.body, fontSize: 9, lineHeight: 15, color: theme.inkSoft, marginTop: 7 },
-  footer: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 12, flexShrink: 0 },
-  invitation: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, lineHeight: 20, color: theme.inkSoft, textAlign: 'center', marginBottom: 14 },
-  actions: { flexDirection: 'row', gap: 10 },
-  action: { flex: 1, minHeight: 56, paddingHorizontal: 13, paddingVertical: 14, borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9 },
-  primaryAction: { backgroundColor: theme.accent },
-  secondaryAction: { backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
-  actionLabel: { fontFamily: FONTS.bodySemi, fontSize: 12, lineHeight: 18, flexShrink: 1 },
-  reassurance: { minHeight: 32, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  reassuranceText: { fontFamily: FONTS.body, fontSize: 10, lineHeight: 16, color: theme.inkSoft, flexShrink: 1, textAlign: 'center' },
+type Verse = { text: string; ref: string };
+type SeasonalCopy = { top: Verse[]; mid: Verse[]; low: Verse[]; pill: string; word: string };
+
+/** Three verses for the top ticker, two each for the middle and bottom. */
+const split = (v: Verse[]) => ({ top: v.slice(0, 3), mid: v.slice(3, 5), low: v.slice(5, 7) });
+
+/** The seasonal rooms' verses, the pill over the title, and the last word of "Find ___." */
+const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
+  halloween: { ...split(HALLOWEEN_VERSES), pill: "All Hallows' Eve", word: 'light' },
+  thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
+  christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
+};
+
+function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {
+  if (room in MONTHLY_ROOMS) {
+    const m = MONTHLY_ROOMS[room as MonthlyRoomName];
+    return { ...m.verses, pill: m.banner, word: m.word };
+  }
+  return SEASONAL_COPY[room];
+}
+
+// Stub theme passed to ScriptureTicker — only `muted` is read for color.
+const EMPTY_THEME = {
+  name: '',
+  isDark: false,
+  bg: '',
+  bgSoft: '',
+  surface: '',
+  ink: '',
+  inkSoft: '',
+  muted: '',
+  line: '',
+  cardDark: '',
+  cardDarkInk: '',
+  accent: '',
+  accentInk: '',
+  accentSoft: '',
+  pillBg: '',
+  pillInk: '',
+};
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  safe: { flex: 1, paddingBottom: 90 },
+  pillRow: {
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sparkles: { flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.6 },
+  hero: {
+    paddingHorizontal: 22,
+    paddingTop: 14,
+    minHeight: 220,
+  },
+  heroTitle: {
+    fontFamily: FONTS.displaySemi,
+    fontSize: 56,
+    lineHeight: 54,
+    letterSpacing: -1,
+    textShadowRadius: 14,
+    textShadowOffset: { width: 0, height: 2 },
+  },
+  heroSubtitle: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 14,
+    maxWidth: 240,
+  },
+  heroHope: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+  },
+  midTickerWrap: {
+    marginTop: 14,
+    marginBottom: 14,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cardsRow: {
+    flex: 1,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  card: {
+    flex: 1,
+    borderRadius: 26,
+    padding: 18,
+    minHeight: 230,
+    justifyContent: 'space-between',
+  },
+  cardDark: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(244,234,213,0.08)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 8,
+  },
+  cardLight: {
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  cardLightChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(244,234,213,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardSoftChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(31,42,58,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 26,
+    lineHeight: 28,
+    letterSpacing: -0.4,
+  },
+  cardBody: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  cardVerse: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 11,
+    marginTop: 8,
+  },
+  cardCite: {
+    fontFamily: FONTS.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 11,
+    marginBottom: 6,
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  cardSparkles: { flexDirection: 'row', alignItems: 'center', gap: 3, opacity: 0.5 },
 });
