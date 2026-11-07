@@ -374,6 +374,8 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => { if (!busy) dismiss(); }}>
       <Animated.View style={[styles.root, motionStyle]}>
         <ClaimTap.Provider value={claimTap}>
+        {/* Decorating is about placing things, so the scene, pieces and pet all hold still here. */}
+        <PetMotion.Provider value={false}>
         <GestureHandlerRootView onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={[styles.root, { backgroundColor: scene.bg }]}>
           <StatusBar barStyle="light-content" />
 
@@ -560,6 +562,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
             </>
           ) : null}
         </GestureHandlerRootView>
+        </PetMotion.Provider>
         </ClaimTap.Provider>
       </Animated.View>
     </Modal>
