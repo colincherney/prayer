@@ -140,7 +140,10 @@ export const ScriptureTicker: React.FC<{
 
   return (
     <View style={{ width: '100%', overflow: 'hidden', height: 22, justifyContent: 'center' }}>
+      {/* Drawn once into an image the graphics chip slides, so the text doesn't re-render or shimmer as it moves. */}
       <Animated.View
+        shouldRasterizeIOS
+        renderToHardwareTextureAndroid
         style={[{ flexDirection: 'row' }, tickerStyle]}>
         <Text
           onLayout={e => setTextWidth(e.nativeEvent.layout.width)}
