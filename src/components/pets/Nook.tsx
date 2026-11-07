@@ -30,6 +30,7 @@ import {
   Lighting,
   NookState,
   Offset,
+  PRAYER_LIGHTS,
   SCENES,
   TINTS,
   isEasterSet,
@@ -378,7 +379,7 @@ export const NookView = memo(function NookView({
         ]}>
         {fullBleed && hasArtScene(nook.scene) ? null : <SceneBackdrop scene={nook.scene} bg={scene.bg} />}
         {fullBleed ? null : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: TINTS[lighting] }]} />}
-        <PrayerWeb level={webLevel} />
+        {has(PRAYER_LIGHTS) ? <PrayerWeb level={webLevel} /> : null}
         {ITEM_ORDER.filter(has).map(id => (
           <NookItem
             key={id}

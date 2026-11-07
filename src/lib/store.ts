@@ -106,6 +106,7 @@ export function stripUnowned(nook: NookState, owned: ReadonlySet<string>, fallba
   const offsets = { ...nook.offsets };
   for (const id of Object.keys(offsets)) if (!items.includes(id)) delete offsets[id];
   return {
+    ...nook,
     scene: scene?.locked && !owns(owned, sceneProductId(scene.id)) ? fallback.scene : nook.scene,
     items,
     offsets,

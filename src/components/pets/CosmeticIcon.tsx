@@ -175,6 +175,16 @@ function ItemArt({ id }: { id: string }) {
   if (hasArtThumb(id)) return <ArtThumb id={id} />;
   if (isCollectionDecor(id)) return <CollectionDecorThumb id={id} />;
   switch (id) {
+    case 'prayerlights':
+      return (
+        <>
+          <Circle cx={16} cy={16} r={11} fill="none" stroke="#8FC6A9" strokeWidth={0.9} opacity={0.6} />
+          <Circle cx={16} cy={16} r={6} fill="none" stroke="#8FC6A9" strokeWidth={0.9} opacity={0.6} />
+          <Path d="M4 4 L16 16 M28 4 L16 16 M4 28 L16 16 M28 28 L16 16" stroke="#8FC6A9" strokeWidth={1} strokeDasharray="1.5 2.5" />
+          <Circle cx={9} cy={9} r={1.8} fill="#F2C462" />
+          <Circle cx={16} cy={16} r={2.4} fill="#F2C462" />
+        </>
+      );
     case 'cushion':
       return (
         <>
