@@ -397,7 +397,7 @@ export const NookView = memo(function NookView({
           <Animated.View style={hopStyle}>
             <View style={immersive ? styles.heroPet : undefined}>
             {/* On the Me page the pet is what people watch, so it alone skips the 30fps cap. */}
-            <SmoothMotion.Provider value={!!immersive || !!fullBleed || smoothAround}>
+            <SmoothMotion.Provider value={immersive || fullBleed ? true : smoothAround}>
             {petId === 'lamb' ? (
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} />
             ) : (
