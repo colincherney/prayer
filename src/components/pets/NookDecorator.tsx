@@ -461,13 +461,17 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
           </View>
 
           <View style={[styles.tools, { bottom: stackBottom }]}>
-            <Press onPress={() => setShowAll(all => !all)} disabled={busy}
-              accessibilityLabel={showAll ? 'Showing all pieces. Switch to your collection' : 'Showing your collection. Switch to all pieces'}
-              accessibilityState={{ selected: showAll }} style={[styles.tool, styles.toggle]}>
-              <Text style={[styles.toggleText, !showAll && styles.toggleActive]}>Mine</Text>
-              <View style={styles.toggleDivider} />
-              <Text style={[styles.toggleText, showAll && styles.toggleActive]}>All</Text>
-            </Press>
+            {/* Two full-size buttons, side by side, so each is easy to hit. */}
+            <View style={styles.toggleRow}>
+              <Press onPress={() => setShowAll(false)} disabled={busy} accessibilityLabel="Show your collection"
+                accessibilityState={{ selected: !showAll }} style={[styles.tool, !showAll && styles.toolOn]}>
+                <Text style={[styles.toggleText, !showAll && styles.toggleActive]}>Mine</Text>
+              </Press>
+              <Press onPress={() => setShowAll(true)} disabled={busy} accessibilityLabel="Show all pieces"
+                accessibilityState={{ selected: showAll }} style={[styles.tool, showAll && styles.toolOn]}>
+                <Text style={[styles.toggleText, showAll && styles.toggleActive]}>All</Text>
+              </Press>
+            </View>
             <Press onPress={() => setGrid(on => !on)} disabled={busy} accessibilityLabel="Snap grid"
               accessibilityState={{ selected: grid }} style={[styles.tool, grid && styles.toolOn]}>
               <GridIcon color={grid ? ACCENT : INK} />
@@ -640,10 +644,9 @@ const styles = StyleSheet.create({
   tools: { position: 'absolute', left: 10, gap: 8 },
   tool: { width: 68, height: 48, borderRadius: 12, backgroundColor: CONTROL, alignItems: 'center', justifyContent: 'center', ...shadow },
   toolOn: { backgroundColor: 'rgba(232,145,58,0.2)' },
-  toggle: { flexDirection: 'row', gap: 3, paddingHorizontal: 4 },
-  toggleText: { paddingHorizontal: 4, paddingVertical: 4, borderRadius: 6, overflow: 'hidden', fontFamily: FONTS.bodyBold, fontSize: 10, color: INK },
-  toggleActive: { backgroundColor: ACCENT, color: BG },
-  toggleDivider: { width: 1.5, height: 22, backgroundColor: INK },
+  toggleRow: { flexDirection: 'row', gap: 8 },
+  toggleText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: INK },
+  toggleActive: { color: ACCENT },
 
   readout: { position: 'absolute', left: 92, right: 92, alignItems: 'center' },
   readoutText: {
