@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -27,7 +27,7 @@ import { useReleases } from '@/lib/releases';
 
 import { CosmeticIcon } from './CosmeticIcon';
 import { NookStats, NookView } from './Nook';
-import { SmoothMotion } from './Fx';
+import { PetMotion } from './Fx';
 import { ArtFullScene, ART_H, ART_TOP, ART_W, hasArtScene } from './NookArt';
 import { NOOK_W } from './NookScene';
 import {
@@ -140,19 +140,20 @@ function Press({ style, children, onPress, ...props }: Omit<PressableProps, 'sty
   );
 }
 
-function Tile({ kind, id, label, selected, placed, locked, onPress, disabled }: {
+/** Memoized with a stable `onPress`, so a tap elsewhere doesn't redraw every tile in the rail. */
+const Tile = memo(function Tile({ kind, id, label, selected, placed, locked, onPress, disabled }: {
   kind: 'scene' | 'item';
   id: string;
   label: string;
   selected: boolean;
   placed: boolean;
   locked: boolean;
-  onPress: () => void;
+  onPress: (kind: 'scene' | 'item', id: string) => void;
   disabled: boolean;
 }) {
   return (
     <Press
-      onPress={onPress}
+      onPress={() => onPress(kind, id)}
       disabled={disabled}
       accessibilityLabel={`${label}${locked ? ', not in your collection yet' : placed ? ', in your nook' : ''}`}
       accessibilityState={{ selected }}
@@ -162,7 +163,7 @@ function Tile({ kind, id, label, selected, placed, locked, onPress, disabled }: 
       {locked ? <View style={styles.tileLock}><LockIcon /></View> : null}
     </Press>
   );
-}
+});
 
 /** A full-screen, game-style builder: the scene fills the screen, parts run down the left, tools sit in the corners. */
 export function NookDecorator({ nook, owned, stats, lighting, petId, petName, stage, onSave, onClose, onBrowse }: Props) {
@@ -269,6 +270,10 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     return !def?.locked || owns(owned, itemProductId(id));
   };
 
+  // Tiles share one stable handler that always reaches the latest tapScene and tapItem.
+  const latestTaps = useRef<{ scene: (id: string) => void; item: (id: string) => void } | null>(null);
+  const onTile = useCallback((kind: 'scene' | 'item', id: string) => latestTaps.current?.[kind](id), []);
+
   const tapScene = (id: string) => {
     setSelected({ kind: 'scene', id });
     if (sceneOwned(id)) commit(current => current.scene === id ? current : { ...current, scene: SCENES.find(s => s.id === id)!.id });
@@ -287,6 +292,9 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
       setSelected({ kind: 'item', id });
     }
   };
+  useEffect(() => {
+    latestTaps.current = { scene: tapScene, item: tapItem };
+  });
   const removeSelected = () => {
     if (selected?.kind !== 'item') return;
     const { id } = selected;
@@ -356,8 +364,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => { if (!busy) dismiss(); }}>
       <Animated.View style={[styles.root, motionStyle]}>
         <ClaimTap.Provider value={claimTap}>
-        {/* Decorating is all about the scene, so its animations skip the 30fps cap. */}
-        <SmoothMotion.Provider value>
         <GestureHandlerRootView onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={[styles.root, { backgroundColor: scene.bg }]}>
           <StatusBar barStyle="light-content" />
 
@@ -415,14 +421,16 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
             <Press onPress={() => toggleRail(false)} hitSlop={6} accessibilityLabel="Hide the parts list" style={styles.railClose}>
               <ChevronIcon left />
             </Press>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.railContent}>
+            {/* The thumbnails hold still: dozens of looping drawings in a scrolling list is what made it lag. */}
+            <PetMotion.Provider value={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.railContent} removeClippedSubviews>
               <Text accessibilityRole="header" style={[styles.section, selectedScene && styles.sectionActive]}>Scenes</Text>
               {SCENES.filter(s => (isAvailable(sceneProductId(s.id)) && (showAll || sceneOwned(s.id))) || s.id === draft.scene).map(s => (
                 <Tile key={s.id} kind="scene" id={s.id} label={s.name} disabled={busy}
                   selected={selectedScene?.id === s.id}
                   placed={draft.scene === s.id}
                   locked={!sceneOwned(s.id)}
-                  onPress={() => tapScene(s.id)} />
+                  onPress={onTile} />
               ))}
               {ROWS.map(row => (
                 <React.Fragment key={row.slot}>
@@ -432,11 +440,12 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
                       selected={selectedItem?.id === item.id}
                       placed={has(item.id)}
                       locked={!itemOwned(item.id)}
-                      onPress={() => tapItem(item.id)} />
+                      onPress={onTile} />
                   ))}
                 </React.Fragment>
               ))}
             </ScrollView>
+            </PetMotion.Provider>
           </View>
 
           <View style={[styles.tools, { bottom: stackBottom }]}>
@@ -524,7 +533,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
             </>
           ) : null}
         </GestureHandlerRootView>
-        </SmoothMotion.Provider>
         </ClaimTap.Provider>
       </Animated.View>
     </Modal>

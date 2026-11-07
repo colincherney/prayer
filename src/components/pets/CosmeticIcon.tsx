@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 
 import { CollectionDecorThumb, isCollectionDecor } from './collectionDecor';
-import { COLLECTION_SCENE_ART } from './collectionSceneArt';
+import { COLLECTION_SCENES } from './collectionData';
 import { ArtThumb, hasArtThumb } from './NookArt';
 
 export type CosmeticKind = 'scene' | 'item' | 'bundle';
@@ -18,13 +18,15 @@ const STAR = 'M16 5 L18 14 L27 16 L18 18 L16 27 L14 18 L5 16 L14 14 Z';
 
 /** A small circular thumbnail of a nook scene, drawn from the same colors as the scene itself. */
 function SceneArt({ id }: { id: string }) {
-  const Collection = COLLECTION_SCENE_ART[id];
-  if (Collection) {
-    // The middle of the 390x844 backdrop, around where the pet stands.
+  const collection = COLLECTION_SCENES.find(sc => sc.id === id);
+  if (collection) {
+    // A light swatch in the scene's colours. Drawing the whole full-screen scene into every thumbnail made lists lag.
     return (
-      <G transform="scale(0.082) translate(0 -330)">
-        <Collection />
-      </G>
+      <>
+        <Rect width={32} height={32} fill={collection.bg} />
+        <Circle cx={22} cy={10} r={4} fill="#F7E3B5" opacity={0.85} />
+        <Path d="M-2 22 C6 18 12 19 17 21 C23 23 28 19 34 19 V32 H-2 Z" fill={collection.sw} />
+      </>
     );
   }
   switch (id) {
