@@ -101,13 +101,34 @@ function Stage({ k, stage }: { k: ZodiacKey; stage: 1 | 2 | 3 }) {
   );
 }
 
+/**
+ * How much each monthly companion is enlarged so they stand about as tall as the first six pets (about 165 units on
+ * the 240x260 board). Measured from each animal's art; capped at 1.5x. Scaled about the feet, so they stay put.
+ */
+const ZODIAC_SCALE: Record<ZodiacKey, number> = {
+  rat: 1.15,
+  ox: 1.09,
+  tiger: 1.25,
+  rabbit: 1.0,
+  dragon: 1.09,
+  snake: 1.5,
+  horse: 1.15,
+  goat: 1.1,
+  monkey: 1.27,
+  rooster: 1.39,
+  dog: 1.42,
+  pig: 1.5,
+};
+/** Where the art's feet land on the board (its 200-unit box sits at 20, 54 and the feet at y 188). */
+const FEET = { x: 120, y: 242 };
+
 /** A monthly companion at its evolution stage. */
 function ZodiacPet({ k, stage, size = 220, animated = true }: PetProps & { k: ZodiacKey }) {
   return (
     <PetFrame size={size} animated={animated} label={ZODIAC[k].labels[stage - 1]}>
       <ZodiacDefs k={k} />
       {stage === 3 ? <SoftGlow cx={120} cy={150} r={112} color={ZODIAC[k].glow} kind="glow" /> : null}
-      <G transform="translate(20 54)">
+      <G transform={`translate(${FEET.x * (1 - ZODIAC_SCALE[k])} ${FEET.y * (1 - ZODIAC_SCALE[k])}) scale(${ZODIAC_SCALE[k]}) translate(20 54)`}>
         <Stage k={k} stage={stage} />
       </G>
     </PetFrame>

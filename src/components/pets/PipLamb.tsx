@@ -47,6 +47,9 @@ const STAGE = {
 } as const;
 
 // Keyframes lifted from the CSS in the mockup.
+/** Pip's art is drawn smaller than the other companions', so it's enlarged to match (about 165 units tall). */
+const PIP_SCALE = 1.3;
+
 const HOP = { stops: [0, 0.7, 0.78, 0.86, 0.92, 1], vals: [0, 0, -14, 0, -5, 0] };
 const BOB = { stops: [0, 0.5, 1], vals: [0, -7, 0] };
 const WIGGLE = { stops: [0, 0.78, 0.86, 1], vals: [0, 0, 16, 0] };
@@ -245,11 +248,14 @@ export function PipLamb({ stage, size = 220, animated = true }: PipLambProps) {
       <PetMotion.Provider value={animated}>
       <Svg viewBox="0 0 240 260" width="100%" height="100%">
         {stage === 3 && <ACircle animatedProps={glowProps} cx={120} cy={150} r={104} fill={COLORS.gold} />}
-        {stage === 1 ? (
-          <G transform="translate(50 110) scale(0.7)">{art}</G>
-        ) : (
-          <G transform="translate(20 56)">{art}</G>
-        )}
+        {/* Enlarged about its feet so Pip stands about as tall as the other companions. */}
+        <G transform={`translate(${120 * (1 - PIP_SCALE)} ${240 * (1 - PIP_SCALE)}) scale(${PIP_SCALE})`}>
+          {stage === 1 ? (
+            <G transform="translate(50 110) scale(0.7)">{art}</G>
+          ) : (
+            <G transform="translate(20 56)">{art}</G>
+          )}
+        </G>
         {stage === 3 && (
           <>
             <Sparkle x={26} y={70} fill={COLORS.gold} p={tw1} />
