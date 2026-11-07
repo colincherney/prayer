@@ -360,7 +360,8 @@ export function TwinkleStar({ x, y, fill, delay = 0 }: { x: number; y: number; f
 export function FlowPath({ d, stroke }: { d: string; stroke: string }) {
   const enabled = useMotionEnabled(true);
   const p = useLoop(1400, 0, enabled, 0);
-  const steps = frameSteps(1400);
+  // Things that travel look choppy at 30fps, so these run at the screen's full rate.
+  const steps = frameSteps(1400, true);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: -12 * stepped(p.get(), steps) }));
   return (
     <APath
@@ -454,7 +455,8 @@ export function TravelDot({
 }) {
   const enabled = useMotionEnabled(true);
   const p = useLoop(3000, delay, enabled, 0.5);
-  const steps = frameSteps(3000);
+  // A moving dot steps visibly at 30fps, so it runs at the screen's full rate.
+  const steps = frameSteps(3000, true);
   const animatedProps = useAnimatedProps(() => {
     const at = stepped(p.get(), steps);
     return {
