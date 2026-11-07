@@ -456,15 +456,15 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
           </View>
 
           <View style={[styles.tools, { bottom: stackBottom }]}>
-            {/* Two full-size buttons, side by side, so each is easy to hit. */}
-            <View style={styles.toggleRow}>
-              <Press onPress={() => setShowAll(false)} disabled={busy} accessibilityLabel="Show your collection"
-                accessibilityState={{ selected: !showAll }} style={[styles.tool, !showAll && styles.toolOn]}>
-                <Text style={[styles.toggleText, !showAll && styles.toggleActive]}>Mine</Text>
-              </Press>
+            {/* Two separate buttons stacked in the tool column (shorter, so the column still clears the parts list). */}
+            <View style={styles.toggleStack}>
               <Press onPress={() => setShowAll(true)} disabled={busy} accessibilityLabel="Show all pieces"
-                accessibilityState={{ selected: showAll }} style={[styles.tool, showAll && styles.toolOn]}>
+                accessibilityState={{ selected: showAll }} style={[styles.tool, styles.toolShort, showAll && styles.toolOn]}>
                 <Text style={[styles.toggleText, showAll && styles.toggleActive]}>All</Text>
+              </Press>
+              <Press onPress={() => setShowAll(false)} disabled={busy} accessibilityLabel="Show your collection"
+                accessibilityState={{ selected: !showAll }} style={[styles.tool, styles.toolShort, !showAll && styles.toolOn]}>
+                <Text style={[styles.toggleText, !showAll && styles.toggleActive]}>Mine</Text>
               </Press>
             </View>
             <Press onPress={() => setGrid(on => !on)} disabled={busy} accessibilityLabel="Snap grid"
@@ -619,7 +619,8 @@ const styles = StyleSheet.create({
   tools: { position: 'absolute', left: 10, gap: 8 },
   tool: { width: 68, height: 48, borderRadius: 12, backgroundColor: CONTROL, alignItems: 'center', justifyContent: 'center', ...shadow },
   toolOn: { backgroundColor: 'rgba(232,145,58,0.2)' },
-  toggleRow: { flexDirection: 'row', gap: 8 },
+  toggleStack: { gap: 6 },
+  toolShort: { height: 34 },
   toggleText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: INK },
   toggleActive: { color: ACCENT },
 
