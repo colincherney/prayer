@@ -37,15 +37,9 @@ export function useMotionEnabled(animated: boolean): boolean {
   return animated && !reduce && focused;
 }
 
-/**
- * Whether drawing animations run at the screen's full rate unless a screen asks for the 30fps cap. Set to false to
- * cap everything at 30fps again (each SVG frame redraws its whole drawing, so the cap halves that work).
- */
-export const FULL_FRAME_RATE = true;
-
-/** How many steps a loop of `durationMs` gets: 30 a second when capped, or enough to run at the screen's full rate. */
-export function frameSteps(durationMs: number, smooth?: boolean): number {
-  return Math.max(1, Math.round(durationMs / ((smooth ?? FULL_FRAME_RATE) ? 1 : 33)));
+/** How many steps a loop of `durationMs` gets at 30 frames a second, or enough to run at the screen's full rate if `smooth`. */
+export function frameSteps(durationMs: number, smooth = false): number {
+  return Math.max(1, Math.round(durationMs / (smooth ? 1 : 33)));
 }
 
 /**

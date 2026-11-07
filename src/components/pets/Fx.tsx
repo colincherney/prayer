@@ -21,10 +21,7 @@ export type Preset = { dur: number; stops: number[]; poses: Pose[]; rest: number
 /** Lets a pet turn all of its loops off (thumbnails) without threading a prop through every layer. */
 export const PetMotion = createContext(true);
 /** Lifts the 30fps cap on loops inside it, for the page where a pet is the main event. */
-/**
- * `true` lifts the 30fps cap for the loops inside it and `false` forces it; left unset, FULL_FRAME_RATE in anim.ts decides.
- */
-export const SmoothMotion = createContext<boolean | undefined>(undefined);
+export const SmoothMotion = createContext(false);
 
 function lerpKeyframe(p: number, stops: readonly number[], vals: readonly number[]): number {
   'worklet';

@@ -27,7 +27,7 @@ import { useReleases } from '@/lib/releases';
 
 import { CosmeticIcon } from './CosmeticIcon';
 import { NookStats, NookView } from './Nook';
-import { PetMotion, SmoothMotion } from './Fx';
+import { PetMotion } from './Fx';
 import { ArtFullScene, ART_H, ART_TOP, ART_W, hasArtScene } from './NookArt';
 import { NOOK_W } from './NookScene';
 import {
@@ -377,7 +377,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
         <GestureHandlerRootView onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={[styles.root, { backgroundColor: scene.bg }]}>
           <StatusBar barStyle="light-content" />
 
-          <SmoothMotion.Provider value={false}>
           {drawsFullScene ? (
             <ArtFullScene id={draft.scene} web={has('prayerweb')} webOffset={draft.offsets.prayerweb ?? NO_OFFSET} width={width} height={height} />
           ) : null}
@@ -401,7 +400,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
               onMoveItem={onMoveItem}
             />
           </View>
-          </SmoothMotion.Provider>
 
           {grid ? (
             <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
