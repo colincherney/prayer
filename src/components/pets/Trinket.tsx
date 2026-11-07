@@ -84,5 +84,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2E9D8',
   },
   bubbleText: { fontFamily: FONTS.bodyBold, fontSize: 12, color: '#1A2230' },
-  empty: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, color: '#9A8F7E', textAlign: 'center', paddingBottom: 8 },
+  empty: { fontFamily: FONTS.display, fontSize: 13, color: '#9A8F7E', textAlign: 'center', paddingBottom: 8 },
 });

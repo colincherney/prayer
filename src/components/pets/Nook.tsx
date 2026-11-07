@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { memo, useContext, useEffect, useRef, useState } from 'react';
 import {
   GestureResponderEvent,
   Modal,
@@ -20,7 +20,8 @@ import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 
 import { FONTS } from '@/components/saint/theme';
 
-import { Fx } from './Fx';
+import { COLLECTION_DECOR } from './collectionData';
+import { Fx, SmoothMotion } from './Fx';
 import { PipStage } from './PipLamb';
 import { Pet, PetId } from './registry';
 import { useLoop, useMotionEnabled } from './anim';
@@ -35,6 +36,7 @@ import {
   isSanctuarySet,
   webLevelFor,
 } from './nookData';
+import { hasArtScene } from './NookArt';
 import { NookItem } from './NookItem';
 import { ItemArt, NOOK_H, NOOK_W, NookEffects, PrayerWeb, SceneBackdrop } from './NookScene';
 import { useNookTransition } from './useNookTransition';
@@ -57,6 +59,12 @@ type Props = {
   editable?: boolean;
   /** Called when a dragged piece is dropped. */
   onMoveItem?: (id: string, offset: Offset) => void;
+  /** Called when a piece is tapped. */
+  onTapItem?: (id: string) => void;
+  /** Rounds where dragged pieces land to this many nook units. */
+  snap?: number;
+  /** The caller draws the scene, tint and Prayer web full screen behind this view (the decorator). */
+  fullBleed?: boolean;
 };
 
 type ViewProps = Props & {
@@ -101,15 +109,29 @@ export function useDoubleTap(onDoubleTap?: () => void) {
 }
 
 const PET = 150;
+/** Puts the pet's feet on the rug. */
+const PET_TOP = 198;
 const NO_OFFSET: Offset = { x: 0, y: 0 };
 /** Back to front, so floor pieces sit under the lantern and plant, and hanging pieces are on top. */
+/** Collection pieces go back to front by spot: rugs and wall art, then floor and side pieces, then overhead and ambience. */
+const LAYER_RANK: Record<string, number> = { wall: 0, floor: 1, left: 2, right: 2, hang: 3, ambience: 4 };
+const COLLECTION_LAYERS = [...COLLECTION_DECOR]
+  .sort((a, b) => LAYER_RANK[a.slot] - LAYER_RANK[b.slot])
+  .map(d => d.id);
 const ITEM_ORDER = [
   'glass',
   'tapestry',
+  'rose',
   'cross',
+  'treeL',
+  'treeR',
+  'bluerug',
   'rug',
   'wreath',
   'cushion',
+  'bench',
+  'candles',
+  'lily',
   'lantern',
   'censer',
   'plant',
@@ -119,20 +141,34 @@ const ITEM_ORDER = [
   'chimes',
   'bats',
   'garland',
+  'lights',
+  'dove',
+  'prayerweb',
   'web',
   'autumnwreath',
   'hay',
   'jackolantern',
   'wheat',
+  ...COLLECTION_LAYERS,
 ];
 const ITEM_LABEL: Record<string, string> = {
   glass: 'Stained glass',
   tapestry: 'Alpha and Omega banner',
-  cross: 'Wooden cross',
-  rug: 'Woven rug',
+  cross: 'Olivewood cross',
+  bluerug: 'Woven rug',
+  rug: 'Prayer rug',
+  candles: 'Candle trio',
+  lily: 'Lily pot',
+  treeL: 'Olive tree',
+  treeR: 'Olive tree',
+  bench: 'Prayer bench',
+  rose: 'Rose window',
+  lights: 'String lights',
+  dove: 'Hanging dove',
+  prayerweb: 'Prayer web',
   wreath: 'Lily wreath',
   cushion: 'Prayer cushion',
-  lantern: 'Lantern',
+  lantern: 'Lantern post',
   censer: 'Incense',
   plant: 'Fig plant',
   scripture: 'Scripture stand',
@@ -146,6 +182,7 @@ const ITEM_LABEL: Record<string, string> = {
   web: 'Spiderweb',
   bats: 'Friendly bats',
   garland: 'Candy corn garland',
+  ...Object.fromEntries(COLLECTION_DECOR.map(d => [d.id, d.name])),
 };
 
 function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean; warm: boolean }) {
@@ -232,7 +269,7 @@ function ZLetter({ left, top, size, delay, enabled }: { left: number; top: numbe
   return (
     <Animated.Text
       style={[
-        { position: 'absolute', left, top, fontSize: size, color: '#B5DCC6', fontFamily: FONTS.displayItalic },
+        { position: 'absolute', left, top, fontSize: size, color: '#B5DCC6', fontFamily: FONTS.display },
         style,
       ]}>
       z
@@ -250,7 +287,8 @@ function CornerStat({ value, label, style }: { value: number; label: string; sty
 }
 
 /** "Your nook": themed scene with the sleeping pet, prayer web, decor and the four prayer stats in the corners. */
-export function NookView({
+/** Memoized so a parent's unrelated state changes (a selection, a panel) don't redraw the whole scene. */
+export const NookView = memo(function NookView({
   nook,
   stats,
   lighting,
@@ -263,8 +301,13 @@ export function NookView({
   immersive,
   editable,
   onMoveItem,
+  onTapItem,
+  snap,
+  fullBleed,
 }: ViewProps) {
   const scale = width / NOOK_W;
+  // Keeps the pet uncapped when a parent (the decorator) has already lifted the cap.
+  const smoothAround = useContext(SmoothMotion);
   const has = (id: string) => nook.items.includes(id);
   const scene = SCENES.find(s => s.id === nook.scene) ?? SCENES[0];
   const webLevel = webLevelFor(stats.offered);
@@ -305,7 +348,6 @@ export function NookView({
 
   const hangUp = has('mobile') || has('chimes');
   const warm = has('lantern') || has('censer') || has('lamp');
-  const petTop = has('rug') || has('cushion') || has('wreath') ? 156 : 150;
   const tapFor = (id: string): (() => void) | undefined =>
     id === 'lantern'
       ? () => setLanternBright(b => !b)
@@ -314,11 +356,6 @@ export function NookView({
         : id === 'lamp' || id === 'mobile' || id === 'chimes'
           ? tapHang
           : undefined;
-  const petTopSV = useSharedValue(petTop);
-  useEffect(() => {
-    petTopSV.set(withTiming(petTop, { duration: 400, easing: Easing.inOut(Easing.quad) }));
-  }, [petTop, petTopSV]);
-  const petPosStyle = useAnimatedStyle(() => ({ top: petTopSV.get() }));
   const sceneBgStyle = useAnimatedStyle(() => ({
     backgroundColor: withTiming(scene.bg, { duration: 600 }),
   }));
@@ -333,12 +370,12 @@ export function NookView({
         accessibilityLabel={`Your nook: ${scene.name} scene, pet ${awake ? 'awake' : 'sleeping'}${compact ? '' : ', with your prayer stats around it'}.${onDoubleTap ? ` Double tap to ${bare ? 'close full screen' : 'view full screen'}.` : ''}`}
         style={[
           styles.frame,
-          (bare || immersive) && styles.frameBare,
+          (bare || immersive || fullBleed) && styles.frameBare,
           { transform: [{ scale }], transformOrigin: '0% 0%' },
-          sceneBgStyle,
+          fullBleed ? styles.frameClear : sceneBgStyle,
         ]}>
-        <SceneBackdrop scene={nook.scene} bg={scene.bg} />
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: TINTS[lighting] }]} />
+        {fullBleed && hasArtScene(nook.scene) ? null : <SceneBackdrop scene={nook.scene} bg={scene.bg} />}
+        {fullBleed ? null : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: TINTS[lighting] }]} />}
         <PrayerWeb level={webLevel} />
         {ITEM_ORDER.filter(has).map(id => (
           <NookItem
@@ -348,31 +385,35 @@ export function NookView({
             scale={scale}
             editable={!!editable}
             tapLabel={ITEM_LABEL[id]}
-            onTap={tapFor(id)}
+            onTap={onTapItem ? () => { tapFor(id)?.(); onTapItem(id); } : tapFor(id)}
             onMove={onMoveItem}
-            art={<ItemArt id={id} lanternBright={lanternBright} leafOn={leafOn} hangFast={hangFast} />}
+            snap={snap}
+            art={fullBleed && id === 'prayerweb' ? null : <ItemArt id={id} lanternBright={lanternBright} leafOn={leafOn} hangFast={hangFast} />}
           />
         ))}
         <NookEffects warmLight={warm} easterSet={easter} sanctuarySet={sanctuary} />
 
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 96, width: PET, height: PET }, petPosStyle]}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: 96, top: PET_TOP, width: PET, height: PET }}>
           <Animated.View style={hopStyle}>
             <View style={immersive ? styles.heroPet : undefined}>
+            {/* On the Me page the pet is what people watch, so it alone skips the 30fps cap. */}
+            <SmoothMotion.Provider value={!!immersive || smoothAround}>
             {petId === 'lamb' ? (
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} />
             ) : (
               <Pet id={petId} stage={stage} size={PET} />
             )}
+            </SmoothMotion.Provider>
             </View>
           </Animated.View>
-        </Animated.View>
+        </View>
         {/* Only the upper part of the pet wakes it, so the rug and other floor pieces under it stay grabbable. */}
-        <Animated.View style={[{ position: 'absolute', left: 96, width: PET, height: PET * 0.72 }, petPosStyle]}>
+        <View style={{ position: 'absolute', left: 96, top: PET_TOP, width: PET, height: PET * 0.72 }}>
           <Pressable onPress={wake} accessibilityRole="button" accessibilityLabel="Say hello to your pet" style={{ flex: 1 }} />
-        </Animated.View>
-        {petId === 'lamb' && !awake && <Zzz top={petTop} />}
+        </View>
+        {petId === 'lamb' && !awake && <Zzz top={PET_TOP} />}
         {awake && (
-          <View style={{ position: 'absolute', left: 81, top: petTop - 34, width: 180, alignItems: 'center' }}>
+          <View style={{ position: 'absolute', left: 81, top: PET_TOP - 34, width: 180, alignItems: 'center' }}>
             <Text style={styles.greeting}>{GREETINGS[lighting]}</Text>
           </View>
         )}
@@ -390,7 +431,7 @@ export function NookView({
       </Animated.View>
     </View>
   );
-}
+});
 
 /** "Your nook". Double tap it to open it full screen; double tap again (or tap the X) to close. */
 export function Nook(props: Props) {
@@ -444,6 +485,7 @@ const styles = StyleSheet.create({
     borderColor: '#1F2B3A',
   },
   frameBare: { borderRadius: 0, borderWidth: 0 },
+  frameClear: { backgroundColor: 'transparent' },
   heroPet: { transform: [{ scale: 1.16 }], transformOrigin: '50% 100%' },
   fullBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   closeBtn: {

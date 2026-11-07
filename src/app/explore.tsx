@@ -25,7 +25,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -35,13 +35,11 @@ import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { relativeTime } from '@/lib/time';
 
 type PrayerRequest = {
   id: string;
   category: string;
   prayedCount: number;
-  age: string;
   text: string;
 };
 
@@ -311,7 +309,6 @@ export default function PrayForOthersScreen() {
             id: p.id as string,
             text: (p.body as string) ?? '',
             category: (p.category as string | null) ?? 'Other',
-            age: relativeTime(p.created_at as string),
             prayedCount: interactions.filter(i => i.action === 'prayed').length,
             alreadyPrayed,
           };
@@ -547,8 +544,6 @@ export default function PrayForOthersScreen() {
 
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.metaText}>{req.age.toUpperCase()}</Text>
             </View>
 
             <Text style={styles.prayer}>&ldquo;{req.text}&rdquo;</Text>
@@ -811,13 +806,6 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     letterSpacing: 1.6,
     color: NIGHT.muted,
   },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: NIGHT.muted,
-    opacity: 0.6,
-  },
   prayer: {
     fontFamily: FONTS.display,
     fontSize: 22,
@@ -840,8 +828,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     marginBottom: 10,
   },
   emptyBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     lineHeight: 21,
     color: NIGHT.inkSoft,
@@ -916,8 +903,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     borderColor: NIGHT.line,
   },
   litBannerText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: NIGHT.inkSoft,
   },
@@ -958,8 +944,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
   },
   noteInput: {
     minHeight: 56,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: NIGHT.ink,
     textAlignVertical: 'top',
@@ -994,8 +979,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     paddingVertical: 10,
   },
   noteSentText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12,
     color: NIGHT.inkSoft,
   },
@@ -1034,8 +1018,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     paddingHorizontal: 8,
   },
   completeVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12.5,
     color: NIGHT.muted,
     textAlign: 'center',

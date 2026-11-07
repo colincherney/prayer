@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -81,8 +82,10 @@ const FLARE_STARS: Array<[number, number]> = [
 const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
   const drift = useSharedValue(0);
   const pulse = useSharedValue(0);
+  const focused = useIsFocused();
 
   useEffect(() => {
+    if (!focused) return;
     drift.set(
       withRepeat(
         withSequence(
@@ -106,7 +109,7 @@ const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
       cancelAnimation(drift);
       cancelAnimation(pulse);
     };
-  }, [drift, pulse, f.delay, f.duration, f.pulse]);
+  }, [drift, pulse, f.delay, f.duration, f.pulse, focused]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const d = drift.get();
@@ -147,7 +150,9 @@ const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
 // Pulsing warm window of the hut in the canopy.
 const HutWindowGlow: React.FC = () => {
   const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
+    if (!focused) return;
     t.set(
       withRepeat(
         withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
@@ -156,7 +161,7 @@ const HutWindowGlow: React.FC = () => {
       ),
     );
     return () => cancelAnimation(t);
-  }, [t]);
+  }, [t, focused]);
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
   }));

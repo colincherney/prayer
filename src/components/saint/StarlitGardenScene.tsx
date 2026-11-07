@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -66,7 +67,9 @@ const LAMPPOSTS: Array<{ x: number; h: number; pulse: number }> = [
 // scene a sense of life without the perf cost of animating every star.
 const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
   const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
+    if (!focused) return;
     t.set(
       withRepeat(
         withTiming(1, { duration: pulse * 1000, easing: Easing.inOut(Easing.sin) }),
@@ -75,7 +78,7 @@ const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
       ),
     );
     return () => cancelAnimation(t);
-  }, [t, pulse]);
+  }, [t, pulse, focused]);
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
   }));
@@ -89,7 +92,9 @@ const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
 // Pulsing chapel window — focal warm point on the distant hill.
 const ChapelWindowGlow: React.FC = () => {
   const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
+    if (!focused) return;
     t.set(
       withRepeat(
         withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
@@ -98,7 +103,7 @@ const ChapelWindowGlow: React.FC = () => {
       ),
     );
     return () => cancelAnimation(t);
-  }, [t]);
+  }, [t, focused]);
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
   }));

@@ -32,6 +32,24 @@ export function xpFromCounts(c: { prayed: number; shared: number; journal: numbe
 const PET_KEY = 'pet.id';
 const nameKey = (id: PetId) => (id === 'lamb' ? 'pet.name' : `pet.name.${id}`);
 const levelKey = (id: PetId) => `pet.lastSeenLevel.${id}`;
+const XP_CACHE_KEY = 'pet.xpCache';
+
+type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>> };
+
+// The last known pet and XP, kept in memory so every screen draws the right pet on its first frame.
+let knownPet: { id: PetId; name: string } | null = null;
+let knownXp: XpCache | null = null;
+
+/** The last XP seen on this phone. Before the session has loaded there's no user to check it against yet. */
+function cachedXp(userId?: string): XpCache['xpByPet'] {
+  if (!knownXp || (userId && knownXp.userId !== userId)) return {};
+  return knownXp.xpByPet;
+}
+
+function rememberXp(userId: string, xpByPet: Record<PetId, number>) {
+  knownXp = { userId, xpByPet };
+  AsyncStorage.setItem(XP_CACHE_KEY, JSON.stringify(knownXp)).catch(() => {});
+}
 
 export async function loadPetId(): Promise<PetId> {
   try {
@@ -62,6 +80,16 @@ export async function savePetName(id: PetId, name: string): Promise<void> {
   } catch {}
 }
 
+/** Reads the saved pet and XP into memory. The app calls this behind the splash screen, before any screen mounts. */
+export async function preloadPet(): Promise<void> {
+  const id = await loadPetId();
+  knownPet = { id, name: await loadPetName(id) };
+  try {
+    const raw = await AsyncStorage.getItem(XP_CACHE_KEY);
+    if (raw) knownXp = JSON.parse(raw) as XpCache;
+  } catch {}
+}
+
 /** Returns true when this pet's `level` is higher than the last level shown for it on this device, then records it. */
 async function consumeLevelUp(id: PetId, level: number): Promise<boolean> {
   try {
@@ -75,8 +103,8 @@ async function consumeLevelUp(id: PetId, level: number): Promise<boolean> {
 
 /** The chosen companion and its name, reloaded whenever the screen gains focus. */
 export function usePetChoice() {
-  const [petId, setPetIdState] = useState<PetId>(DEFAULT_PET);
-  const [name, setName] = useState(getPet(DEFAULT_PET).name);
+  const [petId, setPetIdState] = useState<PetId>(knownPet?.id ?? DEFAULT_PET);
+  const [name, setNameState] = useState(knownPet?.name ?? getPet(DEFAULT_PET).name);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,8 +113,9 @@ export function usePetChoice() {
         const id = await loadPetId();
         const n = await loadPetName(id);
         if (cancelled) return;
+        knownPet = { id, name: n };
         setPetIdState(id);
-        setName(n);
+        setNameState(n);
       })();
       return () => {
         cancelled = true;
@@ -97,7 +126,14 @@ export function usePetChoice() {
   const setPetId = useCallback(async (id: PetId) => {
     setPetIdState(id);
     await savePetId(id);
-    setName(await loadPetName(id));
+    const n = await loadPetName(id);
+    knownPet = { id, name: n };
+    setNameState(n);
+  }, []);
+
+  const setName = useCallback((n: string) => {
+    if (knownPet) knownPet = { ...knownPet, name: n };
+    setNameState(n);
   }, []);
 
   // A companion that isn't out (e.g. its date was moved later) shows as the default until its date.
@@ -148,9 +184,11 @@ export function usePetProgress() {
   const { session } = useAuth();
   const choice = usePetChoice();
   const { setPetId: setChoice } = choice;
-  const [progress, setProgress] = useState<PetProgress>(petProgressFromXp(0));
+  const [progress, setProgress] = useState<PetProgress>(
+    () => petProgressFromXp(cachedXp(session?.user.id)[knownPet?.id ?? DEFAULT_PET] ?? 0),
+  );
   const [xpByPet, setXpByPet] = useState<Record<PetId, number>>(
-    () => Object.fromEntries(PETS.map(p => [p.id, 0])) as Record<PetId, number>,
+    () => ({ ...Object.fromEntries(PETS.map(p => [p.id, 0])), ...cachedXp(session?.user.id) }) as Record<PetId, number>,
   );
   const [leveledUp, setLeveledUp] = useState(false);
 
@@ -191,6 +229,7 @@ export function usePetProgress() {
       // Another device may have switched pets; follow the account.
       if (activePet !== localPet) await setChoice(activePet);
       const next = petProgressFromXp(byPet[activePet]);
+      rememberXp(userId, byPet);
       setXpByPet(byPet);
       setProgress(next);
       const up = await consumeLevelUp(activePet, next.level);

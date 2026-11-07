@@ -7,19 +7,21 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Circle, Defs, G, Path, RadialGradient, Stop } from 'react-native-svg';
+import { Circle, Defs, G, Line, Path, Polyline, RadialGradient, Stop } from 'react-native-svg';
 
-import { keyframe, useLoop, useMotionEnabled } from './anim';
+import { frameSteps, keyframe, stepped, useLoop, useMotionEnabled } from './anim';
 
 const AG = Animated.createAnimatedComponent(G);
 const ACircle = Animated.createAnimatedComponent(Circle);
 const APath = Animated.createAnimatedComponent(Path);
 
-type Pose = { o?: number; tx?: number; ty?: number; rot?: number; s?: number; sx?: number; sy?: number };
-type Preset = { dur: number; stops: number[]; poses: Pose[]; rest: number; linear?: boolean };
+export type Pose = { o?: number; tx?: number; ty?: number; rot?: number; s?: number; sx?: number; sy?: number };
+export type Preset = { dur: number; stops: number[]; poses: Pose[]; rest: number; linear?: boolean };
 
 /** Lets a pet turn all of its loops off (thumbnails) without threading a prop through every layer. */
 export const PetMotion = createContext(true);
+/** Lifts the 30fps cap on loops inside it, for the page where a pet is the main event. */
+export const SmoothMotion = createContext(false);
 
 function lerpKeyframe(p: number, stops: readonly number[], vals: readonly number[]): number {
   'worklet';
@@ -37,6 +39,12 @@ const THREE = [0, 0.5, 1];
 
 /** Loops from design/Me.dc.html, as keyframe poses. `rest` is the progress used when motion is off. */
 const PRESETS = {
+  // ---- The redesigned nook art ----
+  artFlicker: { dur: 1300, stops: [0, 0.3, 0.6, 1], poses: [{ sx: 1, sy: 1 }, { sx: 0.88, sy: 1.1 }, { sx: 1.06, sy: 0.94 }, { sx: 1, sy: 1 }], rest: 0 },
+  artSway: { dur: 4000, stops: THREE, poses: [{ rot: -1.5 }, { rot: 1.5 }, { rot: -1.5 }], rest: 0.25 },
+  artSwing: { dur: 3000, stops: THREE, poses: [{ rot: -5 }, { rot: 5 }, { rot: -5 }], rest: 0.25 },
+  artBulb: { dur: 2000, stops: THREE, poses: [{ o: 0.55 }, { o: 1 }, { o: 0.55 }], rest: 0.5 },
+  artTwinkle: { dur: 2600, stops: THREE, poses: [{ o: 0.3 }, { o: 1 }, { o: 0.3 }], rest: 0.5 },
   twinkle: { dur: 2200, stops: THREE, poses: [{ o: 0.25, s: 0.7 }, { o: 1, s: 1.1 }, { o: 0.25, s: 0.7 }], rest: 0.5 },
   glow: { dur: 3000, stops: THREE, poses: [{ o: 0.1 }, { o: 0.28 }, { o: 0.1 }], rest: 0.25 },
   glowb: { dur: 2000, stops: THREE, poses: [{ o: 0.3 }, { o: 0.5 }, { o: 0.3 }], rest: 0.25 },
@@ -263,25 +271,50 @@ type FxProps = {
   children: React.ReactNode;
 };
 
+type Track = { prop: string; vals: number[] };
+const POSE_PROPS: [keyof Pose, string, number][] = [
+  ['o', 'opacity', 1],
+  ['tx', 'translateX', 0],
+  ['ty', 'translateY', 0],
+  ['rot', 'rotation', 0],
+  ['s', 'scale', 1],
+  ['sx', 'scaleX', 1],
+  ['sy', 'scaleY', 1],
+];
+const tracksByPreset = new Map<Preset, Track[]>();
+
+/** The properties a preset animates, worked out once instead of on every frame. */
+function tracksFor(preset: Preset): Track[] {
+  let tracks = tracksByPreset.get(preset);
+  if (!tracks) {
+    tracks = POSE_PROPS
+      .filter(([key]) => preset.poses.some(pose => pose[key] !== undefined))
+      .map(([key, prop, fallback]) => ({ prop, vals: preset.poses.map(pose => pose[key] ?? fallback) }));
+    tracksByPreset.set(preset, tracks);
+  }
+  return tracks;
+}
+
 /** A group that loops one of the Me-page CSS animations via Reanimated. */
-export function Fx({ kind, delay = 0, dur, ox = 0, oy = 0, children }: FxProps) {
+export function Fx({ kind, ...props }: FxProps) {
+  return <FxLoop preset={PRESETS[kind]} {...props} />;
+}
+
+/** The same loop as Fx, for art that brings its own preset (the converted nook collection and scenes). */
+export function FxLoop({ preset, delay = 0, dur, ox = 0, oy = 0, children }: Omit<FxProps, 'kind'> & { preset: Preset }) {
   const allowed = useContext(PetMotion);
   const enabled = useMotionEnabled(allowed);
-  const preset: Preset = PRESETS[kind];
-  const p = useLoop(dur ?? preset.dur, delay, enabled, preset.rest);
+  const duration = dur ?? preset.dur;
+  const p = useLoop(duration, delay, enabled, preset.rest);
+  const { stops, linear } = preset;
+  const tracks = tracksFor(preset);
+  const steps = frameSteps(duration, useContext(SmoothMotion));
   const animatedProps = useAnimatedProps(() => {
+    const at = stepped(p.get(), steps);
     const out: Record<string, number> = {};
-    const { stops, poses } = preset;
-    const kf = preset.linear ? lerpKeyframe : keyframe;
-    const has = (k: keyof Pose) => poses.some(q => q[k] !== undefined);
-    const vals = (k: keyof Pose, d: number) => poses.map(q => q[k] ?? d);
-    if (has('o')) out.opacity = kf(p.get(), stops, vals('o', 1));
-    if (has('tx')) out.translateX = kf(p.get(), stops, vals('tx', 0));
-    if (has('ty')) out.translateY = kf(p.get(), stops, vals('ty', 0));
-    if (has('rot')) out.rotation = kf(p.get(), stops, vals('rot', 0));
-    if (has('s')) out.scale = kf(p.get(), stops, vals('s', 1));
-    if (has('sx')) out.scaleX = kf(p.get(), stops, vals('sx', 1));
-    if (has('sy')) out.scaleY = kf(p.get(), stops, vals('sy', 1));
+    for (let i = 0; i < tracks.length; i++) {
+      out[tracks[i].prop] = linear ? lerpKeyframe(at, stops, tracks[i].vals) : keyframe(at, stops, tracks[i].vals);
+    }
     return out;
   });
   return (
@@ -327,7 +360,8 @@ export function TwinkleStar({ x, y, fill, delay = 0 }: { x: number; y: number; f
 export function FlowPath({ d, stroke }: { d: string; stroke: string }) {
   const enabled = useMotionEnabled(true);
   const p = useLoop(1400, 0, enabled, 0);
-  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: -12 * p.get() }));
+  const steps = frameSteps(1400);
+  const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: -12 * stepped(p.get(), steps) }));
   return (
     <APath
       d={d}
@@ -369,12 +403,41 @@ export function DashFlow({ kind, ...props }: React.ComponentProps<typeof Path> &
   const flow: DashFlowSpec = DASH_FLOWS[kind];
   const enabled = useMotionEnabled(useContext(PetMotion));
   const p = useLoop(flow.dur, 0, enabled, 0);
+  const steps = frameSteps(flow.dur, useContext(SmoothMotion));
   const animatedProps = useAnimatedProps(() => {
-    const out: Record<string, number> = { strokeDashoffset: lerpKeyframe(p.get(), flow.stops, flow.offset) };
-    if (flow.opacity) out.opacity = lerpKeyframe(p.get(), flow.stops, flow.opacity);
+    const at = stepped(p.get(), steps);
+    const out: Record<string, number> = { strokeDashoffset: lerpKeyframe(at, flow.stops, flow.offset) };
+    if (flow.opacity) out.opacity = lerpKeyframe(at, flow.stops, flow.opacity);
     return out;
   });
   return <APath strokeDasharray={flow.dash} {...props} animatedProps={animatedProps} />;
+}
+
+const DASH_SHAPES = {
+  path: APath,
+  line: Animated.createAnimatedComponent(Line),
+  circle: ACircle,
+  polyline: Animated.createAnimatedComponent(Polyline),
+} as const;
+
+/** Marching dashes from a converted preset: `offset` holds the dash offset keyframes, `opacity` optional fades. */
+export function DashLoop({ shape, preset, delay = 0, ...props }: Record<string, unknown> & {
+  shape: keyof typeof DASH_SHAPES;
+  preset: { dur: number; stops: number[]; offset: number[]; opacity?: number[]; linear?: boolean };
+  delay?: number;
+}) {
+  const enabled = useMotionEnabled(useContext(PetMotion));
+  const p = useLoop(preset.dur, delay, enabled, 0);
+  const steps = frameSteps(preset.dur, useContext(SmoothMotion));
+  const animatedProps = useAnimatedProps(() => {
+    const at = stepped(p.get(), steps);
+    const kf = preset.linear ? lerpKeyframe : keyframe;
+    const out: Record<string, number> = { strokeDashoffset: kf(at, preset.stops, preset.offset) };
+    if (preset.opacity) out.opacity = kf(at, preset.stops, preset.opacity);
+    return out;
+  });
+  const Shape = DASH_SHAPES[shape] as React.ComponentType<Record<string, unknown>>;
+  return <Shape {...props} animatedProps={animatedProps} />;
 }
 
 /** A gold dot that travels from (x0, y0) to (x1, y1) forever, fading in and out. */
@@ -391,11 +454,15 @@ export function TravelDot({
 }) {
   const enabled = useMotionEnabled(true);
   const p = useLoop(3000, delay, enabled, 0.5);
-  const animatedProps = useAnimatedProps(() => ({
-    cx: from[0] + (to[0] - from[0]) * p.get(),
-    cy: from[1] + (to[1] - from[1]) * p.get(),
-    opacity: keyframe(p.get(), [0, 0.33, 0.66, 1], [0, 1, 1, 0]),
-  }));
+  const steps = frameSteps(3000);
+  const animatedProps = useAnimatedProps(() => {
+    const at = stepped(p.get(), steps);
+    return {
+      cx: from[0] + (to[0] - from[0]) * at,
+      cy: from[1] + (to[1] - from[1]) * at,
+      opacity: keyframe(at, [0, 0.33, 0.66, 1], [0, 1, 1, 0]),
+    };
+  });
   return <ACircle r={3} fill={fill} animatedProps={animatedProps} />;
 }
 

@@ -12,8 +12,10 @@ import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
-import { ReleasesProvider } from '@/lib/releases';
+import { preloadPet } from '@/lib/pet';
+import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
 
@@ -108,6 +110,13 @@ function RootStack() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // The splash stays up during these quick reads, so no screen ever draws the default pet first.
+  const [preloaded, setPreloaded] = useState(false);
+  useEffect(() => {
+    Promise.all([preloadPet(), preloadReleases(), preloadLocal()]).finally(() => setPreloaded(true));
+  }, []);
+  if (!preloaded) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Hearth, HEARTH_DECOR, HearthIcon, HearthMember } from '@/components/pets/Hearth';
 import { isPetId } from '@/components/pets/registry';
@@ -153,8 +153,7 @@ const makeStyles = (THEME: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: THEME.bg },
     note: {
-      fontFamily: FONTS.displayItalic,
-      fontStyle: 'italic',
+      fontFamily: FONTS.display,
       fontSize: 13,
       lineHeight: 19,
       color: THEME.inkSoft,

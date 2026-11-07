@@ -11,6 +11,11 @@ import type { PetId } from './registry';
 // the groups card), the little things floating off it, and the pet-specific art that goes with it (paws, tails,
 // blankets, a candle in its paws). Everything is drawn on the shared 240x260 pet artboard.
 
+/** How far the vigil candle sits above where it was drawn, which puts it over the head of even the tallest pets. */
+const CANDLE_LIFT = -190;
+/** Room above the artboard for the candle's flame and glow. */
+const VIGIL_HEADROOM = 40;
+
 type Track = {
   dur: number;
   stops: number[];
@@ -332,25 +337,34 @@ export type OverlayKind = 'perch' | 'doze' | 'vigil';
 /** Pet-specific art drawn over a pet in a given scene. */
 export function PetOverlay({ petId, kind, size, warm }: { petId: PetId; kind: OverlayKind; size: number; warm?: boolean }) {
   const h = (size * 260) / 240;
+  const scale = size / 240;
+  const headroom = kind === 'vigil' ? VIGIL_HEADROOM : 0;
   return (
-    <Svg pointerEvents="none" width={size} height={h} viewBox="0 0 240 260" style={{ position: 'absolute', left: 0, top: 0 }}>
+    <Svg
+      pointerEvents="none"
+      width={size}
+      height={h + headroom * scale}
+      viewBox={`0 ${-headroom} 240 ${260 + headroom}`}
+      style={{ position: 'absolute', left: 0, top: -headroom * scale }}>
       {kind === 'perch' ? <Dangle petId={petId} /> : kind === 'doze' ? <Blanket petId={petId} /> : <PrayingPaws petId={petId} warm={warm} />}
     </Svg>
   );
 }
 
-/** Folded paws holding a tiny candle, for keeping vigil. */
+/** Folded paws, with a tiny candle floating above the pet's head, for keeping vigil. */
 function PrayingPaws({ petId, warm }: { petId: PetId; warm?: boolean }) {
   return (
     <>
-      {warm ? <SoftGlow cx={120} cy={192} r={40} color="#F2A93B" /> : null}
-      <Rect x={115} y={196} width={10} height={22} rx={2.5} fill="#F3EBDD" />
-      {warm ? (
-        <Fx kind="candle">
-          <Path d="M120 178 C127 187 126 194 120 197 C114 194 113 187 120 178 Z" fill="#F2A93B" />
-          <Path d="M120 185 C123 189 123 193 120 195 C117 193 117 189 120 185 Z" fill="#FFE08A" />
-        </Fx>
-      ) : null}
+      <G transform={`translate(0 ${CANDLE_LIFT})`}>
+        {warm ? <SoftGlow cx={120} cy={192} r={40} color="#F2A93B" /> : null}
+        <Rect x={115} y={196} width={10} height={22} rx={2.5} fill="#F3EBDD" />
+        {warm ? (
+          <Fx kind="candle">
+            <Path d="M120 178 C127 187 126 194 120 197 C114 194 113 187 120 178 Z" fill="#F2A93B" />
+            <Path d="M120 185 C123 189 123 193 120 195 C117 193 117 189 120 185 Z" fill="#FFE08A" />
+          </Fx>
+        ) : null}
+      </G>
       <G transform="translate(86 212)">
         <PawArt petId={petId} />
       </G>

@@ -12,11 +12,12 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CosmeticIcon } from '@/components/pets/CosmeticIcon';
 import { NookView } from '@/components/pets/Nook';
-import { DEFAULT_NOOK, ITEM_META, lightingForHour, NookState } from '@/components/pets/nookData';
+import { DEFAULT_NOOK, isRug, ITEM_META, lightingForHour, NookState } from '@/components/pets/nookData';
 import { NOOK_H, NOOK_W } from '@/components/pets/NookScene';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
@@ -38,7 +39,7 @@ function showcaseNook(product: Product): NookState {
   // Show decor in a calm scene so the piece stands out; stained glass looks best in the chapel. A piece that
   // would sit on the same spot as a default item replaces it.
   const meta = ITEM_META[id];
-  const items = base.items.filter(existing => ITEM_META[existing]?.slot !== meta?.slot);
+  const items = base.items.filter(existing => isRug(existing) || ITEM_META[existing]?.slot !== meta?.slot);
   return { scene: id === 'glass' ? 'chapel' : base.scene, items: [...items, id], offsets: {} };
 }
 
@@ -298,7 +299,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   closeX: { color: THEME.ink, fontSize: 24, lineHeight: 26 },
   title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 44, color: THEME.ink, marginTop: 14 },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   subtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, color: THEME.muted, marginTop: 8 },
   bundle: {
     marginHorizontal: 22,

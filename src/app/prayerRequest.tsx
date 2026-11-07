@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PopHearts, ScreenPet, petFeetOffset } from '@/components/pets/ScreenPet';
 import { PrimaryButton, SectionLabel, Squiggle } from '@/components/saint/Common';
@@ -375,10 +375,9 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginTop: 14,
     letterSpacing: -0.4,
   },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   subtitle: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: THEME.muted,
     marginTop: 12,
@@ -427,8 +426,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   urgencyBlock: { flex: 1, height: 36, borderRadius: 12 },
   urgencyLabel: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.ink,
     marginTop: 12,
@@ -458,8 +456,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderColor: THEME.line,
   },
   crisisHeading: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 18,
     color: THEME.pillInk,
     textAlign: 'center',
@@ -519,8 +516,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.4,
   },
   confirmTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   confirmBody: {
@@ -532,8 +528,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     maxWidth: 280,
   },
   confirmVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.muted,
     textAlign: 'center',

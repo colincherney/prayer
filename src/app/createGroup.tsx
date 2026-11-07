@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PrimaryButton, ScreenHeader, SectionLabel, Squiggle } from '@/components/saint/Common';
 import { GlobeIcon, LockIcon, UsersIcon } from '@/components/saint/Icons';
@@ -275,8 +275,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.4,
   },
   doneTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   doneBody: {

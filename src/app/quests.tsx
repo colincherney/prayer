@@ -2,10 +2,12 @@ import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { QuestScene } from '@/components/pets/QuestScene';
+import { RARITY_COLOR, TrinketArt } from '@/components/pets/Trinket';
+import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { petStageName } from '@/components/pets/registry';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
@@ -13,6 +15,7 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { QuestCategory } from '@/lib/questPool';
 import { CATEGORIES, CATEGORY_INFO, DailyQuest, MAX_REROLLS, QUEST_XP, QuestStatus, useQuests } from '@/lib/quests';
+import { BONUS_TRINKETS, QUEST_TRINKETS, useTrinkets } from '@/lib/trinkets';
 
 const ACircle = Animated.createAnimatedComponent(Circle);
 const RING_R = 23;
@@ -100,6 +103,7 @@ export default function QuestsScreen() {
   const { width: screenW } = useWindowDimensions();
   const { petId, name, progress, reload } = usePetProgress();
   const q = useQuests();
+  const { trinkets, reload: reloadTrinkets } = useTrinkets();
 
   const [line, setLine] = useState(() => greeting(new Date().getHours()));
   const [celebrate, setCelebrate] = useState(0);
@@ -126,15 +130,29 @@ export default function QuestsScreen() {
   const bonus = q.quests.find(x => x.slot === 'bonus');
   const doneCount = regular.filter(x => q.statusOf(x) === 'done').length;
 
+  const stillToEarn = (id: TrinketId) => trinkets.some(t => t.id === id && !t.earned);
+  /** The name of the keepsake a quest counts toward, if there's one left to earn. */
+  const keepsakeFor = (quest: DailyQuest) => {
+    const options: TrinketId[] = quest.slot === 'bonus' ? BONUS_TRINKETS : QUEST_TRINKETS[quest.category];
+    const next = options.find(stillToEarn);
+    return next ? TRINKET_INFO[next].name : undefined;
+  };
+  const share = (t: (typeof trinkets)[number]) => (t.progress ? t.progress[0] / t.progress[1] : 0);
+  const closest = trinkets.filter(t => t.quest && !t.earned).sort((a, b) => share(b) - share(a)).slice(0, 3);
+
   const afterGain = async (xp: number, extraLine?: string) => {
     const before = progress.level;
     setCelebrate(c => c + 1);
-    await reload();
+    const [, awarded] = await Promise.all([reload(), reloadTrinkets()]);
     // reload() updates progress on the next render; work out the new level from the XP that was just added.
     const after = 1 + Math.floor((progress.xp + xp) / XP_PER_LEVEL);
+    const keepsake = awarded.length ? TRINKET_INFO[awarded[0]].name : null;
     if (after > before) {
       setToast(`${name} reached Level ${after}!`);
-      setLine(`We have grown together! Level ${after}. The road ahead shines brighter.`);
+      setLine(keepsake ? `Level ${after}, and the ${keepsake} is yours. It waits on your shelf.` : `We have grown together! Level ${after}. The road ahead shines brighter.`);
+    } else if (keepsake) {
+      setToast(`New keepsake: ${keepsake}`);
+      setLine(`The ${keepsake} is yours. It waits on your shelf.`);
     } else if (extraLine) setLine(extraLine);
   };
 
@@ -255,6 +273,7 @@ export default function QuestsScreen() {
                 status={q.statusOf(quest)}
                 busy={busy === quest.id}
                 canSwap={(q.rerolls[quest.slot] ?? 0) < MAX_REROLLS}
+                keepsake={keepsakeFor(quest)}
                 onPress={onQuest}
                 onSwap={onSwap}
               />
@@ -269,6 +288,7 @@ export default function QuestsScreen() {
                   status={q.statusOf(bonus)}
                   busy={busy === bonus.id}
                   canSwap={(q.rerolls.bonus ?? 0) < MAX_REROLLS}
+                  keepsake={keepsakeFor(bonus)}
                   onPress={onQuest}
                   onSwap={onSwap}
                   featured
@@ -277,6 +297,40 @@ export default function QuestsScreen() {
             ) : null}
           </View>
         )}
+
+        {closest.length ? (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={styles.section}>KEEPSAKES TO EARN</Text>
+              <Pressable onPress={() => router.push('/trinkets')} hitSlop={8} accessibilityRole="link" accessibilityLabel="See all keepsakes">
+                <Text style={styles.seeAll}>See all →</Text>
+              </Pressable>
+            </View>
+            <View style={{ marginTop: 14, gap: 10 }}>
+              {closest.map(t => {
+                const info = TRINKET_INFO[t.id];
+                return (
+                  <Pressable key={t.id} onPress={() => router.push('/trinkets')} accessibilityRole="link"
+                    accessibilityLabel={`${info.name}. ${info.goal}.${t.progress ? ` ${t.progress[0]} of ${t.progress[1]}.` : ''}`} style={styles.keepsake}>
+                    <TrinketArt id={t.id} size={52} animated={false} />
+                    <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                      <Text numberOfLines={1} style={styles.keepsakeName}>{info.name}</Text>
+                      <Text style={styles.cardDesc}>{info.goal}</Text>
+                      {t.progress ? (
+                        <View style={styles.keepsakeRow}>
+                          <View style={styles.keepsakeTrack}>
+                            <View style={{ height: '100%', width: `${share(t) * 100}%`, backgroundColor: RARITY_COLOR[info.rarity] }} />
+                          </View>
+                          <Text style={styles.keepsakeCount}>{t.progress[0]} / {t.progress[1]}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
 
         <Text style={[styles.section, { marginTop: 28 }]}>THIS WEEK&apos;S JOURNEY</Text>
         <View style={styles.journey}>
@@ -327,6 +381,7 @@ export default function QuestsScreen() {
               )}
             </Pressable>
           </View>
+          {stillToEarn('arkInABottle') ? <Text style={styles.reward}>Finishing it also earns the {TRINKET_INFO.arkInABottle.name}</Text> : null}
           <Pressable onPress={() => router.push('/biography')} hitSlop={6}>
             <Text style={styles.journalLink}>Write your reflection in your journal →</Text>
           </Pressable>
@@ -348,6 +403,7 @@ function QuestCard({
   onPress,
   onSwap,
   featured,
+  keepsake,
 }: {
   quest: DailyQuest;
   status: QuestStatus;
@@ -356,6 +412,8 @@ function QuestCard({
   onPress: (q: DailyQuest, s: QuestStatus) => void;
   onSwap: (q: DailyQuest) => void;
   featured?: boolean;
+  /** The keepsake this quest counts toward. */
+  keepsake?: string;
 }) {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -376,6 +434,7 @@ function QuestCard({
         <Text style={[styles.cardTitle, status === 'done' && styles.strike]}>{quest.text}</Text>
         <Text style={styles.cardDesc}>{info.label}</Text>
         {quest.ref ? <Text style={styles.cardRef}>{quest.ref}</Text> : null}
+        {keepsake ? <Text style={styles.cardRef}>Counts toward {keepsake}</Text> : null}
         <View style={styles.cardFoot}>
           <View style={{ flexDirection: 'row', gap: 6, flexShrink: 1, flexWrap: 'wrap' }}>
             <View style={styles.xpChip}>
@@ -429,17 +488,23 @@ const makeStyles = (THEME: Theme) =>
     },
     countPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: THEME.pillBg },
     countText: { fontFamily: FONTS.bodySemi, fontSize: 11.5, letterSpacing: 1.4, color: THEME.pillInk },
-    title: { marginTop: 14, fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 40, color: THEME.accent },
-    subtitle: { marginTop: 6, fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 15, color: THEME.inkSoft },
+    title: { marginTop: 14, fontFamily: FONTS.display, fontSize: 40, color: THEME.accent },
+    subtitle: { marginTop: 6, fontFamily: FONTS.display, fontSize: 15, color: THEME.inkSoft },
     levelRow: { marginTop: 16, flexDirection: 'row', justifyContent: 'space-between' },
     levelName: { fontFamily: FONTS.bodySemi, fontSize: 13, color: THEME.ink },
     levelXp: { fontFamily: FONTS.body, fontSize: 13, color: THEME.muted },
     xpTrack: { marginTop: 8, height: 10, borderRadius: 999, backgroundColor: THEME.line, overflow: 'hidden' },
     xpFill: { height: 10, borderRadius: 999, backgroundColor: THEME.accent },
-    stageNote: { marginTop: 6, fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 12, color: THEME.muted },
+    stageNote: { marginTop: 6, fontFamily: FONTS.display, fontSize: 12, color: THEME.muted },
     sectionRow: { marginTop: 28, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
     section: { fontFamily: FONTS.bodySemi, fontSize: 12, letterSpacing: 2, color: THEME.ink },
     sectionMeta: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
+    seeAll: { fontFamily: FONTS.bodySemi, fontSize: 12, color: THEME.accent },
+    keepsake: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: THEME.line, backgroundColor: THEME.surface },
+    keepsakeName: { fontFamily: FONTS.bodySemi, fontSize: 14, lineHeight: 19, color: THEME.ink },
+    keepsakeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+    keepsakeTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: THEME.line },
+    keepsakeCount: { fontFamily: FONTS.bodySemi, fontSize: 11, lineHeight: 15, fontVariant: ['lining-nums'], color: THEME.inkSoft },
     ringsCard: {
       marginTop: 14,
       flexDirection: 'row',
@@ -467,7 +532,7 @@ const makeStyles = (THEME: Theme) =>
     cardTitle: { fontFamily: FONTS.display, fontSize: 17, lineHeight: 23, color: THEME.ink },
     strike: { textDecorationLine: 'line-through', color: THEME.muted },
     cardDesc: { fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 18, color: THEME.inkSoft },
-    cardRef: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 12, color: THEME.muted },
+    cardRef: { fontFamily: FONTS.display, fontSize: 12, color: THEME.muted },
     cardFoot: { marginTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
     xpChip: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 999, backgroundColor: THEME.accent + '22' },
     xpChipText: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 0.4, color: THEME.accent },
@@ -493,9 +558,9 @@ const makeStyles = (THEME: Theme) =>
     steps: { marginTop: 14, flexDirection: 'row', gap: 6 },
     step: { flex: 1, height: 8, borderRadius: 4 },
     prompt: { marginTop: 12, fontFamily: FONTS.body, fontSize: 13, lineHeight: 19, color: THEME.inkSoft },
-    promptItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.ink },
+    promptItalic: { fontFamily: FONTS.display, color: THEME.ink },
     journeyFoot: { marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
     reward: { flex: 1, fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: THEME.inkSoft },
     journalLink: { marginTop: 12, fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.accent },
-    footer: { marginTop: 32, textAlign: 'center', fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, lineHeight: 19, color: THEME.muted },
+    footer: { marginTop: 32, textAlign: 'center', fontFamily: FONTS.display, fontSize: 13, lineHeight: 19, color: THEME.muted },
   });

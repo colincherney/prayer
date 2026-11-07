@@ -49,6 +49,13 @@ export function relativeLuminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** Blends two 6-digit hex colors: 0 gives `from`, 1 gives `to`. */
+export function mixColors(from: string, to: string, amount: number): string {
+  const channel = (hex: string, index: number) => parseInt(hex.replace('#', '').substring(index * 2, index * 2 + 2), 16);
+  const mixed = [0, 1, 2].map(index => Math.round(channel(from, index) + (channel(to, index) - channel(from, index)) * amount));
+  return `#${mixed.map(value => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
 const CREAM: Theme = {
   name: 'Cream',
   isDark: false,
@@ -243,14 +250,14 @@ export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
   return useMemo(() => factory(theme), [theme, factory]);
 }
 
+/** The whole app uses Playfair Display, upright. The names only set the weight. */
 export const FONTS = {
   display: 'PlayfairDisplay_500Medium',
   displaySemi: 'PlayfairDisplay_600SemiBold',
-  displayItalic: 'PlayfairDisplay_500Medium_Italic',
-  body: 'Inter_400Regular',
-  bodyMed: 'Inter_500Medium',
-  bodySemi: 'Inter_600SemiBold',
-  bodyBold: 'Inter_700Bold',
+  body: 'PlayfairDisplay_500Medium',
+  bodyMed: 'PlayfairDisplay_500Medium',
+  bodySemi: 'PlayfairDisplay_600SemiBold',
+  bodyBold: 'PlayfairDisplay_700Bold',
 };
 
 /** Light-themed verses for the All Hallows' Eve room's scripture tickers. */

@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Pet, PetDef, useAvailablePets } from '@/components/pets/registry';
+import { Pet, PetDef, PetId, useAvailablePets } from '@/components/pets/registry';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -21,7 +21,35 @@ const PUMPKIN_ART_SIZE = 202; // Gourdy, also 46 dp larger than before
 const PUMPKIN_EVO_SIZE = 102;
 const LEVELS = ['Levels 1–4', 'Levels 5–9', 'Level 10+'] as const;
 
-function PetCard({
+/**
+ * The three evolution stages. The row opens at full size straight away, then the pets arrive one per frame, because
+ * mounting three animated pets in one go is what froze the screen for a moment.
+ */
+function EvolutionRow({ def, size }: { def: PetDef; size: number }) {
+  const styles = useThemedStyles(makeStyles);
+  const [mounted, setMounted] = useState(0);
+  useEffect(() => {
+    if (mounted >= 3) return;
+    const frame = requestAnimationFrame(() => setMounted(count => count + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [mounted]);
+  return (
+    <View style={styles.evoRow}>
+      {([1, 2, 3] as const).map(st => (
+        <View key={st} style={styles.evoCol}>
+          <View style={{ minHeight: Math.round((size * 260) / 240) }}>
+            {st <= mounted ? <Pet id={def.id} stage={st} size={size} interactive /> : null}
+          </View>
+          <Text style={styles.evoName}>{def.stages[st - 1]}</Text>
+          <Text style={styles.evoLevel}>{LEVELS[st - 1]}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Memoized so opening one card doesn't re-render every other animated pet on the page. */
+const PetCard = memo(function PetCard({
   def,
   selected,
   stage,
@@ -35,17 +63,17 @@ function PetCard({
   stage: 1 | 2 | 3;
   /** This pet's own level; pets level up separately. */
   level: number;
-  onPick: () => void;
+  onPick: (id: PetId) => void;
   /** Whether this card shows all three evolution stages. The chosen companion's card is always open. */
   expanded: boolean;
-  onToggle: () => void;
+  onToggle: (id: PetId) => void;
 }) {
   const styles = useThemedStyles(makeStyles);
   const artSize = def.id === 'pumpkin' ? PUMPKIN_ART_SIZE : ART_SIZE;
   const evoSize = def.id === 'pumpkin' ? PUMPKIN_EVO_SIZE : EVO_SIZE;
   return (
     <Pressable
-      onPress={onPick}
+      onPress={() => onPick(def.id)}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={`${def.name} the ${def.species}${selected ? ', your companion' : ''}`}
@@ -69,39 +97,40 @@ function PetCard({
         </View>
       </View>
       {expanded ? (
-        <View style={styles.evoRow}>
-          {([1, 2, 3] as const).map(st => (
-            <View key={st} style={styles.evoCol}>
-              <Pet id={def.id} stage={st} size={evoSize} interactive />
-              <Text style={styles.evoName}>{def.stages[st - 1]}</Text>
-              <Text style={styles.evoLevel}>{LEVELS[st - 1]}</Text>
-            </View>
-          ))}
-        </View>
+        <EvolutionRow def={def} size={evoSize} />
       ) : (
         <Text style={styles.stageLine}>{def.stages.join('  ·  ')}</Text>
       )}
       {selected ? null : (
-        <Pressable onPress={onToggle} hitSlop={8} accessibilityRole="button" style={styles.evoToggle}>
+        <Pressable onPress={() => onToggle(def.id)} hitSlop={8} accessibilityRole="button" style={styles.evoToggle}>
           <Text style={styles.evoToggleText}>{expanded ? 'Hide evolution' : 'See evolution'}</Text>
         </Pressable>
       )}
     </Pressable>
   );
-}
+});
 
 export default function PetsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const insets = useSafeAreaInsets();
   const { petId, setPetId, xpByPet } = usePetProgress();
   const pets = useAvailablePets();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const toggleOpen = useCallback((id: PetId) => {
+    setOpen(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
@@ -126,23 +155,16 @@ export default function PetsScreen() {
               def={def}
               selected={def.id === petId}
               expanded={def.id === petId || open.has(def.id)}
-              onToggle={() =>
-                setOpen(prev => {
-                  const next = new Set(prev);
-                  if (next.has(def.id)) next.delete(def.id);
-                  else next.add(def.id);
-                  return next;
-                })
-              }
+              onToggle={toggleOpen}
               stage={own.stage}
               level={own.level}
-              onPick={() => setPetId(def.id)}
+              onPick={setPetId}
             />
             );
           })}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -160,7 +182,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 44, color: THEME.ink, marginTop: 14 },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   subtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, color: THEME.muted, marginTop: 8 },
   list: { paddingHorizontal: 22, marginTop: 22, gap: 12 },
   card: {
@@ -176,7 +198,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   artBox: { overflow: 'visible' },
   petName: { fontFamily: FONTS.displaySemi, fontSize: 24, color: THEME.ink },
   species: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.4, color: THEME.muted, marginTop: 2 },
-  tagline: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 14, lineHeight: 19, color: THEME.inkSoft, marginTop: 8 },
+  tagline: { fontFamily: FONTS.display, fontSize: 14, lineHeight: 19, color: THEME.inkSoft, marginTop: 8 },
   badge: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.4, color: THEME.accent, marginTop: 10 },
   stageLine: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
   evoToggle: { alignSelf: 'flex-start' },

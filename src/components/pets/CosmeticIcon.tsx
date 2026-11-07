@@ -1,6 +1,10 @@
 import React from 'react';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 
+import { CollectionDecorThumb, isCollectionDecor } from './collectionDecor';
+import { COLLECTION_SCENE_ART } from './collectionSceneArt';
+import { ArtThumb, hasArtThumb } from './NookArt';
+
 export type CosmeticKind = 'scene' | 'item' | 'bundle';
 
 type Props = {
@@ -14,6 +18,15 @@ const STAR = 'M16 5 L18 14 L27 16 L18 18 L16 27 L14 18 L5 16 L14 14 Z';
 
 /** A small circular thumbnail of a nook scene, drawn from the same colors as the scene itself. */
 function SceneArt({ id }: { id: string }) {
+  const Collection = COLLECTION_SCENE_ART[id];
+  if (Collection) {
+    // The middle of the 390x844 backdrop, around where the pet stands.
+    return (
+      <G transform="scale(0.082) translate(0 -330)">
+        <Collection />
+      </G>
+    );
+  }
   switch (id) {
     case 'night':
       return (
@@ -157,14 +170,9 @@ function SceneArt({ id }: { id: string }) {
 
 /** A small glyph for a piece of decor. Drawn on a transparent 32x32 canvas. */
 function ItemArt({ id }: { id: string }) {
+  if (hasArtThumb(id)) return <ArtThumb id={id} />;
+  if (isCollectionDecor(id)) return <CollectionDecorThumb id={id} />;
   switch (id) {
-    case 'rug':
-      return (
-        <>
-          <Ellipse cx={16} cy={19} rx={13} ry={7} fill="#2E4B5E" />
-          <Ellipse cx={16} cy={19} rx={10} ry={4.6} fill="none" stroke="#8FC6A9" strokeWidth={1.2} strokeDasharray="2 2.4" />
-        </>
-      );
     case 'cushion':
       return (
         <>
@@ -190,16 +198,6 @@ function ItemArt({ id }: { id: string }) {
             <Circle cx={10} cy={24} r={1.8} />
             <Circle cx={22} cy={24} r={1.8} />
           </G>
-        </>
-      );
-    case 'lantern':
-      return (
-        <>
-          <Path d="M12 7 Q16 2 20 7" stroke="#C9A24B" strokeWidth={1.6} fill="none" />
-          <Polygon points="10,10 16,6 22,10" fill="#C9A24B" />
-          <Rect x={11} y={10} width={10} height={14} rx={2} fill="#2A2236" stroke="#C9A24B" strokeWidth={1.4} />
-          <Ellipse cx={16} cy={17} rx={2.2} ry={3.8} fill="#FFE08A" />
-          <Rect x={9} y={24} width={14} height={3} rx={1} fill="#C9A24B" />
         </>
       );
     case 'censer':
@@ -231,13 +229,6 @@ function ItemArt({ id }: { id: string }) {
           <Path d="M4 16 L16 12 L16 4 L4 8 Z" fill="#F3EBDD" />
           <Path d="M28 16 L16 12 L16 4 L28 8 Z" fill="#FFF8EC" />
           <Path d="M6.5 9.5 L13.5 7.5 M6.5 12 L13.5 10 M18.5 7.5 L25.5 9.5 M18.5 10 L25.5 12" stroke="#C9B89A" strokeWidth={0.8} />
-        </>
-      );
-    case 'cross':
-      return (
-        <>
-          <Rect x={13.5} y={3} width={5} height={26} rx={1.5} fill="#7A5C3E" />
-          <Rect x={6} y={10} width={20} height={5} rx={1.5} fill="#7A5C3E" />
         </>
       );
     case 'glass':

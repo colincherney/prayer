@@ -1,12 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   PressableProps,
+  ScrollView,
   StyleProp,
   StatusBar,
   StyleSheet,
@@ -15,55 +15,64 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeInDown,
-  LinearTransition,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Circle, Defs, LinearGradient, Mask, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { NookDecorator } from '@/components/pets/NookDecorator';
-import { TrinketShelf } from '@/components/pets/Trinket';
 import { Nook } from '@/components/pets/Nook';
-import { petStageName } from '@/components/pets/registry';
+import { KeepsakeShelf } from '@/components/pets/KeepsakeShelf';
+import { ALCOVE_SILL_H, MEDALLION_RISE, NookAlcove } from '@/components/pets/NookAlcove';
 import {
   DEFAULT_NOOK,
-  isEasterSet,
-  isSanctuarySet,
   lightingForHour,
   migrateNook,
   NookState,
-  SCENES,
-  TOD_LABELS,
-  webLevelFor,
-  webNextText,
 } from '@/components/pets/nookData';
 import {
   ArrowIcon,
   BellIcon,
   PrayingIcon,
-  ShieldIcon,
   SparkleIcon,
   StarIcon,
+  UserIcon,
 } from '@/components/saint/Icons';
-import { FONTS } from '@/components/saint/theme';
+import { Squiggle } from '@/components/saint/Common';
+import { PageAmbience } from '@/components/saint/PageAmbience';
+import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
-import { usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
+import { usePetProgress } from '@/lib/pet';
 import { stripUnowned, useOwned } from '@/lib/store';
-import { relativeTime } from '@/lib/time';
 import { useTrinkets } from '@/lib/trinkets';
 
-const NOOK_KEY = 'nook.v1';
-const INK = '#F2E9D8';
-const SOFT = '#B2BDBB';
-const ACCENT = '#BCD8BD';
+const TAB_BAR_SPACE = 92;
+/** Space between the header and the top of the medallion. */
+const MEDALLION_TOP_GAP = 4;
+const ARCH_TOP = MEDALLION_TOP_GAP + MEDALLION_RISE;
+const PAGE_MARGIN = 24;
+/** Height of the title row: its top padding and the gear. */
+const HEADER_H = 52;
+const ARCH_MARGIN = 30;
+/** The arch's height for its width, about 400dp on a 390x844 screen. This shape shows the scene's full width. */
+const ARCH_RATIO = 400 / 330;
+/** Below this the arch stops shrinking and the page scrolls instead. */
+const MIN_ARCH = 220;
+/** Keepsakes and buttons, used until they have been measured. */
+const BELOW_ESTIMATE = 186;
+const TILE_PITCH = 18;
+const TILES_W = 230;
+const TILES_H = 380;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const CORNER_TILES_STYLE = { position: 'absolute', right: 0, bottom: 0 } as const;
 
 /** Keep press feedback on the UI thread, just like the scene's pet animations. */
 function NookButton({ children, style, disabled, ...props }: Omit<PressableProps, 'style' | 'children'> & {
@@ -90,6 +99,53 @@ function NookButton({ children, style, disabled, ...props }: Omit<PressableProps
   );
 }
 
+function GearIcon({ size = 18, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx={12} cy={12} r={3} />
+      <Path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+    </Svg>
+  );
+}
+
+/** A quiet grid of soft tiles and one diagonal streak in the bottom right corner, fading out toward the page. */
+function CornerTiles({ color }: { color: string }) {
+  return (
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={CORNER_TILES_STYLE}>
+      <Svg width={TILES_W} height={TILES_H}>
+        <Defs>
+          <Pattern id="meTiles" width={TILE_PITCH} height={TILE_PITCH} patternUnits="userSpaceOnUse">
+            <Rect x={3} y={3} width={TILE_PITCH - 6} height={TILE_PITCH - 6} rx={3} fill={color} fillOpacity={0.09} />
+          </Pattern>
+          <RadialGradient id="meTilesFade" cx="100%" cy="100%" r="100%">
+            <Stop offset="0.35" stopColor="#fff" />
+            <Stop offset="1" stopColor="#fff" stopOpacity={0} />
+          </RadialGradient>
+          <LinearGradient id="meStreak" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={color} stopOpacity={0} />
+            <Stop offset="0.5" stopColor={color} stopOpacity={0.2} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
+          </LinearGradient>
+          <Mask id="meTilesMask" maskUnits="userSpaceOnUse" x={0} y={0} width={TILES_W} height={TILES_H}>
+            <Rect width={TILES_W} height={TILES_H} fill="url(#meTilesFade)" />
+          </Mask>
+        </Defs>
+        <Rect width={TILES_W} height={TILES_H} fill="url(#meTiles)" mask="url(#meTilesMask)" />
+        <Path d={`M${TILES_W + 4} 40 L${TILES_W - 130} ${TILES_H - 30}`} stroke="url(#meStreak)" strokeWidth={3} strokeLinecap="round" fill="none" />
+      </Svg>
+    </View>
+  );
+}
+
+function StreakFlame({ size = 14 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M12 2c1 4 6 7 6 13a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5 0 2 1 3 2 3 1-3-1-6 1-9.5Z" fill="#E8832E" />
+      <Path d="M12 13c.6 1.6 2.6 2.6 2.6 4.6a2.6 2.6 0 0 1-5.2 0c0-1.6 1.6-2.6 2.6-4.6Z" fill="#F7C84A" />
+    </Svg>
+  );
+}
+
 type Stats = {
   offered: number;
   shared: number;
@@ -97,15 +153,16 @@ type Stats = {
   received: number;
 };
 
-type LatestPrayer = {
-  age: string;
-} | null;
-
 export default function MeScreen() {
   const fontsLoaded = useSaintFonts();
+  const { theme, name: themeName } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const insets = useSafeAreaInsets();
   const { session, isGuest, signOut } = useAuth();
-  const [stats, setStats] = useState<Stats>({ offered: 0, shared: 0, sent: 0, received: 0 });
-  const [latest, setLatest] = useState<LatestPrayer>(null);
+  // Stats still feed the nook scene (web level) and the decorator.
+  const [stats, setStats] = useState<Stats>(
+    () => readForUser<Stats>(LOCAL_KEYS.nookStats, session?.user.id) ?? { offered: 0, shared: 0, sent: 0, received: 0 },
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -113,46 +170,35 @@ export default function MeScreen() {
       let cancelled = false;
       (async () => {
         try {
-        const userId = session.user.id;
-        const [offered, shared, sent, received, latestRow] = await Promise.all([
-          supabase
-            .from('prayer_interactions')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('action', 'prayed'),
-          supabase
-            .from('prayers')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId),
-          supabase
-            .from('reflections')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId),
-          supabase
-            .from('reflections')
-            .select('id, prayers!inner(user_id)', { count: 'exact', head: true })
-            .eq('prayers.user_id', userId),
-          supabase
-            .from('prayers')
-            .select('created_at')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-        if (cancelled) return;
-
-        setStats({
-          offered: offered.count ?? 0,
-          shared: shared.count ?? 0,
-          sent: sent.count ?? 0,
-          received: received.count ?? 0,
-        });
-        setLatest(
-          latestRow.data?.created_at
-            ? { age: relativeTime(latestRow.data.created_at as string) }
-            : null,
-        );
+          const userId = session.user.id;
+          const [offered, shared, sent, received] = await Promise.all([
+            supabase
+              .from('prayer_interactions')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', userId)
+              .eq('action', 'prayed'),
+            supabase
+              .from('prayers')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', userId),
+            supabase
+              .from('reflections')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', userId),
+            supabase
+              .from('reflections')
+              .select('id, prayers!inner(user_id)', { count: 'exact', head: true })
+              .eq('prayers.user_id', userId),
+          ]);
+          if (cancelled) return;
+          const next = {
+            offered: offered.count ?? 0,
+            shared: shared.count ?? 0,
+            sent: sent.count ?? 0,
+            received: received.count ?? 0,
+          };
+          setStats(next);
+          writeForUser(LOCAL_KEYS.nookStats, userId, next);
         } catch (e) {
           console.warn('Me stats failed', e);
         }
@@ -165,58 +211,53 @@ export default function MeScreen() {
 
   const [deleting, setDeleting] = useState(false);
   const { petId, name: petName, progress: petProgress } = usePetProgress();
-  const { width: screenW } = useWindowDimensions();
-  const { trinkets } = useTrinkets();
-  const nookW = Math.min(screenW, 500);
-  const [storedNook, setNook] = useState<NookState>(DEFAULT_NOOK);
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const { trinkets, currentStreak } = useTrinkets();
+  const keepsakes = useMemo(() => trinkets.filter(t => t.earned).map(t => t.id), [trinkets]);
+  const pageW = Math.min(screenW, 500);
+  const frameW = pageW - ARCH_MARGIN * 2;
+  const [measuredH, setViewportH] = useState(0);
+  // Sized from the screen until it's measured, so the arch is right on the first frame instead of popping in.
+  const viewportH = measuredH || screenH - insets.top - HEADER_H;
+  const [belowH, setBelowH] = useState(BELOW_ESTIMATE);
+  // The arch gives up height first, so everything fits without scrolling for as long as it can.
+  const archH = Math.max(
+    MIN_ARCH,
+    Math.min(frameW * ARCH_RATIO, viewportH - TAB_BAR_SPACE - ARCH_TOP - ALCOVE_SILL_H - belowH),
+  );
+  const [storedNook, setNook] = useState<NookState>(() => {
+    const saved = readLocal(LOCAL_KEYS.nook);
+    return saved ? migrateNook(saved) : DEFAULT_NOOK;
+  });
   const lighting = useMemo(() => lightingForHour(new Date().getHours()), []);
   const { owned, loaded: ownedLoaded } = useOwned();
-  const [nookLoaded, setNookLoaded] = useState(false);
   const nook = useMemo(
-    () => nookLoaded && ownedLoaded ? stripUnowned(storedNook, owned, DEFAULT_NOOK) : storedNook,
-    [storedNook, nookLoaded, ownedLoaded, owned],
+    () => ownedLoaded ? stripUnowned(storedNook, owned, DEFAULT_NOOK) : storedNook,
+    [storedNook, ownedLoaded, owned],
   );
   const [decorating, setDecorating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const reducedMotion = useReducedMotion();
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler(event => {
-    scrollY.set(event.contentOffset.y);
-  });
-  const sceneMotion = useAnimatedStyle(() => ({
-    transform: [{ translateY: reducedMotion ? 0 : Math.max(0, Math.min(scrollY.get() * 0.12, 48)) }],
-  }));
-  const growth = useSharedValue(0);
+  // Wait for what you own to load before removing cosmetics whose ownership has expired.
   useEffect(() => {
-    growth.set(withTiming(petProgress.xpInLevel / XP_PER_LEVEL, { duration: reducedMotion ? 0 : 700 }));
-  }, [growth, petProgress.xpInLevel, reducedMotion]);
-  const growthStyle = useAnimatedStyle(() => ({ width: `${growth.get() * 100}%` }));
-  useEffect(() => {
-    AsyncStorage.getItem(NOOK_KEY)
-      .then(raw => {
-        if (raw) setNook(migrateNook(JSON.parse(raw)));
-      })
-      .catch(() => {})
-      .finally(() => setNookLoaded(true));
-  }, []);
-  // Wait for both sources before removing cosmetics whose ownership has expired.
-  useEffect(() => {
-    if (!nookLoaded || !ownedLoaded) return;
+    if (!ownedLoaded) return;
     if (JSON.stringify(nook) === JSON.stringify(storedNook)) return;
-    AsyncStorage.setItem(NOOK_KEY, JSON.stringify(nook))
+    writeLocal(LOCAL_KEYS.nook, nook)
       .then(() => setNook(current => current === storedNook ? nook : current))
       .catch(() => {});
-  }, [nook, storedNook, nookLoaded, ownedLoaded]);
+  }, [nook, storedNook, ownedLoaded]);
   const saveNook = async (next: NookState) => {
-    await AsyncStorage.setItem(NOOK_KEY, JSON.stringify(next));
+    await writeLocal(LOCAL_KEYS.nook, next);
     setNook(next);
   };
-  const scene = SCENES.find(scene => scene.id === nook.scene) ?? SCENES[0];
-  const styles = useMemo(() => makeStyles(scene.bg), [scene.bg]);
-  const earnedTrinkets = trinkets.filter(t => t.earned).map(t => t.id);
-  const webLevel = webLevelFor(stats.offered);
+
+  const go = (path: Parameters<typeof router.push>[0]) => {
+    setSettingsOpen(false);
+    router.push(path);
+  };
 
   const onSignOut = async () => {
+    setSettingsOpen(false);
     await signOut();
     router.replace('/auth');
   };
@@ -241,6 +282,7 @@ export default function MeScreen() {
               );
               return;
             }
+            setSettingsOpen(false);
             await signOut();
             setDeleting(false);
             router.replace('/auth');
@@ -253,247 +295,179 @@ export default function MeScreen() {
   if (!fontsLoaded) return <View style={styles.safe} />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" />
-      <Animated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        <View style={[styles.page, { width: nookW }]}>
-          <View style={styles.topBar}>
-            <Text accessibilityRole="header" style={styles.pageTitle}>Your nook</Text>
-            <View style={styles.privacy}>
-              <ShieldIcon size={12} color={SOFT} />
-              <Text style={styles.privacyText}>{isGuest ? 'Anonymous session' : 'Always anonymous'}</Text>
-            </View>
+    // Padding from the insets, not a SafeAreaView: that one first draws under the status bar, then drops into place.
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
+      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
+      <CornerTiles color={theme.ink} />
+      {decorating ? null : <PageAmbience name={themeName} />}
+      <View style={styles.header}>
+        <View style={styles.titleBlock}>
+          <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>
+            Prayer <Text style={styles.titleAccent}>Nook</Text>
+          </Text>
+          <Squiggle color={theme.accent} w={140} waves={11} />
+        </View>
+        <View style={styles.headerMeta}>
+          <View style={styles.streak}>
+            <StreakFlame />
+            <Text numberOfLines={1} style={styles.metaText}>{currentStreak} day streak</Text>
           </View>
-          <View style={styles.hero}>
-            <Animated.View style={sceneMotion}>
-              <Nook nook={nook} stats={stats} lighting={lighting} petId={petId} stage={petProgress.stage} width={nookW} compact immersive />
-            </Animated.View>
-            <LinearGradient pointerEvents="none" colors={[scene.bg, 'transparent']} style={styles.sceneTopFade} />
-            <View pointerEvents="none" style={styles.heroHeading}>
-              <Text style={styles.eyebrow}>A LITTLE PEACE, TOGETHER</Text>
-              <Text accessibilityRole="header" style={styles.petName}>{petName}&apos;s place</Text>
-              <Text style={styles.heroSubtitle}>A quiet corner to grow with you.</Text>
-            </View>
-            <LinearGradient pointerEvents="none" colors={['transparent', scene.bg]} style={styles.sceneFade} />
-            <View pointerEvents="none" style={styles.sceneCaption}>
-              <View style={styles.presenceDot} />
-              <Text style={styles.sceneCaptionText}>{scene.name} · {TOD_LABELS[lighting]}</Text>
-            </View>
-          </View>
-          <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(600)} style={styles.content}>
-            <Text style={styles.petHint}>Tap {petName} to say hello · double tap the scene to settle in</Text>
-            <View style={styles.growth}>
-              <View style={styles.growthHeading}>
-                <View style={styles.levelBadge}>
-                  <StarIcon size={13} color={ACCENT} />
-                  <Text style={styles.levelText}>Level {petProgress.level}</Text>
-                </View>
-                <Text style={styles.stageText}>{petStageName(petId, petProgress.stage)}</Text>
-              </View>
-              <View accessible accessibilityRole="progressbar"
-                accessibilityLabel={`${petName}'s growth to level ${petProgress.level + 1}`}
-                accessibilityValue={{ min: 0, max: XP_PER_LEVEL, now: petProgress.xpInLevel }} style={styles.growthTrack}>
-                <Animated.View style={[styles.growthFill, growthStyle]} />
-              </View>
-              <View style={styles.growthFoot}>
-                <Text style={styles.growthNote}>Every little prayer helps {petName} grow.</Text>
-                <Text style={styles.xpText}>{petProgress.xpInLevel}/{XP_PER_LEVEL} XP</Text>
-              </View>
-            </View>
-            <View style={styles.actions}>
-              <NookButton onPress={() => setDecorating(true)} disabled={!nookLoaded || !ownedLoaded}
-                accessibilityLabel="Decorate your nook" style={[styles.action, styles.primaryAction]}>
-                <SparkleIcon size={17} color="#1A3029" />
-                <Text style={styles.primaryActionText}>Make it yours</Text>
-              </NookButton>
-              <NookButton onPress={() => router.push('/pets')} accessibilityRole="link"
-                accessibilityLabel={`Meet your companions. Current companion: ${petName}`} style={styles.action}>
-                <Text style={styles.actionText}>Companions</Text>
-                <ArrowIcon size={15} color={INK} />
-              </NookButton>
-            </View>
-            <NookButton onPress={() => router.push('/store')} accessibilityRole="link" style={styles.storeLink}>
-              <Text style={styles.storeLinkText}>Find a little something for your nook</Text>
-              <ArrowIcon size={13} color={SOFT} />
-            </NookButton>
-            {isSanctuarySet(nook) || isEasterSet(nook) ? (
-              <View style={styles.setBanner}>
-                <SparkleIcon size={15} color={ACCENT} />
-                <Text style={styles.setBannerText}>
-                  {isSanctuarySet(nook) ? 'Your sanctuary is complete. A little more golden light.' : 'Your Easter set is complete. A little more new life.'}
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.keepsakes}>
-              <View style={styles.sectionHeading}>
-                <Text accessibilityRole="header" style={styles.sectionTitle}>Little keepsakes</Text>
-                <NookButton onPress={() => router.push('/trinkets')} accessibilityRole="link" style={styles.textLink}>
-                  <Text style={styles.textLinkText}>{earnedTrinkets.length} collected</Text>
-                  <ArrowIcon size={14} color={ACCENT} />
+        </View>
+        <NookButton onPress={() => setSettingsOpen(true)} accessibilityLabel="Settings and account. Always anonymous."
+          hitSlop={6} style={styles.gear}>
+          <GearIcon size={20} color={theme.ink} />
+        </NookButton>
+      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} alwaysBounceVertical={false}
+        onLayout={e => setViewportH(e.nativeEvent.layout.height)}>
+        <View style={[styles.page, { width: pageW }]}>
+          <NookAlcove frameWidth={frameW} archHeight={archH} screenWidth={screenW} cloudColor={mixColors(theme.surface, theme.accent, 0.25)}
+            sparkleColor={theme.accent}
+            greeting="Stay a while. Pray with me?">
+            {sceneW => (
+              <Nook nook={nook} stats={stats} lighting={lighting} petId={petId} stage={petProgress.stage} width={sceneW} compact immersive />
+            )}
+          </NookAlcove>
+          <View style={styles.below}>
+            <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(600)}
+              onLayout={e => setBelowH(e.nativeEvent.layout.height)} style={styles.content}>
+              <KeepsakeShelf trinkets={trinkets} onOpen={() => router.push('/trinkets')} />
+              <View style={styles.actions}>
+                <NookButton onPress={() => setDecorating(true)} disabled={!ownedLoaded}
+                  accessibilityLabel="Decorate your Prayer Nook" style={[styles.action, styles.primaryAction]}>
+                  <SparkleIcon size={17} color={theme.accent} />
+                  <Text style={styles.primaryActionText}>Make it yours</Text>
+                </NookButton>
+                <NookButton onPress={() => router.push('/customization')} accessibilityRole="link"
+                  accessibilityLabel="Open customizations" style={styles.action}>
+                  <Text style={styles.actionText}>Customizations</Text>
                 </NookButton>
               </View>
-              <Text style={styles.sectionNote}>Small reminders of the good you&apos;ve shared.</Text>
-              <View style={styles.shelf}>
-                <TrinketShelf earned={earnedTrinkets} width={nookW - 48} onPress={() => router.push('/trinkets')} />
-              </View>
-            </View>
-            <View style={styles.journey}>
-              <View style={styles.sectionHeading}>
-                <Text accessibilityRole="header" style={styles.sectionTitle}>Growing together</Text>
-                <Text style={styles.webLevel}>Web level {webLevel}</Text>
-              </View>
-              <Text style={styles.sectionNote}>{webNextText(stats.offered, webLevel)}</Text>
-              <View style={styles.stats}>
-                {[
-                  { value: stats.offered, label: 'Prayers offered' },
-                  { value: stats.shared, label: 'Requests shared' },
-                  { value: stats.sent, label: 'Notes sent' },
-                  { value: stats.received, label: 'Notes received' },
-                ].map(stat => (
-                  <View key={stat.label} style={styles.stat}>
-                    <Text style={styles.statValue}>{stat.value}</Text>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
-                  </View>
-                ))}
-              </View>
-              <NookButton onPress={() => router.push('/myPrayers')} accessibilityRole="link" style={styles.prayersLink}>
-                <View style={styles.prayersIcon}><PrayingIcon size={20} color={ACCENT} /></View>
-                <View style={styles.linkCopy}>
-                  <Text style={styles.rowTitle}>Your prayer calendar</Text>
-                  <Text style={styles.rowNote}>
-                    {stats.shared === 0 ? 'Your story begins with a little prayer.' : latest ? `Last shared ${latest.age} · revisit your prayers` : 'A place to return to every prayer.'}
-                  </Text>
-                </View>
-                <ArrowIcon size={17} color={ACCENT} />
-              </NookButton>
-            </View>
-            <Animated.View layout={reducedMotion ? undefined : LinearTransition.duration(240)} style={styles.settings}>
-              <NookButton onPress={() => setSettingsOpen(open => !open)} accessibilityLabel="Settings and account"
-                accessibilityState={{ expanded: settingsOpen }} style={styles.settingsToggle}>
-                <ShieldIcon size={15} color={SOFT} />
-                <Text style={styles.settingsLabel}>Settings & account</Text>
-                <Text style={styles.settingsChevron}>{settingsOpen ? '−' : '+'}</Text>
-              </NookButton>
-              {settingsOpen ? (
-                <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(220)} style={styles.settingsContent}>
-                  <NookButton onPress={() => router.push('/notificationSettings')} accessibilityRole="link" style={styles.settingsRow}>
-                    <BellIcon size={18} color={SOFT} />
-                    <View style={styles.linkCopy}>
-                      <Text style={styles.rowTitle}>Notifications</Text>
-                      <Text style={styles.rowNote}>Notes, updates, and your daily reminder.</Text>
-                    </View>
-                    <ArrowIcon size={15} color={SOFT} />
-                  </NookButton>
-                  <NookButton onPress={() => router.push('/customization')} accessibilityRole="link" style={styles.settingsRow}>
-                    <SparkleIcon size={18} color={SOFT} />
-                    <View style={styles.linkCopy}>
-                      <Text style={styles.rowTitle}>Appearance</Text>
-                      <Text style={styles.rowNote}>Your theme and app icon.</Text>
-                    </View>
-                    <ArrowIcon size={15} color={SOFT} />
-                  </NookButton>
-                  {isGuest ? (
-                    <View style={styles.guestNotice}>
-                      <Text style={styles.guestNoticeText}>You&apos;re here anonymously. Create an account to keep your prayers and progress safe when you sign out.</Text>
-                      <NookButton onPress={() => router.push('/createAccount')} style={styles.guestButton}>
-                        <Text style={styles.textLinkText}>Keep your little corner</Text>
-                        <ArrowIcon size={14} color={ACCENT} />
-                      </NookButton>
-                    </View>
-                  ) : null}
-                  <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
-                  {session?.user?.email ? <Text style={styles.accountEmail}>Signed in as {session.user.email}</Text> : null}
-                  <NookButton onPress={onDeleteAccount} disabled={deleting} style={styles.accountButton}>
-                    {deleting ? <ActivityIndicator size="small" color={ACCENT} /> : <Text style={styles.deleteText}>Delete account</Text>}
-                  </NookButton>
-                </Animated.View>
-              ) : null}
             </Animated.View>
-            <Text style={styles.closingNote}>A little faith. A little growth. A place to belong.</Text>
-          </Animated.View>
+          </View>
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
+
+      <Modal visible={settingsOpen} transparent animationType="slide" onRequestClose={() => setSettingsOpen(false)}>
+        <Pressable accessibilityLabel="Close settings" style={styles.backdrop} onPress={() => setSettingsOpen(false)} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]} accessibilityViewIsModal>
+          <View style={styles.grabber} />
+          <View style={styles.sheetHeading}>
+            <Text accessibilityRole="header" style={styles.sheetTitle}>Settings & account</Text>
+            <NookButton onPress={() => setSettingsOpen(false)} accessibilityLabel="Close" style={styles.sheetClose}>
+              <Text style={styles.sheetCloseText}>✕</Text>
+            </NookButton>
+          </View>
+          <NookButton onPress={() => go('/notificationSettings')} accessibilityRole="link" style={styles.settingsRow}>
+            <BellIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Notifications</Text>
+              <Text style={styles.rowNote}>Notes, updates, and your daily reminder.</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          <NookButton onPress={() => go('/customization')} accessibilityRole="link" style={styles.settingsRow}>
+            <SparkleIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Appearance</Text>
+              <Text style={styles.rowNote}>Your theme and app icon.</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          <NookButton onPress={() => go('/pets')} accessibilityRole="link" style={styles.settingsRow}>
+            <UserIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Companions</Text>
+              <Text style={styles.rowNote}>Choose who walks with you and see how they grow.</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          <NookButton onPress={() => go('/trinkets')} accessibilityRole="link" style={styles.settingsRow}>
+            <StarIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Keepsakes</Text>
+              <Text style={styles.rowNote}>{keepsakes.length} collected · your trinket shelf</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          <NookButton onPress={() => go('/store')} accessibilityRole="link" style={styles.settingsRow}>
+            <SparkleIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Store</Text>
+              <Text style={styles.rowNote}>New scenes and decor for your Prayer Nook.</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          <NookButton onPress={() => go('/myPrayers')} accessibilityRole="link" style={styles.settingsRow}>
+            <PrayingIcon size={18} color={theme.inkSoft} />
+            <View style={styles.linkCopy}>
+              <Text style={styles.rowTitle}>Your prayer calendar</Text>
+              <Text style={styles.rowNote}>{stats.offered} prayers offered · {stats.shared} shared</Text>
+            </View>
+            <ArrowIcon size={15} color={theme.inkSoft} />
+          </NookButton>
+          {isGuest ? (
+            <View style={styles.guestNotice}>
+              <Text style={styles.guestNoticeText}>You&apos;re here anonymously. Create an account to keep your prayers and progress safe when you sign out.</Text>
+              <NookButton onPress={() => go('/createAccount')} style={styles.guestButton}>
+                <Text style={styles.textLinkText}>Keep your little corner</Text>
+                <ArrowIcon size={14} color={theme.accent} />
+              </NookButton>
+            </View>
+          ) : null}
+          <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
+          {session?.user?.email ? <Text style={styles.accountEmail}>Signed in as {session.user.email}</Text> : null}
+          <NookButton onPress={onDeleteAccount} disabled={deleting} style={styles.accountButton}>
+            {deleting ? <ActivityIndicator size="small" color={theme.accent} /> : <Text style={styles.deleteText}>Delete account</Text>}
+          </NookButton>
+        </View>
+      </Modal>
+
       {decorating ? (
-        <NookDecorator nook={nook} owned={owned} stats={stats} lighting={lighting} petId={petId} stage={petProgress.stage}
+        <NookDecorator petName={petName} nook={nook} owned={owned} stats={stats} lighting={lighting} petId={petId} stage={petProgress.stage}
           onSave={saveNook} onClose={() => setDecorating(false)}
           onBrowse={destination => { setDecorating(false); router.push(destination); }} />
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 
-const makeStyles = (background: string) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: background },
-  scrollContent: { alignItems: 'center', paddingBottom: 120 },
-  page: { alignSelf: 'center' },
-  topBar: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  pageTitle: { fontFamily: FONTS.display, fontSize: 22, color: INK },
-  privacy: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  privacyText: { fontFamily: FONTS.body, fontSize: 10, color: SOFT },
-  hero: { overflow: 'hidden' },
-  heroHeading: { position: 'absolute', top: 30, left: 24, right: 24, alignItems: 'center' },
-  eyebrow: { fontFamily: FONTS.bodySemi, fontSize: 9, letterSpacing: 2.4, color: ACCENT, textAlign: 'center' },
-  petName: { fontFamily: FONTS.display, fontSize: 46, lineHeight: 56, letterSpacing: -0.8, color: INK, textAlign: 'center', marginTop: 9 },
-  heroSubtitle: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 15, lineHeight: 22, color: SOFT, textAlign: 'center', marginTop: 4 },
-  sceneFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '23%' },
-  sceneTopFade: { position: 'absolute', left: 0, right: 0, top: 0, height: 40 },
-  sceneCaption: { position: 'absolute', bottom: 31, left: 24, right: 24, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
-  presenceDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: ACCENT },
-  sceneCaptionText: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 16, color: SOFT, textAlign: 'center', flexShrink: 1 },
-  content: { paddingHorizontal: 24 },
-  petHint: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 18, textAlign: 'center', color: SOFT, marginTop: -14, marginBottom: 25 },
-  growth: { gap: 10 },
-  growthHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  levelBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  levelText: { fontFamily: FONTS.bodySemi, fontSize: 12, color: INK },
-  stageText: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 14, color: SOFT, flexShrink: 1, textAlign: 'right' },
-  growthTrack: { height: 4, borderRadius: 4, backgroundColor: 'rgba(242,233,216,0.12)', overflow: 'hidden' },
-  growthFill: { height: '100%', borderRadius: 4, backgroundColor: ACCENT },
-  growthFoot: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  growthNote: { flex: 1, fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: SOFT },
-  xpText: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: ACCENT },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  action: { flex: 1, minHeight: 48, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(242,233,216,0.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  primaryAction: { backgroundColor: ACCENT, borderColor: ACCENT },
-  primaryActionText: { fontFamily: FONTS.bodySemi, fontSize: 13, color: '#1A3029', flexShrink: 1 },
-  actionText: { fontFamily: FONTS.bodySemi, fontSize: 13, color: INK, flexShrink: 1 },
-  storeLink: { minHeight: 44, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  storeLinkText: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: SOFT, flexShrink: 1 },
-  setBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  setBannerText: { flex: 1, fontFamily: FONTS.body, fontSize: 12, lineHeight: 18, color: ACCENT },
-  keepsakes: { paddingTop: 22, paddingBottom: 28 },
-  sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sectionTitle: { fontFamily: FONTS.display, fontSize: 25, lineHeight: 32, color: INK, flexShrink: 1 },
-  sectionNote: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 19, color: SOFT, marginTop: 5 },
-  textLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  textLinkText: { fontFamily: FONTS.bodySemi, fontSize: 11, color: ACCENT },
-  shelf: { paddingTop: 20 },
-  journey: { paddingTop: 24, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(242,233,216,0.16)' },
-  webLevel: { fontFamily: FONTS.body, fontSize: 10, color: ACCENT },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', paddingTop: 22, paddingBottom: 8, rowGap: 20 },
-  stat: { width: '50%', paddingRight: 10 },
-  statValue: { fontFamily: FONTS.display, fontSize: 32, lineHeight: 38, color: INK },
-  statLabel: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 18, color: SOFT, marginTop: 2 },
-  prayersLink: { paddingVertical: 22, flexDirection: 'row', alignItems: 'center', gap: 13 },
-  prayersIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: 'rgba(188,216,189,0.08)' },
+const makeStyles = (theme: Theme) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.bg },
+  scrollContent: { flexGrow: 1, alignItems: 'center', paddingBottom: TAB_BAR_SPACE },
+  page: { flex: 1, alignSelf: 'center', paddingTop: ARCH_TOP },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingLeft: PAGE_MARGIN, paddingRight: 16 },
+  headerMeta: { flex: 1, gap: 1 },
+  titleBlock: { flexShrink: 1, gap: 1, overflow: 'hidden' },
+  title: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 32, color: theme.ink },
+  titleAccent: { color: theme.accent },
+  metaText: { flexShrink: 1, fontFamily: FONTS.bodyBold, fontSize: 10.5, lineHeight: 15, letterSpacing: 1, textTransform: 'uppercase', fontVariant: ['lining-nums'], color: theme.inkSoft },
+  streak: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+  gear: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft, borderWidth: 1, borderColor: theme.line },
+  below: { flex: 1, justifyContent: 'center' },
+  content: { paddingHorizontal: PAGE_MARGIN, paddingTop: 6 },
+  actions: { flexDirection: 'row', gap: 12, marginTop: 12 },
+  action: { flex: 1, minHeight: 54, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  primaryAction: { backgroundColor: mixColors(theme.surface, theme.accent, 0.16) },
+  primaryActionText: { fontFamily: FONTS.bodySemi, fontSize: 16, color: theme.ink, flexShrink: 1 },
+  actionText: { fontFamily: FONTS.bodySemi, fontSize: 16, color: theme.ink, flexShrink: 1 },
+  // Settings sheet
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingTop: 10, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: theme.surface },
+  grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: 12 },
+  sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  sheetTitle: { fontFamily: FONTS.display, fontSize: 22, color: theme.ink },
+  sheetClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft },
+  sheetCloseText: { fontSize: 14, color: theme.ink },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
   linkCopy: { flex: 1 },
-  rowTitle: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 20, color: INK },
-  rowNote: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: SOFT, marginTop: 3 },
-  settings: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(242,233,216,0.16)' },
-  settingsToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 62 },
-  settingsLabel: { flex: 1, fontFamily: FONTS.body, fontSize: 12, color: SOFT },
-  settingsChevron: { fontFamily: FONTS.body, fontSize: 23, color: SOFT },
-  settingsContent: { paddingBottom: 12 },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 15 },
-  guestNotice: { marginTop: 12, padding: 16, backgroundColor: 'rgba(242,233,216,0.05)', borderRadius: 16 },
-  guestNoticeText: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 19, color: SOFT },
+  rowTitle: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 20, color: theme.ink },
+  rowNote: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: theme.inkSoft, marginTop: 3 },
+  textLinkText: { fontFamily: FONTS.bodySemi, fontSize: 11, color: theme.accent },
+  guestNotice: { marginTop: 12, padding: 16, backgroundColor: theme.bgSoft, borderRadius: 16 },
+  guestNoticeText: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 19, color: theme.inkSoft },
   guestButton: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingTop: 8 },
-  accountButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  accountEmail: { fontFamily: FONTS.body, fontSize: 10, lineHeight: 16, color: SOFT, textAlign: 'center' },
-  deleteText: { fontFamily: FONTS.body, fontSize: 11, color: '#D8AA9E' },
-  closingNote: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 12, lineHeight: 20, textAlign: 'center', color: SOFT, marginTop: 24 },
+  accountButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  accountEmail: { fontFamily: FONTS.body, fontSize: 10, lineHeight: 16, color: theme.inkSoft, textAlign: 'center' },
+  deleteText: { fontFamily: FONTS.body, fontSize: 11, color: theme.isDark ? '#D8AA9E' : '#A8402F' },
 });

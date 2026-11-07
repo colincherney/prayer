@@ -267,6 +267,69 @@ To also put back the old pet-id checks, re-run the `group_nook` and `pet_levels`
 
 ---
 
+## 9. `release_all_trinkets` (2026-11-07): all 24 trinkets out now
+
+- All 24 `trinket:` rows in `public.content_releases` now have a release time of 2026-11-07 midnight US Eastern, instead of two at a time from Nov 14, 2026 to Oct 2027.
+- The app's built-in fallback schedule in `src/lib/releases.ts` was changed to match.
+- Scenes and companions keep their dates.
+
+**Applied as:** `supabase/migrations/20261107_release_all_trinkets.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Before it ran, no trinkets were out and nobody had earned one.
+
+**Revert (puts back the old schedule; anything earned in the meantime stays earned):**
+
+```sql
+update public.content_releases r
+set release_at = v.release_at::timestamptz
+from (values
+  ('firstLightCandle', '2026-11-14T05:00:00Z'), ('loavesFishesBasket', '2026-11-14T05:00:00Z'),
+  ('chapelSnowGlobe', '2026-12-01T05:00:00Z'), ('shepherdLambPlush', '2026-12-01T05:00:00Z'),
+  ('olivewoodRosary', '2027-01-01T05:00:00Z'), ('mustardSeedJar', '2027-01-01T05:00:00Z'),
+  ('oliveBranchVase', '2027-02-01T05:00:00Z'), ('quillPrayerJournal', '2027-02-01T05:00:00Z'),
+  ('lilyOfTheField', '2027-03-01T05:00:00Z'), ('sevenbellChime', '2027-03-01T05:00:00Z'),
+  ('hourglassOfStillness', '2027-04-01T04:00:00Z'), ('doveMusicBox', '2027-04-01T04:00:00Z'),
+  ('goldenPotOfManna', '2027-05-01T04:00:00Z'), ('psalmHarp', '2027-05-01T04:00:00Z'),
+  ('nightWatchLantern', '2027-06-01T04:00:00Z'), ('harborLighthouse', '2027-06-01T04:00:00Z'),
+  ('fishersNet', '2027-07-01T04:00:00Z'), ('galaxyPromiseJar', '2027-07-01T04:00:00Z'),
+  ('arkInABottle', '2027-08-01T04:00:00Z'), ('roseWindowSuncatcher', '2027-08-01T04:00:00Z'),
+  ('covenantPrism', '2027-09-01T04:00:00Z'), ('jacobsLadderMobile', '2027-09-01T04:00:00Z'),
+  ('unburntBushBonsai', '2027-10-01T04:00:00Z'), ('pearlOfGreatPrice', '2027-10-01T04:00:00Z')
+) as v(trinket, release_at)
+where r.id = 'trinket:' || v.trinket;
+```
+
+The fallback dates in `src/lib/releases.ts` would need to go back too.
+
+---
+
+## 10. `nook_collection` (2026-11-07): 50 keepsakes, 50 decorations and 15 scenes on a release schedule
+
+- `public.content_releases`: 115 new rows. Keepsakes (`trinket:<id>`) and decorations (`item:<id>`): one each every Monday at midnight US Eastern, two on the first Monday of each month, from Nov 9, 2026 to Aug 9, 2027. Scenes (`scene:<id>`): one or two a month, Nov 14, 2026 to Aug 1, 2027.
+- `public.cosmetic_products`: 50 new decorations at $0.99 and 15 new scenes at $2.00, plus product rows for three decorations the app already sold without one (Prayer bench, Rose window, Hanging dove).
+- Prices: every decoration is now $0.99 (they already were) and every scene $2.00 (the five existing scenes were $1.99). The Pilgrim's lantern stays a free quest reward.
+- The art ships in the app, hidden until each date; `earn_trinket` already refuses anything not yet released. Move a date with: `update public.content_releases set release_at = '2027-01-11 00:00'::timestamp at time zone 'America/New_York' where id = 'item:bookpile';`
+- None are buyable until each product's `store_product_id` is filled in (RevenueCat), the same as the existing ones.
+
+**Applied as:** `supabase/migrations/20261107_nook_collection.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards: 74 trinket release rows (24 + 50), 50 decoration and 15 scene release rows, none out yet; 68 of 69 decorations at 99 cents (the lantern is free), all 20 scenes at 200.
+
+**Revert (fails on any product someone has bought, which is intended):**
+
+```sql
+delete from public.content_releases where id like 'item:%' or id like 'scene:%'
+  or id in (select 'trinket:' || unnest(array['oillamp','bell','loaf','applebasket','advent','paperstar','acorn','donkeyplush','manger','honey','pinecone','psalter','cairn','crossstand','teacup','pomegranate','sparrow','sacredcandle','figbowl','compass','hyssop','key','scroll','arkboat','alabaster','crownlife','flute','mites','crystaldove','birdfeeder','tiffany','globeworld','canajar','mustardtree','spinner','cloudmobile','olivewreath','shell','bunting','shellchime','fireflyjar','censer','moonmobile','prismcatcher','well','cushions','figtree','chest','organ','fountain']));
+delete from public.cosmetic_products where id in (
+  'item:roundrug','item:starrug','item:kneeler','item:pillowpile','item:reedmat','item:flagstones','item:mossbed','item:bookpile','item:candletable','item:firepit',
+  'item:tallolive','item:bookcase','item:floorlamp','item:palm','item:clock','item:ladder','item:pillar','item:candelabra','item:birdcage','item:sunflowers','item:cypress','item:chair','item:rocker','item:easel',
+  'item:sampler','item:moonwindow','item:plantshelf','item:landscape','item:wallclock','item:banner','item:ivy','item:mirror','item:map','item:lancet','item:quilt','item:noteboard',
+  'item:fairycurtain','item:lanterntrio','item:macrame','item:chandelier','item:flagbunting','item:canopy','item:driedgarland','item:skylight',
+  'item:fireflies','item:petals','item:snowfall','item:mist','item:shooting','item:glowmotes',
+  'item:bench','item:rose','item:dove',
+  'scene:autumn','scene:rainy','scene:shepherds','scene:cabin','scene:northernlights','scene:alpine','scene:cathedral','scene:lilymeadow',
+  'scene:jordan','scene:blossom','scene:galilee','scene:lighthouse','scene:oasis','scene:rooftop','scene:heaven');
+update public.cosmetic_products set price_cents = 199 where id in ('scene:advent','scene:aurora','scene:easter','scene:harvest','scene:meadow');
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

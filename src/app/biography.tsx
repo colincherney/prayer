@@ -610,7 +610,7 @@ function VersePicker({ version, onConfirm, onClose }: {
         ) : previewText ? (
           <Text style={[styles.vpPreview, { color: THEME.ink }]}>"{previewText}"</Text>
         ) : (
-          <Text style={[styles.vpPreview, { color: THEME.muted, fontStyle: 'italic' }]}>
+          <Text style={[styles.vpPreview, { color: THEME.muted }]}>
             Scroll to a verse to preview it here.
           </Text>
         )}
@@ -1281,8 +1281,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   heroTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 48,
     lineHeight: 50,
     letterSpacing: -1.2,
@@ -1313,7 +1312,6 @@ const styles = StyleSheet.create({
   versionNote: {
     fontFamily: FONTS.body,
     fontSize: 10,
-    fontStyle: 'italic',
   },
 
   // Prompt card
@@ -1471,8 +1469,7 @@ const styles = StyleSheet.create({
   calEmptyMonth: {
     textAlign: 'center',
     paddingVertical: 20,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
   },
 
@@ -1577,7 +1574,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginBottom: 18,
   },
-  detailTitleDot: { fontFamily: FONTS.displayItalic, fontStyle: 'italic' },
+  detailTitleDot: { fontFamily: FONTS.display },
   detailBody: {
     fontFamily: FONTS.display,
     fontSize: 18,
@@ -1600,10 +1597,9 @@ const styles = StyleSheet.create({
   },
   detailVerseBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   detailVerseLabel: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 1.8 },
-  detailVersionBadge: { fontFamily: FONTS.body, fontSize: 10.5, fontStyle: 'italic' },
+  detailVersionBadge: { fontFamily: FONTS.body, fontSize: 10.5 },
   detailVerseText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 20,
     lineHeight: 29,
   },
@@ -1616,8 +1612,7 @@ const styles = StyleSheet.create({
   detailDivider: {
     textAlign: 'center',
     marginTop: 28,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
   },
 
@@ -1667,7 +1662,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   composerVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 13, marginBottom: 4 },
-  composerVersePreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, lineHeight: 18 },
+  composerVersePreview: { fontFamily: FONTS.display, fontSize: 13, lineHeight: 18 },
   composerVersePlaceholder: { flex: 1, fontFamily: FONTS.body, fontSize: 14 },
 
   // Verse picker
@@ -1697,11 +1692,10 @@ const styles = StyleSheet.create({
   },
   vpLabel: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1, textAlign: 'center' },
   vpRef: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: -0.3, marginBottom: 14 },
-  vpPreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 18, lineHeight: 28 },
+  vpPreview: { fontFamily: FONTS.display, fontSize: 18, lineHeight: 28 },
   composerQuote: {
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
   },
 
@@ -1709,16 +1703,14 @@ const styles = StyleSheet.create({
   emptyState: {
     paddingVertical: 36,
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 22,
   },
   footer: {
     textAlign: 'center',
     paddingVertical: 24,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     lineHeight: 22,
   },
