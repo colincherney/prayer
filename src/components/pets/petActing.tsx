@@ -1,9 +1,9 @@
-import React from 'react';
-import Animated, { useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
+import React, { useContext } from 'react';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
-import { keyframe, useLoop } from './anim';
-import { Fx, SoftGlow } from './Fx';
+import { keyframe, useLoop, useMotionEnabled } from './anim';
+import { Fx, PetMotion, SoftGlow } from './Fx';
 import { getLook, LookDangle, LookPaws, LookPetId, LOOKS } from './petLooks';
 import type { PetId } from './registry';
 
@@ -62,10 +62,84 @@ const OWN_PERSONALITY: Record<Exclude<PetId, LookPetId>, Personality> = {
   },
 };
 
-/** The seasonal and monthly companions move like whichever first-six pet suits them (petLooks.tsx). */
+/** Each seasonal and monthly companion's own way of moving: an idle loop and a rarer signature move. */
+const COMPANION_PERSONALITY: Partial<Record<LookPetId, Personality>> = {
+  // Rat: quick and busy. Little side-to-side scurries, then a stand-up sniff.
+  rat: {
+    main: { dur: 1800, stops: [0, 0.15, 0.3, 0.45, 0.6, 1], tx: [0, 2, -2, 2, 0, 0], ty: [0, -1, 0, -1, 0, 0] },
+    action: { dur: 8200, stops: [0, 0.8, 0.86, 0.94, 1], sy: [1, 1, 1.08, 1.08, 1], ty: [0, 0, -4, -4, 0] },
+  },
+  // Ox: slow and steady. A heavy sway, and now and then a firm stomp.
+  ox: {
+    main: { dur: 5200, stops: [0, 0.5, 1], rot: [-1.5, 1.5, -1.5] },
+    action: { dur: 11000, stops: [0, 0.84, 0.88, 0.92, 1], ty: [0, 0, -5, 1, 0], sy: [1, 1, 1.02, 0.97, 1] },
+  },
+  // Tiger: prowls with a stretch, then crouches and pounces.
+  tiger: {
+    main: { dur: 4600, stops: [0, 0.4, 0.6, 1], sx: [1, 1.05, 1.05, 1], sy: [1, 0.97, 0.97, 1] },
+    action: { dur: 10500, stops: [0, 0.78, 0.84, 0.9, 0.96, 1], ty: [0, 0, 3, -18, 0, 0], tx: [0, 0, -2, 6, 0, 0] },
+  },
+  // Rabbit: twitchy, with a quick double hop.
+  rabbit: {
+    main: { dur: 2600, stops: [0, 0.8, 0.85, 0.9, 1], ty: [0, 0, -2, 0, 0] },
+    action: { dur: 7800, stops: [0, 0.76, 0.82, 0.88, 0.94, 1], ty: [0, 0, -16, 0, -12, 0] },
+  },
+  // Dragon (Long): drifts in a slow S, and loops up on the air now and then.
+  loong: {
+    main: { dur: 5600, stops: [0, 0.25, 0.5, 0.75, 1], ty: [0, -5, 0, -5, 0], tx: [0, 4, 0, -4, 0], rot: [0, 2, 0, -2, 0] },
+    action: { dur: 12000, stops: [0, 0.8, 0.88, 0.96, 1], ty: [0, 0, -16, 0, 0], rot: [0, 0, -6, 4, 0] },
+  },
+  // Snake: sways from side to side, and rises up tall.
+  snake: {
+    main: { dur: 3600, stops: [0, 0.5, 1], rot: [-4, 4, -4] },
+    action: { dur: 9800, stops: [0, 0.8, 0.88, 0.94, 1], sy: [1, 1, 1.1, 1.1, 1] },
+  },
+  // Horse: a light prance, and every so often it rears.
+  horse: {
+    main: { dur: 3000, stops: [0, 0.25, 0.5, 0.75, 1], ty: [0, -3, 0, -3, 0] },
+    action: { dur: 10800, stops: [0, 0.82, 0.88, 0.94, 1], rot: [0, 0, -10, -10, 0], ty: [0, 0, -6, -6, 0] },
+  },
+  // Goat: nods and nibbles, then a playful head-butt.
+  goat: {
+    main: { dur: 3800, stops: [0, 0.6, 0.7, 0.8, 1], rot: [0, 0, 4, 0, 0] },
+    action: { dur: 9400, stops: [0, 0.8, 0.85, 0.9, 1], tx: [0, 0, -4, 8, 0], rot: [0, 0, -4, 6, 0] },
+  },
+  // Monkey: bouncy and silly, with a happy little spin.
+  monkey: {
+    main: { dur: 2200, stops: [0, 0.5, 1], ty: [0, -4, 0], rot: [-3, 3, -3] },
+    action: { dur: 11200, stops: [0, 0.82, 0.92, 1], rot: [0, 0, 360, 360], ty: [0, 0, -10, 0] },
+  },
+  // Rooster: struts with a head bob, and puffs up to crow.
+  rooster: {
+    main: { dur: 1600, stops: [0, 0.5, 1], tx: [0, 2, 0], ty: [0, -1.5, 0] },
+    action: { dur: 9000, stops: [0, 0.82, 0.88, 0.95, 1], sx: [1, 1, 1.1, 1.1, 1], sy: [1, 1, 1.1, 1.1, 1] },
+  },
+  // Dog: a happy wiggle, then a jump for joy.
+  dog: {
+    main: { dur: 1400, stops: [0, 0.25, 0.75, 1], rot: [0, 3, -3, 0] },
+    action: { dur: 8600, stops: [0, 0.8, 0.86, 0.92, 1], ty: [0, 0, -16, 0, 0], rot: [0, 0, -6, 6, 0] },
+  },
+  // Pig: a contented rock, and a roly-poly wiggle.
+  pig: {
+    main: { dur: 3400, stops: [0, 0.5, 1], rot: [-2, 2, -2], sx: [1, 1.02, 1] },
+    action: { dur: 10200, stops: [0, 0.8, 0.85, 0.9, 0.95, 1], tx: [0, 0, -5, 5, -3, 0], rot: [0, 0, -5, 5, -3, 0] },
+  },
+  // Turkey: struts back and forth, and puffs up proud.
+  turkey: {
+    main: { dur: 2400, stops: [0, 0.25, 0.5, 0.75, 1], tx: [0, 3, 0, -3, 0], ty: [0, -1.5, 0, -1.5, 0] },
+    action: { dur: 9600, stops: [0, 0.82, 0.88, 0.95, 1], sx: [1, 1, 1.12, 1.12, 1], sy: [1, 1, 1.06, 1.06, 1] },
+  },
+  // Donkey: a patient nod, and a little kick of the heels.
+  donkey: {
+    main: { dur: 4400, stops: [0, 0.6, 0.7, 0.8, 1], ty: [0, 0, 2, 0, 0], rot: [0, 0, 2, 0, 0] },
+    action: { dur: 10400, stops: [0, 0.84, 0.88, 0.92, 1], rot: [0, 0, -6, 2, 0], ty: [0, 0, -5, 0, 0] },
+  },
+};
+
+/** Every companion's personality. Any not listed above moves like whichever first-six pet suits it (petLooks.tsx). */
 export const PERSONALITY = Object.fromEntries([
   ...Object.entries(OWN_PERSONALITY),
-  ...Object.entries(LOOKS).map(([id, look]) => [id, OWN_PERSONALITY[look.movesLike]]),
+  ...Object.entries(LOOKS).map(([id, look]) => [id, COMPANION_PERSONALITY[id as LookPetId] ?? OWN_PERSONALITY[look.movesLike]]),
 ]) as Record<PetId, Personality>;
 
 function TrackView({ track, offset, scale, enabled, children }: { track: Track; offset: number; scale: number; enabled: boolean; children: React.ReactNode }) {
@@ -89,12 +163,13 @@ function TrackView({ track, offset, scale, enabled, children }: { track: Track; 
 
 /** Wraps a pet so it behaves like itself. `seat` offsets the timing so a room full of pets is never in step. */
 export function Acting({ petId, seat = 0, size, children }: { petId: PetId; seat?: number; size: number; children: React.ReactNode }) {
-  const reduce = useReducedMotion();
+  // Stops with reduce motion, on screens out of view, and where a page turns motion off (the decorator).
+  const enabled = useMotionEnabled(useContext(PetMotion));
   const { main, action } = PERSONALITY[petId];
   const scale = size / 100;
   return (
-    <TrackView track={action} offset={seat * 2300 + 1200} scale={scale} enabled={!reduce}>
-      <TrackView track={main} offset={seat * 733} scale={scale} enabled={!reduce}>
+    <TrackView track={action} offset={seat * 2300 + 1200} scale={scale} enabled={enabled}>
+      <TrackView track={main} offset={seat * 733} scale={scale} enabled={enabled}>
         {children}
       </TrackView>
     </TrackView>

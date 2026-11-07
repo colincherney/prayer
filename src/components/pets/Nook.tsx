@@ -22,6 +22,7 @@ import { FONTS } from '@/components/saint/theme';
 
 import { Fx, PetMotion, SmoothMotion } from './Fx';
 import { PipStage } from './PipLamb';
+import { Acting } from './petActing';
 import { Pet, PetId } from './registry';
 import { useLoop, useMotionEnabled } from './anim';
 import {
@@ -413,7 +414,9 @@ export const NookView = memo(function NookView({
             {petId === 'lamb' ? (
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} size={petSize} />
             ) : (
-              <Pet id={petId} stage={stage} size={petSize} animated={motionAround} />
+              <Acting petId={petId} size={petSize}>
+                <Pet id={petId} stage={stage} size={petSize} animated={motionAround} />
+              </Acting>
             )}
             </SmoothMotion.Provider>
             </View>

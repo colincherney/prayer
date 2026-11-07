@@ -26,6 +26,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { keyframe, useLoop, useMotionEnabled } from '@/components/pets/anim';
 import { SmoothMotion } from '@/components/pets/Fx';
+import { Acting } from '@/components/pets/petActing';
 import { Pet, petStageName } from '@/components/pets/registry';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -437,7 +438,9 @@ export default function PrayLauncherScreen() {
           ]}>
           <Animated.View style={hopStyle}>
             <SmoothMotion.Provider value>
-              <Pet id={petId} stage={progress.stage} size={petW} interactive />
+              <Acting petId={petId} size={petW}>
+                <Pet id={petId} stage={progress.stage} size={petW} interactive />
+              </Acting>
             </SmoothMotion.Provider>
           </Animated.View>
         </Animated.View>
