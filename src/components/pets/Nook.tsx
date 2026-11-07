@@ -40,7 +40,7 @@ import {
 } from './nookData';
 import { hasArtScene } from './NookArt';
 import { NookItem } from './NookItem';
-import { ItemArt, NOOK_H, NOOK_W, NookEffects, PrayerWeb, SceneBackdrop } from './NookScene';
+import { ItemArt, NOOK_H, NOOK_W, NookEffects, NookScale, PrayerWeb, SceneBackdrop } from './NookScene';
 import { useNookTransition } from './useNookTransition';
 
 export type NookStats = { offered: number; shared: number; sent: number; received: number };
@@ -111,6 +111,8 @@ export function useDoubleTap(onDoubleTap?: () => void) {
 }
 
 const PET = 150;
+/** On the Me page the pet is drawn a little larger, as the scene's hero. */
+const HERO_PET = 1.16;
 /** Puts the pet's feet on the rug. */
 const PET_TOP = 198;
 const NO_OFFSET: Offset = { x: 0, y: 0 };
@@ -187,10 +189,10 @@ const ITEM_LABEL: Record<string, string> = {
   ...Object.fromEntries(SHOWN_COLLECTION_DECOR.map(d => [d.id, d.name])),
 };
 
-function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean; warm: boolean }) {
+function SleepingPet({ awake, eyesUp, warm, size }: { awake: boolean; eyesUp: boolean; warm: boolean; size: number }) {
   return (
-    <View style={{ width: PET, height: PET }}>
-      <Svg viewBox="0 0 200 200" width={PET} height={PET}>
+    <View style={{ width: size, height: size }}>
+      <Svg viewBox="0 0 200 200" width={size} height={size}>
         <Ellipse cx={100} cy={174} rx={62} ry={8} fill="#000" opacity={0.3} />
         <Fx kind="breathe" ox={100} oy={174}>
           <G fill="#F7F2E8">
@@ -243,7 +245,7 @@ function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean;
   );
 }
 
-function Zzz({ top }: { top: number }) {
+function Zzz({ top, px }: { top: number; px: number }) {
   const enabled = useMotionEnabled(useContext(PetMotion));
   const sizes: [number, number, number][] = [
     [214, 20, 16],
@@ -253,19 +255,19 @@ function Zzz({ top }: { top: number }) {
   return (
     <>
       {sizes.map(([left, dy, size], i) => (
-        <ZLetter key={i} left={left} top={top + dy} size={size} delay={i * 1200} enabled={enabled} />
+        <ZLetter key={i} left={left * px} top={(top + dy) * px} size={size * px} px={px} delay={i * 1200} enabled={enabled} />
       ))}
     </>
   );
 }
 
-function ZLetter({ left, top, size, delay, enabled }: { left: number; top: number; size: number; delay: number; enabled: boolean }) {
+function ZLetter({ left, top, size, px, delay, enabled }: { left: number; top: number; size: number; px: number; delay: number; enabled: boolean }) {
   const p = useLoop(3600, delay, enabled, 0.2);
   const style = useAnimatedStyle(() => {
     const v = p.get();
     return {
       opacity: v < 0.2 ? v / 0.2 : 1 - (v - 0.2) / 0.8,
-      transform: [{ translateX: 18 * v }, { translateY: -46 * v }, { scale: 0.7 + 0.45 * v }],
+      transform: [{ translateX: 18 * v * px }, { translateY: -46 * v * px }, { scale: 0.7 + 0.45 * v }],
     };
   });
   return (
@@ -279,11 +281,12 @@ function ZLetter({ left, top, size, delay, enabled }: { left: number; top: numbe
   );
 }
 
-function CornerStat({ value, label, style }: { value: number; label: string; style: object }) {
+function CornerStat({ value, label, at, px }: { value: number; label: string; at: Record<string, number>; px: number }) {
+  const place = Object.fromEntries(Object.entries(at).map(([k, v]) => [k, v * px]));
   return (
-    <View style={[styles.stat, style]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.stat, { width: 128 * px, paddingVertical: 10 * px, paddingHorizontal: 14 * px, borderRadius: 18 * px }, place]}>
+      <Text style={[styles.statValue, { fontSize: 30 * px, lineHeight: 32 * px }]}>{value}</Text>
+      <Text style={[styles.statLabel, { marginTop: 4 * px, fontSize: 12 * px, lineHeight: 16 * px }]}>{label}</Text>
     </View>
   );
 }
@@ -331,7 +334,11 @@ export const NookView = memo(function NookView({
   }, []);
 
   const hop = useSharedValue(0);
-  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: hop.get() }] }));
+  // The pet's box, in dp. The hero pet grows from the bottom centre of its usual spot, so its feet stay put.
+  const petSize = PET * scale * (immersive ? HERO_PET : 1);
+  const petLeft = (96 + PET / 2) * scale - petSize / 2;
+  const petTop = (PET_TOP + PET) * scale - petSize;
+  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: hop.get() * scale }] }));
   const wake = () => {
     setAwake(true);
     hop.set(withSequence(
@@ -369,13 +376,14 @@ export const NookView = memo(function NookView({
 
   return (
     <View style={{ width, height: NOOK_H * scale }} {...doubleTap}>
+      <NookScale.Provider value={scale}>
       <Animated.View
         accessibilityRole="image"
         accessibilityLabel={`Your nook: ${scene.name} scene, pet ${awake ? 'awake' : 'sleeping'}${compact ? '' : ', with your prayer stats around it'}.${onDoubleTap ? ` Double tap to ${bare ? 'close full screen' : 'view full screen'}.` : ''}`}
         style={[
           styles.frame,
+          { width: NOOK_W * scale, height: NOOK_H * scale, borderRadius: 28 * scale },
           (bare || immersive || fullBleed) && styles.frameBare,
-          { transform: [{ scale }], transformOrigin: '0% 0%' },
           fullBleed ? styles.frameClear : sceneBgStyle,
         ]}>
         {fullBleed && hasArtScene(nook.scene) ? null : <SceneBackdrop scene={nook.scene} bg={scene.bg} />}
@@ -397,42 +405,43 @@ export const NookView = memo(function NookView({
         ))}
         <NookEffects warmLight={warm} easterSet={easter} sanctuarySet={sanctuary} />
 
-        <View pointerEvents="none" style={{ position: 'absolute', left: 96, top: PET_TOP, width: PET, height: PET }}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: petLeft, top: petTop, width: petSize, height: petSize }}>
           <Animated.View style={hopStyle}>
-            <View style={immersive ? styles.heroPet : undefined}>
+            <View>
             {/* On the Me page the pet is what people watch, so it alone skips the 30fps cap. */}
             <SmoothMotion.Provider value={!!immersive || !!fullBleed || smoothAround}>
             {petId === 'lamb' ? (
-              <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} />
+              <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} size={petSize} />
             ) : (
-              <Pet id={petId} stage={stage} size={PET} animated={motionAround} />
+              <Pet id={petId} stage={stage} size={petSize} animated={motionAround} />
             )}
             </SmoothMotion.Provider>
             </View>
           </Animated.View>
         </View>
         {/* Only the upper part of the pet wakes it, so the rug and other floor pieces under it stay grabbable. */}
-        <View style={{ position: 'absolute', left: 96, top: PET_TOP, width: PET, height: PET * 0.72 }}>
+        <View style={{ position: 'absolute', left: 96 * scale, top: PET_TOP * scale, width: PET * scale, height: PET * 0.72 * scale }}>
           <Pressable onPress={wake} accessibilityRole="button" accessibilityLabel="Say hello to your pet" style={{ flex: 1 }} />
         </View>
-        {petId === 'lamb' && !awake && <Zzz top={PET_TOP} />}
+        {petId === 'lamb' && !awake && <Zzz top={PET_TOP} px={scale} />}
         {awake && (
-          <View style={{ position: 'absolute', left: 81, top: PET_TOP - 34, width: 180, alignItems: 'center' }}>
-            <Text style={styles.greeting}>{GREETINGS[lighting]}</Text>
+          <View style={{ position: 'absolute', left: 81 * scale, top: (PET_TOP - 34) * scale, width: 180 * scale, alignItems: 'center' }}>
+            <Text style={[styles.greeting, { fontSize: 13 * scale, paddingVertical: 6 * scale, paddingHorizontal: 12 * scale }]}>{GREETINGS[lighting]}</Text>
           </View>
         )}
 
-        {sanctuary && !immersive && <View pointerEvents="none" style={styles.sanctuaryRing} />}
+        {sanctuary && !immersive && <View pointerEvents="none" style={[styles.sanctuaryRing, { borderRadius: 28 * scale }]} />}
 
         {compact ? null : (
           <>
-            <CornerStat value={stats.offered} label="prayers offered for others" style={{ left: 10, top: 14 }} />
-            <CornerStat value={stats.shared} label="requests you've shared" style={{ right: 10, top: 14 }} />
-            <CornerStat value={stats.sent} label="notes of encouragement sent" style={{ left: 10, bottom: 14 }} />
-            <CornerStat value={stats.received} label="notes received on your prayers" style={{ right: 10, bottom: 14 }} />
+            <CornerStat value={stats.offered} label="prayers offered for others" at={{ left: 10, top: 14 }} px={scale} />
+            <CornerStat value={stats.shared} label="requests you've shared" at={{ right: 10, top: 14 }} px={scale} />
+            <CornerStat value={stats.sent} label="notes of encouragement sent" at={{ left: 10, bottom: 14 }} px={scale} />
+            <CornerStat value={stats.received} label="notes received on your prayers" at={{ right: 10, bottom: 14 }} px={scale} />
           </>
         )}
       </Animated.View>
+      </NookScale.Provider>
     </View>
   );
 });
@@ -490,7 +499,6 @@ const styles = StyleSheet.create({
   },
   frameBare: { borderRadius: 0, borderWidth: 0 },
   frameClear: { backgroundColor: 'transparent' },
-  heroPet: { transform: [{ scale: 1.16 }], transformOrigin: '50% 100%' },
   fullBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   closeBtn: {
     position: 'absolute',

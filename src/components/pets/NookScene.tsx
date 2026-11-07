@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, {
   Circle,
@@ -21,10 +21,17 @@ import { SceneId } from './nookData';
 export const NOOK_W = 342;
 export const NOOK_H = 440;
 
+/**
+ * Screen dp per nook unit. Every layer draws its SVG at the size it's actually shown (the viewBox stays in nook
+ * units), instead of drawing at 342x440 and being stretched, which blurred pets and art and made each frame scale.
+ */
+export const NookScale = createContext(1);
+
 /** The static-plus-twinkling backdrop for each scene. */
 export function SceneBackdrop({ scene, bg }: { scene: SceneId; bg: string }) {
+  const px = useContext(NookScale);
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }}>
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }}>
       {hasArtScene(scene) && <ArtScene id={scene} />}
       {scene === 'meadow' && (
         <>
@@ -184,10 +191,11 @@ const NODE_SPOTS: [number, number, number, number][] = [
 /** The prayer web: a mandala that gains rings with prayers offered, plus the four flows from the corner stats. */
 /** The great web (rings, spokes and the twinkles on them) and the prayer lights (lines and travelling lights), each optional. */
 export function PrayerWeb({ level, web = true, lights = true }: { level: 1 | 2 | 3 | 4; web?: boolean; lights?: boolean }) {
+  const px = useContext(NookScale);
   const opacity = level === 1 ? 0.2 : level === 2 ? 0.28 : 0.36;
   const width = level >= 3 ? 1.3 : 1;
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       <Defs>
         <RadialGradient id="webglow">
           <Stop offset="0" stopColor="#F2C462" stopOpacity={0.45} />
@@ -570,8 +578,9 @@ type EffectsProps = { warmLight: boolean; easterSet: boolean; sanctuarySet: bool
 
 /** Whole-nook effects that are not tied to one piece: warm light motes, drifting petals, set-bonus sparks. */
 export function NookEffects({ warmLight, easterSet, sanctuarySet }: EffectsProps) {
+  const px = useContext(NookScale);
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       {warmLight && (
         <G fill="#FFE08A">
           <Fx kind="mote"><Circle cx={132} cy={262} r={2} /></Fx>
@@ -603,10 +612,11 @@ export function NookEffects({ warmLight, easterSet, sanctuarySet }: EffectsProps
 /** A full-size drawing layer for one piece, so each piece can be moved on its own. */
 /** `bleed` is how far the piece's canvas reaches past the nook, so art past the edge isn't cut off when it's dragged in. */
 export function ItemLayer({ bleed, children }: { bleed: number; children: React.ReactNode }) {
+  const px = useContext(NookScale);
   const width = NOOK_W + bleed * 2;
   const height = NOOK_H + bleed * 2;
   return (
-    <Svg width={width} height={height} viewBox={`${-bleed} ${-bleed} ${width} ${height}`} style={{ position: 'absolute', left: -bleed, top: -bleed }} pointerEvents="none">
+    <Svg width={width * px} height={height * px} viewBox={`${-bleed} ${-bleed} ${width} ${height}`} style={{ position: 'absolute', left: -bleed * px, top: -bleed * px }} pointerEvents="none">
       {children}
     </Svg>
   );

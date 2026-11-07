@@ -64,11 +64,11 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
 
   const layerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: base.x + x.get() },
-      { translateY: base.y + y.get() },
+      { translateX: (base.x + x.get()) * scale },
+      { translateY: (base.y + y.get()) * scale },
       { scale: 1 + 0.05 * lift.get() },
     ],
-    transformOrigin: `${hit.x + hit.w / 2}px ${hit.y + hit.h / 2}px`,
+    transformOrigin: `${(hit.x + hit.w / 2) * scale}px ${(hit.y + hit.h / 2) * scale}px`,
   }));
 
   const pan = Gesture.Pan()
@@ -102,10 +102,10 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
     });
 
   const bleed = CANVAS_MARGIN + Math.max(0, -hit.x, -hit.y, hit.x + hit.w - NOOK_W, hit.y + hit.h - NOOK_H);
-  const zoneStyle = { position: 'absolute' as const, left: hit.x, top: hit.y, width: hit.w, height: hit.h };
+  const zoneStyle = { position: 'absolute' as const, left: hit.x * scale, top: hit.y * scale, width: hit.w * scale, height: hit.h * scale };
 
   return (
-    <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', left: 0, top: 0, width: NOOK_W, height: NOOK_H }, layerStyle]}>
+    <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', left: 0, top: 0, width: NOOK_W * scale, height: NOOK_H * scale }, layerStyle]}>
       <ItemLayer bleed={bleed}>{art}</ItemLayer>
       {editable ? (
         <GestureDetector gesture={Gesture.Race(pan, tap)}>
