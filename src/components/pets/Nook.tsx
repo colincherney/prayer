@@ -21,7 +21,7 @@ import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { FONTS } from '@/components/saint/theme';
 
 import { COLLECTION_DECOR } from './collectionData';
-import { Fx, SmoothMotion } from './Fx';
+import { Fx, PetMotion, SmoothMotion } from './Fx';
 import { PipStage } from './PipLamb';
 import { Pet, PetId } from './registry';
 import { useLoop, useMotionEnabled } from './anim';
@@ -242,7 +242,7 @@ function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean;
 }
 
 function Zzz({ top }: { top: number }) {
-  const enabled = useMotionEnabled(true);
+  const enabled = useMotionEnabled(useContext(PetMotion));
   const sizes: [number, number, number][] = [
     [214, 20, 16],
     [220, 16, 20],
@@ -308,6 +308,8 @@ export const NookView = memo(function NookView({
   const scale = width / NOOK_W;
   // Keeps the pet uncapped when a parent (the decorator) has already lifted the cap.
   const smoothAround = useContext(SmoothMotion);
+  // The pet sets its own motion, so pass along a page that has turned motion off (the decorator).
+  const motionAround = useContext(PetMotion);
   const has = (id: string) => nook.items.includes(id);
   const scene = SCENES.find(s => s.id === nook.scene) ?? SCENES[0];
   const webLevel = webLevelFor(stats.offered);
@@ -401,7 +403,7 @@ export const NookView = memo(function NookView({
             {petId === 'lamb' ? (
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} />
             ) : (
-              <Pet id={petId} stage={stage} size={PET} />
+              <Pet id={petId} stage={stage} size={PET} animated={motionAround} />
             )}
             </SmoothMotion.Provider>
             </View>
