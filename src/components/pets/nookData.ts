@@ -2,6 +2,12 @@
 
 import { COLLECTION_DECOR, COLLECTION_SCENE_IDS, COLLECTION_SCENES } from './collectionData';
 
+/**
+ * The collection decorations the app offers. The six ambience layers (snowfall, fireflies...) are held back until
+ * they're reworked; drop the filter to bring them back.
+ */
+export const SHOWN_COLLECTION_DECOR = COLLECTION_DECOR.filter(d => d.slot !== 'ambience');
+
 export type SceneId =
   | 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter' | 'harvest'
   | (typeof COLLECTION_SCENE_IDS)[number];
@@ -111,7 +117,7 @@ export const ITEM_META: Record<string, ItemMeta> = {
   [PRAYER_LIGHTS]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
   garland: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 100, y: 14, w: 142, h: 40 } },
 };
-for (const d of COLLECTION_DECOR) {
+for (const d of SHOWN_COLLECTION_DECOR) {
   ITEM_META[d.id] = { slot: d.slot, base: { x: 0, y: 0 }, hit: d.hit };
 }
 
@@ -223,11 +229,6 @@ export const ROWS: RowDef[] = [
       { id: 'garland', name: 'Candy corn garland', sw: '#E8913A', locked: true },
     ],
   },
-  {
-    slot: 'ambience',
-    label: 'Ambience',
-    items: [],
-  },
 ];
 
 export type Lighting = 'morning' | 'afternoon' | 'sunset' | 'night';
@@ -278,6 +279,6 @@ export function isEasterSet(n: NookState): boolean {
 
 
 // The nook collection's decorations join the rows for their spot, released weekly (public.content_releases, id item:<id>).
-for (const d of COLLECTION_DECOR) {
+for (const d of SHOWN_COLLECTION_DECOR) {
   ROWS.find(row => row.slot === d.slot)?.items.push({ id: d.id, name: d.name, sw: d.sw, locked: true });
 }

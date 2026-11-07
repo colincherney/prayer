@@ -20,7 +20,6 @@ import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 
 import { FONTS } from '@/components/saint/theme';
 
-import { COLLECTION_DECOR } from './collectionData';
 import { Fx, PetMotion, SmoothMotion } from './Fx';
 import { PipStage } from './PipLamb';
 import { Pet, PetId } from './registry';
@@ -31,6 +30,7 @@ import {
   NookState,
   Offset,
   PRAYER_LIGHTS,
+  SHOWN_COLLECTION_DECOR,
   SCENES,
   TINTS,
   isEasterSet,
@@ -116,7 +116,7 @@ const NO_OFFSET: Offset = { x: 0, y: 0 };
 /** Back to front, so floor pieces sit under the lantern and plant, and hanging pieces are on top. */
 /** Collection pieces go back to front by spot: rugs and wall art, then floor and side pieces, then overhead and ambience. */
 const LAYER_RANK: Record<string, number> = { wall: 0, floor: 1, left: 2, right: 2, hang: 3, ambience: 4 };
-const COLLECTION_LAYERS = [...COLLECTION_DECOR]
+const COLLECTION_LAYERS = [...SHOWN_COLLECTION_DECOR]
   .sort((a, b) => LAYER_RANK[a.slot] - LAYER_RANK[b.slot])
   .map(d => d.id);
 const ITEM_ORDER = [
@@ -183,7 +183,7 @@ const ITEM_LABEL: Record<string, string> = {
   web: 'Spiderweb',
   bats: 'Friendly bats',
   garland: 'Candy corn garland',
-  ...Object.fromEntries(COLLECTION_DECOR.map(d => [d.id, d.name])),
+  ...Object.fromEntries(SHOWN_COLLECTION_DECOR.map(d => [d.id, d.name])),
 };
 
 function SleepingPet({ awake, eyesUp, warm }: { awake: boolean; eyesUp: boolean; warm: boolean }) {
