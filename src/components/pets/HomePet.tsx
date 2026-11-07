@@ -41,6 +41,19 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   theme: { size: 72, x: 0.644, feetY: 192 },
 };
 
+// Feet positions in the background SVGs, rather than relative to foreground copy.
+const SCENE_FEET: Record<HomePetVariant, number> = {
+  lamp: 284,
+  window: 349,
+  stars: 297,
+  jungle: 297,
+  halloween: 318,
+  thanksgiving: 318,
+  christmas: 318,
+  ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(name => [name, 330])) as Record<MonthlyRoomName, number>),
+  theme: 195,
+};
+
 /** What the companion sits on, where the room art doesn't already give it somewhere to sit. */
 function Perch({ variant, width, accent }: { variant: HomePetVariant; width: number; accent: string }) {
   const h = 40;
@@ -99,22 +112,37 @@ function Perch({ variant, width, accent }: { variant: HomePetVariant; width: num
 
 /**
  * The player's companion, sitting in the hero area of the home screen so it is part of whichever room or theme
- * is showing. Drop it inside the hero view (it positions itself absolutely). Tapping it plays its reaction.
+ * is showing. With sceneSize it follows the scene's SVG coordinates and crop; otherwise it sits in the hero.
+ * Tapping it plays its reaction.
  */
-export function HomePet({ variant, accent = '#8FC6A9' }: { variant: HomePetVariant; accent?: string }) {
+export function HomePet({ variant, accent = '#8FC6A9', sceneSize }: {
+  variant: HomePetVariant;
+  accent?: string;
+  /** Match the scene's centered SVG crop so the companion stays on its perch on every screen size. */
+  sceneSize?: { width: number; height: number };
+}) {
   const { petId, progress } = usePetProgress();
   const { width: screenW } = useWindowDimensions();
   const spot = SPOTS[variant];
-  const perchW = Math.round(spot.size * 1.15);
-  const petH = (spot.size * 260) / 240;
+  const classicRoom = ['lamp', 'window', 'stars', 'jungle'].includes(variant);
+  const artW = variant === 'theme' ? 220 : classicRoom ? 402 : 390;
+  const artH = variant === 'theme' ? 220 : classicRoom ? 874 : 844;
+  const scale = sceneSize ? Math.max(sceneSize.width / artW, sceneSize.height / artH) : 1;
+  const offsetX = sceneSize ? (sceneSize.width - artW * scale) / 2 : 0;
+  const offsetY = sceneSize ? (sceneSize.height - artH * scale) / 2 : 0;
+  const size = (sceneSize && variant === 'theme' ? 64 : spot.size) * scale;
+  const centerX = sceneSize ? offsetX + (variant === 'theme' ? 60 : spot.x * artW) * scale : spot.x * screenW;
+  const feetY = sceneSize ? offsetY + SCENE_FEET[variant] * scale : spot.feetY;
+  const perchW = Math.round(size * 1.15);
+  const petH = (size * 260) / 240;
   const feetInPet = FEET * petH;
   return (
     <View
       pointerEvents="box-none"
       style={{
         position: 'absolute',
-        left: spot.x * screenW - perchW / 2,
-        top: spot.feetY - feetInPet,
+        left: centerX - perchW / 2,
+        top: feetY - feetInPet,
         width: perchW,
         height: petH + 30,
         alignItems: 'center',
@@ -122,7 +150,7 @@ export function HomePet({ variant, accent = '#8FC6A9' }: { variant: HomePetVaria
       <View pointerEvents="none" style={{ position: 'absolute', top: feetInPet - 14 }}>
         <Perch variant={variant} width={perchW} accent={accent} />
       </View>
-      <Pet id={petId} stage={progress.stage} size={spot.size} interactive />
+      <Pet id={petId} stage={progress.stage} size={size} interactive />
     </View>
   );
 }

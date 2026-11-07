@@ -37,6 +37,7 @@ import {
 } from './nookData';
 import { NookItem } from './NookItem';
 import { ItemArt, NOOK_H, NOOK_W, NookEffects, PrayerWeb, SceneBackdrop } from './NookScene';
+import { useNookTransition } from './useNookTransition';
 
 export type NookStats = { offered: number; shared: number; sent: number; received: number };
 
@@ -48,6 +49,8 @@ type Props = {
   stage: PipStage;
   /** Hides the four stat boxes, for small previews where they would crowd the scene. */
   compact?: boolean;
+  /** Let the scene blend into a surrounding page instead of framing it as a card. */
+  immersive?: boolean;
   /** Rendered width in dp; the 342x440 scene is scaled to fit. */
   width: number;
   /** Lets decor be dragged (press and hold, then move). Needs a gesture-handler root above it. */
@@ -257,6 +260,7 @@ export function NookView({
   onDoubleTap,
   bare,
   compact,
+  immersive,
   editable,
   onMoveItem,
 }: ViewProps) {
@@ -326,10 +330,10 @@ export function NookView({
     <View style={{ width, height: NOOK_H * scale }} {...doubleTap}>
       <Animated.View
         accessibilityRole="image"
-        accessibilityLabel={`Your nook: ${scene.name} scene, pet ${awake ? 'awake' : 'sleeping'}, with your prayer stats around it. Double tap to ${bare ? 'close full screen' : 'view full screen'}.`}
+        accessibilityLabel={`Your nook: ${scene.name} scene, pet ${awake ? 'awake' : 'sleeping'}${compact ? '' : ', with your prayer stats around it'}.${onDoubleTap ? ` Double tap to ${bare ? 'close full screen' : 'view full screen'}.` : ''}`}
         style={[
           styles.frame,
-          bare && styles.frameBare,
+          (bare || immersive) && styles.frameBare,
           { transform: [{ scale }], transformOrigin: '0% 0%' },
           sceneBgStyle,
         ]}>
@@ -353,16 +357,18 @@ export function NookView({
 
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 96, width: PET, height: PET }, petPosStyle]}>
           <Animated.View style={hopStyle}>
+            <View style={immersive ? styles.heroPet : undefined}>
             {petId === 'lamb' ? (
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} />
             ) : (
               <Pet id={petId} stage={stage} size={PET} />
             )}
+            </View>
           </Animated.View>
         </Animated.View>
         {/* Only the upper part of the pet wakes it, so the rug and other floor pieces under it stay grabbable. */}
         <Animated.View style={[{ position: 'absolute', left: 96, width: PET, height: PET * 0.72 }, petPosStyle]}>
-          <Pressable onPress={wake} accessibilityLabel="Wake your pet" style={{ flex: 1 }} />
+          <Pressable onPress={wake} accessibilityRole="button" accessibilityLabel="Say hello to your pet" style={{ flex: 1 }} />
         </Animated.View>
         {petId === 'lamb' && !awake && <Zzz top={petTop} />}
         {awake && (
@@ -371,7 +377,7 @@ export function NookView({
           </View>
         )}
 
-        {sanctuary && <View pointerEvents="none" style={styles.sanctuaryRing} />}
+        {sanctuary && !immersive && <View pointerEvents="none" style={styles.sanctuaryRing} />}
 
         {compact ? null : (
           <>
@@ -389,34 +395,42 @@ export function NookView({
 /** "Your nook". Double tap it to open it full screen; double tap again (or tap the X) to close. */
 export function Nook(props: Props) {
   const [full, setFull] = useState(false);
+  return (
+    <>
+      <NookView {...props} onDoubleTap={() => setFull(true)} />
+      {full ? <FullscreenNook {...props} onClose={() => setFull(false)} /> : null}
+    </>
+  );
+}
+
+function FullscreenNook({ onClose, ...props }: Props & { onClose: () => void }) {
   const { width: sw, height: sh } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const scene = SCENES.find(sc => sc.id === props.nook.scene) ?? SCENES[0];
+  const { motionStyle, dismiss } = useNookTransition(onClose);
   // Fill the screen width, or the height if the screen is short and wide.
   const fullW = Math.min(sw, (sh - insets.top - insets.bottom) * (NOOK_W / NOOK_H));
 
   return (
-    <>
-      <NookView {...props} onDoubleTap={() => setFull(true)} />
       <Modal
-        visible={full}
-        animationType="fade"
+        visible
+        transparent
+        animationType="none"
         statusBarTranslucent
         supportedOrientations={['portrait']}
-        onRequestClose={() => setFull(false)}>
-        <View style={[styles.fullBackdrop, { backgroundColor: scene.bg }]}>
-          <NookView {...props} editable={false} width={fullW} bare onDoubleTap={() => setFull(false)} />
+        onRequestClose={() => dismiss()}>
+        <Animated.View style={[styles.fullBackdrop, { backgroundColor: scene.bg }, motionStyle]}>
+          <NookView {...props} editable={false} width={fullW} bare onDoubleTap={() => dismiss()} />
           <Pressable
-            onPress={() => setFull(false)}
+            onPress={() => dismiss()}
             accessibilityRole="button"
             accessibilityLabel="Close full screen"
             style={[styles.closeBtn, { top: insets.top + 10 }]}>
             <Text style={styles.closeText}>{'\u00D7'}</Text>
           </Pressable>
           <Text style={[styles.fullHint, { bottom: insets.bottom + 14 }]}>Double tap to close</Text>
-        </View>
+        </Animated.View>
       </Modal>
-    </>
   );
 }
 
@@ -430,6 +444,7 @@ const styles = StyleSheet.create({
     borderColor: '#1F2B3A',
   },
   frameBare: { borderRadius: 0, borderWidth: 0 },
+  heroPet: { transform: [{ scale: 1.16 }], transformOrigin: '50% 100%' },
   fullBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   closeBtn: {
     position: 'absolute',

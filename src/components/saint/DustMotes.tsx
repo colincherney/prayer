@@ -4,6 +4,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   interpolate,
+  useReducedMotion,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -12,7 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-type Mote = {
+type DustMote = {
   startX: number;
   startY: number;
   size: number;
@@ -23,7 +24,7 @@ type Mote = {
   peakOpacity: number;
 };
 
-function seededMotes(count: number, seed: number): Mote[] {
+function seededMotes(count: number, seed: number): DustMote[] {
   let s = seed;
   const rand = () => {
     s = (s * 9301 + 49297) % 233280;
@@ -41,7 +42,7 @@ function seededMotes(count: number, seed: number): Mote[] {
   }));
 }
 
-const Mote: React.FC<{ mote: Mote }> = ({ mote }) => {
+const Mote: React.FC<{ mote: DustMote }> = ({ mote }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -98,6 +99,8 @@ export const DustMotes: React.FC<{ count?: number; seed?: number }> = ({
   seed = 1337,
 }) => {
   const motes = useMemo(() => seededMotes(count, seed), [count, seed]);
+  const reducedMotion = useReducedMotion();
+  if (reducedMotion) return null;
   return (
     <View
       pointerEvents="none"
