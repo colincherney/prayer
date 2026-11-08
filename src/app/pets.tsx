@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { memo, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { COMPANION_INFO, CompanionGroup, companionGroup, GROUP_LABELS, STAGE_LEVELS } from '@/components/pets/companionInfo';
@@ -22,6 +22,8 @@ const FILTERS: { id: Filter; label: string }[] = [
 ];
 const GROUPS: CompanionGroup[] = ['core', 'seasonal', 'monthly'];
 const CARD_ART = 92;
+const PAGE_PAD = 20;
+const GRID_GAP = 10;
 
 export const dexNumber = (id: PetId) => String(PETS.findIndex(p => p.id === id) + 1).padStart(3, '0');
 
@@ -35,7 +37,9 @@ function SearchGlyph({ color }: { color: string }) {
 }
 
 /** One companion's card in the grid: met, not met yet (a silhouette), or not out yet. */
-const DexCard = memo(function DexCard({ def, level, stage, met, released, current }: {
+const DexCard = memo(function DexCard({ def, level, stage, met, released, current, width }: {
+  /** Exactly a third of the row, so three always fit. */
+  width: number;
   def: PetDef;
   level: number;
   stage: 1 | 2 | 3;
@@ -53,7 +57,7 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, curren
       onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
       accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
-      style={({ pressed }) => [styles.card, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
+      style={({ pressed }) => [styles.card, { width }, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
       <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
         <Text style={styles.cardNumber}>{dexNumber(def.id)}</Text>
@@ -82,6 +86,8 @@ export default function CompanionDexScreen() {
   const { isReleased } = useReleases();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState<string | null>(null);
+  const { width: screenW } = useWindowDimensions();
+  const cardW = Math.floor((Math.min(screenW, 500) - PAGE_PAD * 2 - GRID_GAP * 2) / 3);
 
   const released = (def: PetDef) => !def.scheduled || isReleased(`pet:${def.id}`);
   const met = (id: PetId) => id === petId || (xpByPet[id] ?? 0) > 0;
@@ -168,7 +174,7 @@ export default function CompanionDexScreen() {
                   const own = petProgressFromXp(xpByPet[def.id] ?? 0);
                   return (
                     <DexCard key={def.id} def={def} level={own.level} stage={own.stage}
-                      met={met(def.id)} released={released(def)} current={def.id === petId} />
+                      met={met(def.id)} released={released(def)} current={def.id === petId} width={cardW} />
                   );
                 })}
               </View>
@@ -217,8 +223,8 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   sectionCount: { fontFamily: FONTS.bodySemi, fontSize: 12, color: theme.muted },
   sectionTrack: { height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: theme.line, marginTop: 8 },
   sectionFill: { height: '100%', backgroundColor: theme.accent },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  card: { width: '31.5%', aspectRatio: 0.72, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: theme.line, padding: 8, justifyContent: 'space-between' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, marginTop: 14 },
+  card: { aspectRatio: 0.72, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: theme.line, padding: 8, justifyContent: 'space-between' },
   cardCurrent: { borderWidth: 2, borderColor: theme.accent, paddingBottom: 24 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardNumber: { fontFamily: FONTS.bodyBold, fontSize: 11, fontVariant: ['lining-nums'], color: theme.inkSoft },
