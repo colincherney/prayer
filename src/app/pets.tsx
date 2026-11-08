@@ -85,7 +85,7 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
   );
 });
 
-export default function CompanionDexScreen() {
+export default function PrayerPalsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -125,7 +125,7 @@ export default function CompanionDexScreen() {
             <BackIcon size={15} color={theme.ink} />
           </Pressable>
           <Text accessibilityRole="header" style={styles.title}>
-            Companion <Text style={styles.titleAccent}>Dex</Text>
+            Prayer <Text style={styles.titleAccent}>Pals</Text>
           </Text>
           <Pressable onPress={() => setQuery(q => (q === null ? '' : null))} style={styles.circleBtn}
             accessibilityRole="button" accessibilityLabel={query === null ? 'Search companions' : 'Close search'}>
