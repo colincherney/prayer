@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { RARITY_COLOR, TapTrinket, TrinketArt } from '@/components/pets/Trinket';
 import { TRINKET_INFO } from '@/components/pets/trinketArt';
@@ -34,6 +34,11 @@ function TrinketCard({ t, onClaim }: { t: TrinketStatus; onClaim: () => void }) 
           </Text>
         </View>
       ) : null}
+      {t.quest && !t.earned ? (
+        <Pressable onPress={() => router.push('/quests')} hitSlop={6} accessibilityRole="link" accessibilityLabel={`Go to quests to earn ${info.name}`}>
+          <Text style={styles.questLink}>Go to quests →</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -60,7 +65,7 @@ export default function TrinketsScreen() {
             Nook <Text style={styles.titleItalic}>trinkets</Text>
           </Text>
           <Text style={styles.subtitle}>
-            Keepsakes earned through prayer, set on the shelf beside your companion. New ones arrive each month.
+            Keepsakes earned through prayer and quests, set on the shelf beside your companion.
             {trinkets.length ? ` You have ${earned} of ${trinkets.length}.` : ''}
           </Text>
         </View>
@@ -92,7 +97,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 44, color: THEME.ink, marginTop: 14 },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   subtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, color: THEME.muted, marginTop: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 18, gap: 12, justifyContent: 'center' },
   card: {
@@ -111,6 +116,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   name: { fontFamily: FONTS.displaySemi, fontSize: 16, lineHeight: 19, color: THEME.ink, textAlign: 'center' },
   goal: { fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 17, color: THEME.muted, textAlign: 'center' },
   status: { fontFamily: FONTS.bodySemi, fontSize: 12, marginTop: 4 },
+  questLink: { marginTop: 6, fontFamily: FONTS.bodySemi, fontSize: 12, lineHeight: 16, color: THEME.accent },
   claim: { marginTop: 6, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: THEME.accent },
   claimText: { fontFamily: FONTS.bodySemi, fontSize: 12, color: THEME.accentInk },
   track: { marginTop: 6, width: '90%', height: 18, borderRadius: 9, backgroundColor: THEME.line, overflow: 'hidden', justifyContent: 'center' },

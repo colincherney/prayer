@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Pill, PrimaryButton, Squiggle } from '@/components/saint/Common';
 import {
@@ -248,8 +248,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -298,8 +297,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   helper: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12,
     lineHeight: 17,
     color: THEME.muted,
@@ -347,8 +345,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   confirmTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   confirmBody: {

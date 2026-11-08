@@ -24,7 +24,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { lyingFeetOffset } from '@/components/pets/LyingPets';
 import { ScreenPet } from '@/components/pets/ScreenPet';
@@ -548,8 +548,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     textAlign: 'center',
   },
   endVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12.5,
     color: THEME.muted,
     textAlign: 'center',
@@ -583,10 +582,9 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  searchTitleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  searchTitleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   searchBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.muted,
     textAlign: 'center',
@@ -615,8 +613,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.3,
   },
   pairedSubtitle: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.muted,
     marginBottom: 22,
@@ -668,8 +665,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   prayingTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   prayingMid: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   breatheText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.cardDarkInk,
     opacity: 0.75,
@@ -691,8 +687,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   timerFill: { height: '100%', backgroundColor: THEME.accent, borderRadius: 2 },
   partnerSnippet: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 16,
     lineHeight: 24,
     color: THEME.cardDarkInk,
@@ -731,7 +726,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 12,
     letterSpacing: -0.4,
   },
-  confirmTitleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.ink },
+  confirmTitleItalic: { fontFamily: FONTS.display, color: THEME.ink },
   blessBody: {
     fontFamily: FONTS.body,
     fontSize: 15,
@@ -742,8 +737,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 24,
   },
   blessVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: THEME.muted,
     textAlign: 'center',

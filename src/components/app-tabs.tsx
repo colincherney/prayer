@@ -2,6 +2,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
 import { useColorScheme } from 'react-native';
 
+import { FONTS } from '@/components/saint/theme';
 import { Colors } from '@/constants/theme';
 
 export default function AppTabs() {
@@ -14,7 +15,10 @@ export default function AppTabs() {
       indicatorColor={colors.backgroundElement}
       iconColor={{ default: '#FFFFFF', selected: '#FFFFFF' }}
       tintColor="#FFFFFF"
-      labelStyle={{ default: { color: '#FFFFFF' }, selected: { color: '#FFFFFF' } }}>
+      labelStyle={{
+        default: { color: '#FFFFFF', fontFamily: FONTS.display },
+        selected: { color: '#FFFFFF', fontFamily: FONTS.display },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon src={require('@/assets/images/tabIcons/tab-home.png')} renderingMode="original" />

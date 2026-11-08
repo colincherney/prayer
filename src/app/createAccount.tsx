@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
@@ -207,7 +207,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   title: { fontFamily: FONTS.display, fontSize: 38, lineHeight: 42, color: THEME.ink, marginTop: 20 },
-  titleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   body: { fontFamily: FONTS.body, fontSize: 15, lineHeight: 22, color: THEME.inkSoft, marginTop: 12 },
   perkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   perkDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: THEME.accent, marginTop: 7 },

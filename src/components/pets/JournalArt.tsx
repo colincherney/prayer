@@ -218,9 +218,9 @@ export function JournalEmptyArt({ width = 220, accent }: { width?: number; accen
           <Path d="M157 100 L157 110 L160 107 L163 110 L163 100 Z" fill="#C9433A" />
         </Fx>
         <Path d="M186 100 L189 97 C194 86 202 74 214 68 C210 80 200 92 191 99 Z" fill="#F2E9D8" opacity={0.9} />
-        <Fx kind="zH" delay={0}><SvgText x={56} y={34} fontSize={11} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
-        <Fx kind="zH" delay={1200}><SvgText x={60} y={30} fontSize={14} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
-        <Fx kind="zH" delay={2400}><SvgText x={64} y={26} fontSize={17} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
+        <Fx kind="zH" delay={0}><SvgText x={56} y={34} fontSize={11} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
+        <Fx kind="zH" delay={1200}><SvgText x={60} y={30} fontSize={14} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
+        <Fx kind="zH" delay={2400}><SvgText x={64} y={26} fontSize={17} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
       </Svg>
       <View pointerEvents="none" style={{ position: 'absolute', left: 110 * k - petW / 2, top: 80 * k - lyingFeetOffset(petW) }}>
         <LyingPet id={petId} stage={progress.stage} size={petW} eyes="sleep" />

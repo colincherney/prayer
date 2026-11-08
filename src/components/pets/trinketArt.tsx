@@ -3,6 +3,9 @@ import { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg
 
 import { DashFlow, Fx } from './Fx';
 
+import { COLLECTION_KEEPSAKE_INFO } from './collectionData';
+import { COLLECTION_KEEPSAKE_ART } from './collectionKeepsakes';
+
 // The 24 prayer nook trinkets' artwork, converted from design/Trinkets.dc.html (Prayer nook trinkets). Each piece
 // is drawn on a 120x120 artboard; Trinket.tsx frames them and trinkets.ts says when each unlocks and how it's earned.
 
@@ -911,6 +914,7 @@ export const TRINKET_ART = {
   unburntBushBonsai: UnburntBushBonsai,
   jacobsLadderMobile: JacobsLadderMobile,
   pearlOfGreatPrice: PearlOfGreatPrice,
+  ...COLLECTION_KEEPSAKE_ART,
 } as const;
 
 export type TrinketId = keyof typeof TRINKET_ART;
@@ -920,25 +924,26 @@ export const TRINKET_INFO: Record<TrinketId, { name: string; rarity: 'common' | 
   firstLightCandle: { name: "First Light Candle", rarity: "common", goal: "Pray for the first time", sound: "Amen!" },
   olivewoodRosary: { name: "Olivewood Rosary", rarity: "common", goal: "Pray 7 days in a row", sound: "Hail Mary…" },
   mustardSeedJar: { name: "Mustard Seed Jar", rarity: "common", goal: "Write your first prayer request", sound: "Grow!" },
-  oliveBranchVase: { name: "Olive Branch Vase", rarity: "common", goal: "Pray for someone you disagree with", sound: "Peace be with you" },
-  loavesFishesBasket: { name: "Loaves & Fishes Basket", rarity: "common", goal: "Share a prayer with a friend", sound: "Enough for all!" },
-  shepherdLambPlush: { name: "Shepherd Lamb Plush", rarity: "common", goal: "Pray for someone who is lost", sound: "Baa!" },
+  oliveBranchVase: { name: "Olive Branch Vase", rarity: "common", goal: "Complete 5 Faith & Daily Life quests", sound: "Peace be with you" },
+  loavesFishesBasket: { name: "Loaves & Fishes Basket", rarity: "common", goal: "Complete 5 Love & Service quests", sound: "Enough for all!" },
+  shepherdLambPlush: { name: "Shepherd Lamb Plush", rarity: "common", goal: "Complete your first quest", sound: "Baa!" },
   quillPrayerJournal: { name: "Quill & Prayer Journal", rarity: "common", goal: "Journal 5 prayers", sound: "Scribble scribble" },
   sevenbellChime: { name: "Seven-Bell Chime", rarity: "common", goal: "Pray at dawn 3 times", sound: "Ting-a-ling" },
-  lilyOfTheField: { name: "Lily of the Field", rarity: "common", goal: "Pray when you feel anxious", sound: "Breathe…" },
-  hourglassOfStillness: { name: "Hourglass of Stillness", rarity: "rare", goal: "Pray 10 quiet minutes", sound: "Be still" },
+  lilyOfTheField: { name: "Lily of the Field", rarity: "common", goal: "Complete 10 quests", sound: "Breathe…" },
+  hourglassOfStillness: { name: "Hourglass of Stillness", rarity: "rare", goal: "Complete quests on 7 different days", sound: "Be still" },
   doveMusicBox: { name: "Dove Music Box", rarity: "rare", goal: "Answer 5 prayer requests", sound: "La la laa" },
   nightWatchLantern: { name: "Night Watch Lantern", rarity: "rare", goal: "Pray after 10pm 3 times", sound: "Keep watch" },
-  psalmHarp: { name: "Psalm Harp", rarity: "rare", goal: "Pray a Psalm 7 times", sound: "Strum~" },
+  psalmHarp: { name: "Psalm Harp", rarity: "rare", goal: "Complete 10 Scripture quests", sound: "Strum~" },
   goldenPotOfManna: { name: "Golden Pot of Manna", rarity: "rare", goal: "Pray every day for a week", sound: "Daily bread!" },
-  harborLighthouse: { name: "Harbor Lighthouse", rarity: "rare", goal: "Pray for 3 people in a storm", sound: "Shine!" },
-  fishersNet: { name: "Fisher's Net", rarity: "rare", goal: "Invite a friend to pray", sound: "Splash!" },
+  harborLighthouse: { name: "Harbor Lighthouse", rarity: "rare", goal: "Complete 15 Prayer quests", sound: "Shine!" },
+  fishersNet: { name: "Fisher's Net", rarity: "rare", goal: "Complete 15 Love & Service quests", sound: "Splash!" },
   chapelSnowGlobe: { name: "Chapel Snow Globe", rarity: "epic", goal: "Pray through Advent", sound: "Shake shake!" },
-  roseWindowSuncatcher: { name: "Rose Window Suncatcher", rarity: "epic", goal: "Pray in a church or chapel", sound: "Shimmer~" },
-  arkInABottle: { name: "Ark in a Bottle", rarity: "epic", goal: "Pray through a rainy week", sound: "All aboard!" },
-  galaxyPromiseJar: { name: "Galaxy Promise Jar", rarity: "epic", goal: "Pray under the stars", sound: "Count the stars!" },
+  roseWindowSuncatcher: { name: "Rose Window Suncatcher", rarity: "epic", goal: "Complete 3 bonus challenges", sound: "Shimmer~" },
+  arkInABottle: { name: "Ark in a Bottle", rarity: "epic", goal: "Finish a weekly journey", sound: "All aboard!" },
+  galaxyPromiseJar: { name: "Galaxy Promise Jar", rarity: "epic", goal: "Complete 100 quests", sound: "Count the stars!" },
   covenantPrism: { name: "Covenant Prism", rarity: "epic", goal: "Keep a 30-day prayer streak", sound: "A promise!" },
   unburntBushBonsai: { name: "Unburnt Bush Bonsai", rarity: "legendary", goal: "Pray 100 times", sound: "Holy ground!" },
   jacobsLadderMobile: { name: "Jacob's Ladder Mobile", rarity: "legendary", goal: "Pray for 50 different people", sound: "Up we go!" },
-  pearlOfGreatPrice: { name: "Pearl of Great Price", rarity: "legendary", goal: "Finish every quest in a season", sound: "Priceless!" },
+  pearlOfGreatPrice: { name: "Pearl of Great Price", rarity: "legendary", goal: "Finish 6 weekly journeys", sound: "Priceless!" },
+  ...COLLECTION_KEEPSAKE_INFO,
 };

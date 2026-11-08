@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { BackIcon } from '@/components/saint/Icons';
 import {
@@ -338,8 +338,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {

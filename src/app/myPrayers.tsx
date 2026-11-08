@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, {
   Circle,
   Defs,
@@ -1801,8 +1801,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -1821,8 +1820,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderColor: THEME.line,
   },
   emptyText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 16,
     lineHeight: 22,
     color: THEME.inkSoft,
@@ -1896,8 +1894,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   carryingFooterText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     color: THEME.inkSoft,
   },
@@ -1988,8 +1985,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 8,
   },
   featuredPillBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 19,
     color: '#fff',
@@ -2021,8 +2017,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   reachCaption: {
     marginTop: 6,
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.65)',
@@ -2050,8 +2045,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 10,
   },
   noteCardBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 18,
     lineHeight: 24,
     color: THEME.ink,
@@ -2245,13 +2239,11 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.4,
   },
   sheetTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   sheetPrayerEcho: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: THEME.muted,
     marginTop: 8,
@@ -2418,8 +2410,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   darkSheetFooter: {
     marginTop: 28,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.55)',
@@ -2442,8 +2433,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   bigStatLabel: {
     flex: 1,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.75)',
@@ -2478,8 +2468,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: 0.4,
   },
   topPrayerBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 19,
     color: '#fff',
@@ -2500,8 +2489,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   reachPoetic: {
     marginTop: 8,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 17,
     lineHeight: 24,
     textAlign: 'center',
@@ -2516,8 +2504,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderRadius: 18,
   },
   reachNoteBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 21,
     color: '#fff',

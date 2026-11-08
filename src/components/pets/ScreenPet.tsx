@@ -16,7 +16,7 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 
 import { usePetProgress } from '@/lib/pet';
 
-import { keyframe, useLoop } from './anim';
+import { keyframe, useLoop, useMotionEnabled } from './anim';
 import { Fx } from './Fx';
 import { LieEyes, LyingPet, lyingFeetOffset, lyingHeight } from './LyingPets';
 import { OverlayKind, PetOverlay } from './petActing';
@@ -56,8 +56,7 @@ type Props = {
 
 /** One floating "z". */
 function Zed({ delay, size, x, y }: { delay: number; size: number; x: number; y: number }) {
-  const reduce = useReducedMotion();
-  const p = useLoop(3600, delay, !reduce, 0.2);
+  const p = useLoop(3600, delay, useMotionEnabled(true), 0.2);
   const style = useAnimatedStyle(() => ({
     opacity: keyframe(p.get(), [0, 0.2, 1], [0, 1, 0]),
     transform: [
@@ -69,7 +68,7 @@ function Zed({ delay, size, x, y }: { delay: number; size: number; x: number; y:
   return (
     <Animated.Text
       pointerEvents="none"
-      style={[{ position: 'absolute', left: x, top: y, fontSize: size, color: '#B5DCC6', fontStyle: 'italic', fontWeight: '500' }, style]}>
+      style={[{ position: 'absolute', left: x, top: y, fontSize: size, color: '#B5DCC6', fontWeight: '500' }, style]}>
       z
     </Animated.Text>
   );

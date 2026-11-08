@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Hearth, HearthMember, HEARTH_SEATS } from '@/components/pets/Hearth';
 import { isPetId } from '@/components/pets/registry';
@@ -33,7 +33,6 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { usePetProgress } from '@/lib/pet';
 import { supabase } from '@/lib/supabase';
-import { relativeTime } from '@/lib/time';
 
 type GroupInfo = {
   id: string;
@@ -49,7 +48,6 @@ type GroupPrayer = {
   id: string;
   text: string;
   category: string;
-  age: string;
   mine: boolean;
   prayedCount: number;
   prayedByMe: boolean;
@@ -140,7 +138,6 @@ export default function GroupScreen() {
           id: p.id as string,
           text: (p.body as string) ?? '',
           category: (p.category as string | null) ?? 'Other',
-          age: relativeTime(p.created_at as string),
           mine: p.user_id === me,
           prayedCount: prayed.length,
           prayedByMe: prayed.some(i => i.user_id === me),
@@ -441,7 +438,7 @@ export default function GroupScreen() {
                   <View key={p.id} style={styles.prayerCard}>
                     <View style={styles.prayerMetaRow}>
                       <Text style={styles.prayerMeta}>
-                        {p.category.toUpperCase()} · {p.age.toUpperCase()}
+                        {p.category.toUpperCase()}
                       </Text>
                       {p.mine ? (
                         <Text style={[styles.prayerMeta, { color: THEME.accent }]}>
@@ -585,8 +582,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   hearthLabel: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 2, color: THEME.ink },
   hearthCount: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
   hearthNote: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     lineHeight: 19,
     color: THEME.inkSoft,

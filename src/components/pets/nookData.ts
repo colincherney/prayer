@@ -1,7 +1,17 @@
 // Catalog and derived state for the Me-page nook, from design/Me.dc.html.
 
-export type SceneId = 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter' | 'harvest';
-export type SlotId = 'floor' | 'left' | 'right' | 'wall' | 'hang';
+import { COLLECTION_DECOR, COLLECTION_SCENE_IDS, COLLECTION_SCENES } from './collectionData';
+
+/**
+ * The collection decorations the app offers. The six ambience layers (snowfall, fireflies...) are held back until
+ * they're reworked; drop the filter to bring them back.
+ */
+export const SHOWN_COLLECTION_DECOR = COLLECTION_DECOR.filter(d => d.slot !== 'ambience');
+
+export type SceneId =
+  | 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter' | 'harvest'
+  | (typeof COLLECTION_SCENE_IDS)[number];
+export type SlotId = 'floor' | 'left' | 'right' | 'wall' | 'hang' | 'ambience';
 
 /** How far a piece has been dragged from its default spot, in the nook's own 342x440 units. */
 export type Offset = { x: number; y: number };
@@ -10,22 +20,50 @@ export type Offset = { x: number; y: number };
  * `items` holds every equipped piece (any number per spot). `offsets` holds only pieces that have been dragged,
  * so removing a piece also removes its entry and it returns to its default spot next time.
  */
-export type NookState = { scene: SceneId; items: string[]; offsets: Record<string, Offset> };
+export type NookState = {
+  scene: SceneId;
+  items: string[];
+  offsets: Record<string, Offset>;
+  /** 3 since the great web and the prayer lights became two removable pieces. Older saves had both built in. */
+  v?: 3;
+};
+
+/** The light lines running to the centre, with the lights that travel along them. Drawn by NookView. */
+export const PRAYER_LIGHTS = 'prayerlights';
+/** The big web of rings and spokes behind them. It grows with prayers offered. Drawn by NookView. */
+export const GREAT_WEB = 'greatweb';
+
+/** The pet always stands on one rug. The blue one is the default, and choosing another swaps it out. */
+export const DEFAULT_RUG = 'bluerug';
+const RUGS = [DEFAULT_RUG, 'rug'];
+export const isRug = (id: string) => RUGS.includes(id);
+
+/** Leaves at most one rug in the list. */
+function withOneRug(items: string[]): string[] {
+  if (items.filter(isRug).length <= 1) return items;
+  return items.filter(id => id !== DEFAULT_RUG);
+}
 
 export const DEFAULT_NOOK: NookState = {
-  scene: 'night',
-  items: ['rug', 'lantern'],
+  scene: 'grove',
+  items: ['bluerug', 'cross', 'treeL', 'treeR', 'prayerweb', GREAT_WEB, PRAYER_LIGHTS],
   offsets: {},
+  v: 3,
 };
 
 /** Turns anything read from storage into a valid NookState. Understands the older one-item-per-spot format. */
 export function migrateNook(raw: unknown): NookState {
-  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null> };
+  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null>; v?: number };
   const known = new Set(ROWS.flatMap(row => row.items.map(it => it.id)));
   let items: string[];
   if (Array.isArray(r.items)) items = r.items.filter((id): id is string => typeof id === 'string' && known.has(id));
-  else if (r.slots) items = Object.values(r.slots).filter((id): id is string => typeof id === 'string' && known.has(id));
+  else if (r.slots) items = [DEFAULT_RUG, ...Object.values(r.slots).filter((id): id is string => typeof id === 'string' && known.has(id))];
   else items = [...DEFAULT_NOOK.items];
+  items = withOneRug(Array.from(new Set(items)));
+  // Older saves always showed the web and lights, so they keep them. Version 2 had them as one piece, the lights.
+  const version = r.v ?? 1;
+  if (version < 2 && !items.includes(PRAYER_LIGHTS)) items.push(PRAYER_LIGHTS);
+  if (version < 3 && items.includes(PRAYER_LIGHTS) && !items.includes(GREAT_WEB)) items.push(GREAT_WEB);
   const offsets: Record<string, Offset> = {};
   if (r.offsets && typeof r.offsets === 'object') {
     for (const [id, o] of Object.entries(r.offsets as Record<string, Offset>)) {
@@ -33,7 +71,7 @@ export function migrateNook(raw: unknown): NookState {
     }
   }
   const scene = SCENES.some(sc => sc.id === r.scene) ? (r.scene as SceneId) : DEFAULT_NOOK.scene;
-  return { scene, items: Array.from(new Set(items)), offsets };
+  return { scene, items, offsets, v: 3 };
 }
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -45,32 +83,57 @@ export type ItemMeta = {
   hit: Box;
 };
 
+/** How far the pet was lowered onto the pedestal, in nook units. The older floor and side pieces move down with it. */
+const PET_DROP = 48;
+
 export const ITEM_META: Record<string, ItemMeta> = {
-  rug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 73, y: 266, w: 196, h: 44 } },
-  cushion: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 100, y: 264, w: 142, h: 44 } },
-  wreath: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 74, y: 262, w: 196, h: 54 } },
-  lantern: { slot: 'left', base: { x: 0, y: 0 }, hit: { x: 46, y: 268, w: 48, h: 74 } },
-  censer: { slot: 'left', base: { x: 34, y: 0 }, hit: { x: 52, y: 236, w: 36, h: 108 } },
-  plant: { slot: 'right', base: { x: 0, y: 0 }, hit: { x: 262, y: 258, w: 48, h: 86 } },
-  scripture: { slot: 'right', base: { x: -34, y: 0 }, hit: { x: 262, y: 264, w: 50, h: 80 } },
-  cross: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 268, y: 146, w: 44, h: 80 } },
+  bluerug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 55, y: 316, w: 232, h: 46 } },
+  rug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 55, y: 316, w: 232, h: 46 } },
+  cushion: { slot: 'floor', base: { x: 0, y: PET_DROP }, hit: { x: 100, y: 264, w: 142, h: 44 } },
+  wreath: { slot: 'floor', base: { x: 0, y: PET_DROP }, hit: { x: 74, y: 262, w: 196, h: 54 } },
+  lantern: { slot: 'left', base: { x: 0, y: 0 }, hit: { x: 74, y: 232, w: 44, h: 195 } },
+  censer: { slot: 'left', base: { x: 34, y: PET_DROP }, hit: { x: 52, y: 236, w: 36, h: 108 } },
+  plant: { slot: 'right', base: { x: 0, y: PET_DROP }, hit: { x: 262, y: 258, w: 48, h: 86 } },
+  scripture: { slot: 'right', base: { x: -34, y: PET_DROP }, hit: { x: 262, y: 264, w: 50, h: 80 } },
+  cross: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 137, y: 51, w: 68, h: 109 } },
   glass: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 100, y: 2, w: 142, h: 40 } },
   tapestry: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 16, y: 124, w: 70, h: 110 } },
   lamp: { slot: 'hang', base: { x: -62, y: 0 }, hit: { x: 134, y: 78, w: 74, h: 62 } },
   mobile: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 120, y: 90, w: 102, h: 56 } },
   chimes: { slot: 'hang', base: { x: 62, y: 0 }, hit: { x: 146, y: 88, w: 50, h: 54 } },
-  hay: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 176, y: 290, w: 78, h: 44 } },
-  jackolantern: { slot: 'left', base: { x: 38, y: 0 }, hit: { x: 50, y: 296, w: 42, h: 46 } },
-  pilgrimlantern: { slot: 'left', base: { x: 72, y: 0 }, hit: { x: 46, y: 244, w: 56, h: 100 } },
-  wheat: { slot: 'right', base: { x: 0, y: 0 }, hit: { x: 302, y: 268, w: 32, h: 76 } },
+  hay: { slot: 'floor', base: { x: 0, y: PET_DROP }, hit: { x: 176, y: 290, w: 78, h: 44 } },
+  jackolantern: { slot: 'left', base: { x: 38, y: PET_DROP }, hit: { x: 50, y: 296, w: 42, h: 46 } },
+  pilgrimlantern: { slot: 'left', base: { x: 72, y: PET_DROP }, hit: { x: 46, y: 244, w: 56, h: 100 } },
+  wheat: { slot: 'right', base: { x: 0, y: PET_DROP }, hit: { x: 302, y: 268, w: 32, h: 76 } },
   autumnwreath: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 266, y: 74, w: 52, h: 56 } },
   web: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 108, h: 108 } },
   bats: { slot: 'hang', base: { x: -110, y: 0 }, hit: { x: 122, y: 56, w: 100, h: 56 } },
+  candles: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 70, y: 377, w: 51, h: 56 } },
+  lily: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 239, y: 344, w: 44, h: 88 } },
+  treeL: { slot: 'left', base: { x: 19, y: 0 }, hit: { x: -19, y: 179, w: 121, h: 249 } },
+  treeR: { slot: 'right', base: { x: -21, y: 0 }, hit: { x: 242, y: 179, w: 121, h: 249 } },
+  bench: { slot: 'right', base: { x: 0, y: 0 }, hit: { x: 224, y: 351, w: 88, h: 65 } },
+  rose: { slot: 'wall', base: { x: 0, y: 0 }, hit: { x: 130, y: 3, w: 82, h: 82 } },
+  lights: { slot: 'hang', base: { x: 0, y: 34 }, hit: { x: 4, y: -35, w: 335, h: 65 } },
+  dove: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 235, y: -67, w: 61, h: 112 } },
+  prayerweb: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 111, y: 2, w: 120, h: 44 } },
+  // Fills the nook and stays put, so there's nothing to grab.
+  [PRAYER_LIGHTS]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
+  [GREAT_WEB]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
   garland: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 100, y: 14, w: 142, h: 40 } },
 };
+for (const d of SHOWN_COLLECTION_DECOR) {
+  ITEM_META[d.id] = { slot: d.slot, base: { x: 0, y: 0 }, hit: d.hit };
+}
 
 /** Equip or unequip a piece. Unequipping also forgets where it was dragged to. */
 export function toggleItem(n: NookState, id: string): NookState {
+  if (isRug(id)) {
+    const placing = !n.items.includes(id);
+    const offsets = { ...n.offsets };
+    for (const rug of RUGS) delete offsets[rug];
+    return { ...n, items: [...n.items.filter(x => !isRug(x)), ...(placing ? [id] : [])], offsets };
+  }
   if (n.items.includes(id)) {
     const offsets = { ...n.offsets };
     delete offsets[id];
@@ -95,15 +158,17 @@ export type ItemDef = {
 export type RowDef = { slot: SlotId; label: string; items: ItemDef[] };
 
 export const SCENES: SceneDef[] = [
-  { id: 'night', name: 'Starry night', sw: '#13233A', bg: '#0D1828', locked: false },
-  { id: 'chapel', name: 'Quiet chapel', sw: '#2A2236', bg: '#17141F', locked: false },
-  { id: 'grove', name: 'Olive grove', sw: '#2F4B3A', bg: '#12211C', locked: false },
-  { id: 'desert', name: 'Desert', sw: '#4A3A40', bg: '#1B1730', locked: false },
+  { id: 'night', name: 'Starry night', sw: '#13233A', bg: '#0E1430', locked: false },
+  { id: 'chapel', name: 'Quiet chapel', sw: '#2A2236', bg: '#2A2018', locked: false },
+  { id: 'grove', name: 'Olive grove', sw: '#2F4B3A', bg: '#18201E', locked: false },
+  { id: 'desert', name: 'Desert', sw: '#4A3A40', bg: '#231A3A', locked: false },
   { id: 'meadow', name: 'Meadow', sw: '#1C4636', bg: '#10251F', locked: true },
   { id: 'aurora', name: 'Aurora', sw: '#2F7D68', bg: '#0A1424', locked: true },
   { id: 'advent', name: 'Advent', sw: '#8A4A22', bg: '#1A120E', locked: true },
   { id: 'easter', name: 'Easter dawn', sw: '#E8A9A0', bg: '#2A2238', locked: true },
   { id: 'harvest', name: 'Harvest moon', sw: '#2B1C44', bg: '#140F2A', locked: true },
+  // The nook collection, released one or two a month (public.content_releases, id scene:<id>).
+  ...COLLECTION_SCENES.map(sc => ({ ...sc, locked: true })),
 ];
 
 export const ROWS: RowDef[] = [
@@ -111,7 +176,10 @@ export const ROWS: RowDef[] = [
     slot: 'floor',
     label: 'Floor',
     items: [
-      { id: 'rug', name: 'Woven rug', sw: '#2E4B5E', locked: false },
+      { id: 'bluerug', name: 'Woven rug', sw: '#2E3E5A', locked: false },
+      { id: 'rug', name: 'Prayer rug', sw: '#8E2F2A', locked: false },
+      { id: 'candles', name: 'Candle trio', sw: '#F3EBDD', locked: false },
+      { id: 'lily', name: 'Lily pot', sw: '#C9702E', locked: false },
       { id: 'cushion', name: 'Prayer cushion', sw: '#1E2E5A', locked: true },
       { id: 'wreath', name: 'Lily wreath', sw: '#8DAA62', locked: true },
       { id: 'hay', name: 'Hay bale', sw: '#D9B24A', locked: true },
@@ -121,7 +189,8 @@ export const ROWS: RowDef[] = [
     slot: 'left',
     label: 'Left side',
     items: [
-      { id: 'lantern', name: 'Lantern', sw: '#F2C462', locked: false },
+      { id: 'treeL', name: 'Olive tree', sw: '#3E5A44', locked: false },
+      { id: 'lantern', name: 'Lantern post', sw: '#F2C462', locked: false },
       { id: 'censer', name: 'Incense', sw: '#B9BFC9', locked: true },
       { id: 'jackolantern', name: "Jack-o'-lantern", sw: '#E07E34', locked: true },
       { id: 'pilgrimlantern', name: "Pilgrim's lantern", sw: '#C9A24B', locked: true, earned: 'Finish a weekly journey on the Quests page' },
@@ -131,6 +200,8 @@ export const ROWS: RowDef[] = [
     slot: 'right',
     label: 'Right side',
     items: [
+      { id: 'treeR', name: 'Olive tree', sw: '#3E5A44', locked: false },
+      { id: 'bench', name: 'Prayer bench', sw: '#8A5A3C', locked: true },
       { id: 'plant', name: 'Fig plant', sw: '#6E8B4E', locked: false },
       { id: 'scripture', name: 'Scripture stand', sw: '#C98760', locked: true },
       { id: 'wheat', name: 'Wheat sheaf', sw: '#F2C462', locked: true },
@@ -140,7 +211,8 @@ export const ROWS: RowDef[] = [
     slot: 'wall',
     label: 'Wall',
     items: [
-      { id: 'cross', name: 'Wooden cross', sw: '#7A5C3E', locked: false },
+      { id: 'cross', name: 'Olivewood cross', sw: '#8A5A3C', locked: false },
+      { id: 'rose', name: 'Rose window', sw: '#C9A24B', locked: true },
       { id: 'glass', name: 'Stained glass', sw: '#9C84E8', locked: true },
       { id: 'tapestry', name: 'Alpha & Omega', sw: '#C9A24B', locked: true },
       { id: 'autumnwreath', name: 'Autumn wreath', sw: '#C9433A', locked: true },
@@ -151,6 +223,11 @@ export const ROWS: RowDef[] = [
     slot: 'hang',
     label: 'Overhead',
     items: [
+      { id: 'lights', name: 'String lights', sw: '#F2C462', locked: false },
+      { id: 'dove', name: 'Hanging dove', sw: '#F7F5F0', locked: true },
+      { id: 'prayerweb', name: 'Prayer web', sw: '#B9BFC9', locked: false },
+      { id: GREAT_WEB, name: 'Great web', sw: '#8FC6A9', locked: false },
+      { id: PRAYER_LIGHTS, name: 'Prayer lights', sw: '#F2C462', locked: false },
       { id: 'lamp', name: 'Clay oil lamp', sw: '#B5734A', locked: false },
       { id: 'mobile', name: 'Star mobile', sw: '#F7E3B5', locked: true },
       { id: 'chimes', name: 'Chimes', sw: '#B5DCC6', locked: true },
@@ -204,4 +281,10 @@ export function isSanctuarySet(n: NookState): boolean {
 }
 export function isEasterSet(n: NookState): boolean {
   return n.scene === 'easter' && hasItem(n, 'wreath') && hasItem(n, 'chimes');
+}
+
+
+// The nook collection's decorations join the rows for their spot, released weekly (public.content_releases, id item:<id>).
+for (const d of SHOWN_COLLECTION_DECOR) {
+  ROWS.find(row => row.slot === d.slot)?.items.push({ id: d.id, name: d.name, sw: d.sw, locked: true });
 }

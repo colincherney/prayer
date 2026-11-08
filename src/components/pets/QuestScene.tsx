@@ -19,7 +19,7 @@ import Svg, { Circle, Defs, G, LinearGradient, Path, Polygon, Rect, Stop } from 
 import { FONTS } from '@/components/saint/theme';
 
 import { keyframe, useLoop, useMotionEnabled } from './anim';
-import { Fx, SoftGlow, TwinkleDot } from './Fx';
+import { Fx, SmoothMotion, SoftGlow, TwinkleDot } from './Fx';
 import { lightingForHour, Lighting } from './nookData';
 import { PilgrimPet } from './PilgrimPets';
 import { PipStage } from './PipLamb';
@@ -169,7 +169,10 @@ export function QuestScene({ width, petId, stage, speaker, line, celebrate, toas
       </Svg>
 
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: -14 * k, top: 96 * k }, hopStyle]}>
-        <PilgrimPet id={petId} stage={stage} size={guideW} />
+        {/* The guide is what people watch here, so it alone skips the 30fps cap. */}
+        <SmoothMotion.Provider value>
+          <PilgrimPet id={petId} stage={stage} size={guideW} />
+        </SmoothMotion.Provider>
       </Animated.View>
       <Sparkle trigger={celebrate} x={40} y={174} delay={0} k={k} />
       <Sparkle trigger={celebrate} x={178} y={170} delay={120} k={k} />

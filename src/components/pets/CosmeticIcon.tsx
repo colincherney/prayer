@@ -1,6 +1,10 @@
 import React from 'react';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 
+import { CollectionDecorThumb, isCollectionDecor } from './collectionDecor';
+import { COLLECTION_SCENES } from './collectionData';
+import { ArtThumb, hasArtThumb } from './NookArt';
+
 export type CosmeticKind = 'scene' | 'item' | 'bundle';
 
 type Props = {
@@ -14,6 +18,17 @@ const STAR = 'M16 5 L18 14 L27 16 L18 18 L16 27 L14 18 L5 16 L14 14 Z';
 
 /** A small circular thumbnail of a nook scene, drawn from the same colors as the scene itself. */
 function SceneArt({ id }: { id: string }) {
+  const collection = COLLECTION_SCENES.find(sc => sc.id === id);
+  if (collection) {
+    // A light swatch in the scene's colours. Drawing the whole full-screen scene into every thumbnail made lists lag.
+    return (
+      <>
+        <Rect width={32} height={32} fill={collection.bg} />
+        <Circle cx={22} cy={10} r={4} fill="#F7E3B5" opacity={0.85} />
+        <Path d="M-2 22 C6 18 12 19 17 21 C23 23 28 19 34 19 V32 H-2 Z" fill={collection.sw} />
+      </>
+    );
+  }
   switch (id) {
     case 'night':
       return (
@@ -157,13 +172,26 @@ function SceneArt({ id }: { id: string }) {
 
 /** A small glyph for a piece of decor. Drawn on a transparent 32x32 canvas. */
 function ItemArt({ id }: { id: string }) {
+  if (hasArtThumb(id)) return <ArtThumb id={id} />;
+  if (isCollectionDecor(id)) return <CollectionDecorThumb id={id} />;
   switch (id) {
-    case 'rug':
+    case 'prayerlights':
       return (
         <>
-          <Ellipse cx={16} cy={19} rx={13} ry={7} fill="#2E4B5E" />
-          <Ellipse cx={16} cy={19} rx={10} ry={4.6} fill="none" stroke="#8FC6A9" strokeWidth={1.2} strokeDasharray="2 2.4" />
+          <Path d="M4 4 L16 16 M28 4 L16 16 M4 28 L16 16 M28 28 L16 16" stroke="#8FC6A9" strokeWidth={1.1} strokeDasharray="1.5 2.5" />
+          <Circle cx={9} cy={9} r={2} fill="#F2C462" />
+          <Circle cx={23} cy={23} r={1.6} fill="#F2C462" />
+          <Circle cx={16} cy={16} r={2.4} fill="#F2C462" />
         </>
+      );
+    case 'greatweb':
+      return (
+        <G fill="none" stroke="#8FC6A9" strokeWidth={1}>
+          <Circle cx={16} cy={16} r={12} opacity={0.7} />
+          <Circle cx={16} cy={16} r={7.5} opacity={0.7} />
+          <Circle cx={16} cy={16} r={3} opacity={0.7} />
+          <Path d="M16 3 V29 M3 16 H29 M7 7 L25 25 M25 7 L7 25" opacity={0.55} />
+        </G>
       );
     case 'cushion':
       return (
@@ -190,16 +218,6 @@ function ItemArt({ id }: { id: string }) {
             <Circle cx={10} cy={24} r={1.8} />
             <Circle cx={22} cy={24} r={1.8} />
           </G>
-        </>
-      );
-    case 'lantern':
-      return (
-        <>
-          <Path d="M12 7 Q16 2 20 7" stroke="#C9A24B" strokeWidth={1.6} fill="none" />
-          <Polygon points="10,10 16,6 22,10" fill="#C9A24B" />
-          <Rect x={11} y={10} width={10} height={14} rx={2} fill="#2A2236" stroke="#C9A24B" strokeWidth={1.4} />
-          <Ellipse cx={16} cy={17} rx={2.2} ry={3.8} fill="#FFE08A" />
-          <Rect x={9} y={24} width={14} height={3} rx={1} fill="#C9A24B" />
         </>
       );
     case 'censer':
@@ -231,13 +249,6 @@ function ItemArt({ id }: { id: string }) {
           <Path d="M4 16 L16 12 L16 4 L4 8 Z" fill="#F3EBDD" />
           <Path d="M28 16 L16 12 L16 4 L28 8 Z" fill="#FFF8EC" />
           <Path d="M6.5 9.5 L13.5 7.5 M6.5 12 L13.5 10 M18.5 7.5 L25.5 9.5 M18.5 10 L25.5 12" stroke="#C9B89A" strokeWidth={0.8} />
-        </>
-      );
-    case 'cross':
-      return (
-        <>
-          <Rect x={13.5} y={3} width={5} height={26} rx={1.5} fill="#7A5C3E" />
-          <Rect x={6} y={10} width={20} height={5} rx={1.5} fill="#7A5C3E" />
         </>
       );
     case 'glass':

@@ -12,8 +12,14 @@ import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { syncCloudProgress } from '@/lib/cloudProgress';
+import { markLaunched } from '@/lib/launch';
+import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
-import { ReleasesProvider } from '@/lib/releases';
+import { preloadPet } from '@/lib/pet';
+import { localDay } from '@/lib/quests';
+import { PETS } from '@/components/pets/registry';
+import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
 
@@ -47,8 +53,16 @@ function RootStack() {
   useEffect(() => {
     if (navSettled && fontsLoaded) {
       SplashScreen.hideAsync().catch(() => {});
+      markLaunched();
     }
   }, [navSettled, fontsLoaded]);
+
+  // Bring personal progress (nook, shelf, names, quests) in from the account, and upload this phone's if it's new.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    syncCloudProgress(userId, localDay(), PETS.map(p => p.id));
+  }, [session?.user?.id]);
 
   // Register the device for push notifications once we have a session.
   useEffect(() => {
@@ -94,6 +108,7 @@ function RootStack() {
       <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
       <Stack.Screen name="customization" options={{ presentation: 'card' }} />
       <Stack.Screen name="pets" options={{ presentation: 'card' }} />
+      <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="store" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />
@@ -108,6 +123,13 @@ function RootStack() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // The splash stays up during these quick reads, so no screen ever draws the default pet first.
+  const [preloaded, setPreloaded] = useState(false);
+  useEffect(() => {
+    Promise.all([preloadPet(), preloadReleases(), preloadLocal()]).finally(() => setPreloaded(true));
+  }, []);
+  if (!preloaded) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

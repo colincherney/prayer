@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -42,24 +43,31 @@ function seededMotes(count: number, seed: number): DustMote[] {
   }));
 }
 
-const Mote: React.FC<{ mote: DustMote }> = ({ mote }) => {
+const Mote: React.FC<{ mote: DustMote; running: boolean }> = ({ mote, running }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (!running) return;
+    const easing = Easing.linear;
+    const from = progress.get();
+    // Carries on from where it paused. Only a fresh mote waits out its delay.
     progress.set(
-      withRepeat(
-        withSequence(
-          withDelay(
-            mote.delay,
-            withTiming(1, { duration: mote.duration, easing: Easing.linear }),
-          ),
-          withTiming(0, { duration: 0 }),
+      withSequence(
+        withDelay(
+          from > 0 ? 0 : mote.delay,
+          withTiming(1, { duration: mote.duration * (1 - from), easing }),
         ),
-        -1,
+        withRepeat(
+          withSequence(
+            withTiming(0, { duration: 0 }),
+            withDelay(mote.delay, withTiming(1, { duration: mote.duration, easing })),
+          ),
+          -1,
+        ),
       ),
     );
     return () => cancelAnimation(progress);
-  }, [progress, mote.delay, mote.duration]);
+  }, [progress, mote.delay, mote.duration, running]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const p = progress.get();
@@ -72,6 +80,8 @@ const Mote: React.FC<{ mote: DustMote }> = ({ mote }) => {
     };
   });
 
+  // A soft halo around a dot. A real shadow looks the same here, but iOS re-renders it on every frame.
+  const halo = mote.size * 3;
   return (
     <Animated.View
       pointerEvents="none"
@@ -80,17 +90,19 @@ const Mote: React.FC<{ mote: DustMote }> = ({ mote }) => {
           position: 'absolute',
           left: `${mote.startX}%`,
           top: `${mote.startY}%`,
-          width: mote.size,
-          height: mote.size,
-          borderRadius: mote.size / 2,
-          backgroundColor: '#fde4c6',
-          shadowColor: '#fde4c6',
-          shadowOpacity: 0.9,
-          shadowRadius: mote.size * 2,
+          width: halo,
+          height: halo,
+          marginLeft: -mote.size,
+          marginTop: -mote.size,
+          borderRadius: halo / 2,
+          backgroundColor: 'rgba(253, 228, 198, 0.16)',
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         animatedStyle,
-      ]}
-    />
+      ]}>
+      <View style={{ width: mote.size, height: mote.size, borderRadius: mote.size / 2, backgroundColor: '#fde4c6' }} />
+    </Animated.View>
   );
 };
 
@@ -100,13 +112,14 @@ export const DustMotes: React.FC<{ count?: number; seed?: number }> = ({
 }) => {
   const motes = useMemo(() => seededMotes(count, seed), [count, seed]);
   const reducedMotion = useReducedMotion();
+  const focused = useIsFocused();
   if (reducedMotion) return null;
   return (
     <View
       pointerEvents="none"
       style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       {motes.map((m, i) => (
-        <Mote key={i} mote={m} />
+        <Mote key={i} mote={m} running={focused} />
       ))}
     </View>
   );

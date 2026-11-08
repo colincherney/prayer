@@ -21,10 +21,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { keyframe, useLoop, useMotionEnabled } from '@/components/pets/anim';
+import { SmoothMotion } from '@/components/pets/Fx';
+import { Acting } from '@/components/pets/petActing';
 import { Pet, petStageName } from '@/components/pets/registry';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -435,7 +437,11 @@ export default function PrayLauncherScreen() {
             growthStyle,
           ]}>
           <Animated.View style={hopStyle}>
-            <Pet id={petId} stage={progress.stage} size={petW} interactive />
+            <SmoothMotion.Provider value>
+              <Acting petId={petId} size={petW}>
+                <Pet id={petId} stage={progress.stage} size={petW} interactive />
+              </Acting>
+            </SmoothMotion.Provider>
           </Animated.View>
         </Animated.View>
         {leveledUp ? (
@@ -552,9 +558,9 @@ export default function PrayLauncherScreen() {
             colW={colW}
             orb={orb}
             slot={orb}
-            name="Meet the pets"
+            name="Meet the pals"
             xp=""
-            label="Meet the companions"
+            label="Meet the pals"
             icon={(c, s) => <StarIcon color={c} size={s} />}
             onPress={() => router.push('/pets')}
           />
@@ -622,8 +628,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   header: { paddingLeft: 22, paddingTop: 10, paddingBottom: 6, paddingRight: __DEV__ ? 76 : 22 },
   title: { fontFamily: FONTS.display, fontSize: 34, lineHeight: 40, color: THEME.ink },
   subtitle: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     color: THEME.inkSoft,
     marginTop: 2,

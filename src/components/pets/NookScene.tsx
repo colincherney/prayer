@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, {
   Circle,
@@ -13,95 +13,26 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 
+import { ArtPiece, ArtScene, ArtSpace, hasArtPiece, hasArtScene } from './NookArt';
+import { CollectionDecorPiece, isCollectionDecor } from './collectionDecor';
 import { FadeInG, FlowPath, Fx, SoftGlow, TravelDot, TwinkleDot, TwinkleStar } from './Fx';
 import { SceneId } from './nookData';
 
 export const NOOK_W = 342;
 export const NOOK_H = 440;
 
+/**
+ * Screen dp per nook unit. Every layer draws its SVG at the size it's actually shown (the viewBox stays in nook
+ * units), instead of drawing at 342x440 and being stretched, which blurred pets and art and made each frame scale.
+ */
+export const NookScale = createContext(1);
+
 /** The static-plus-twinkling backdrop for each scene. */
 export function SceneBackdrop({ scene, bg }: { scene: SceneId; bg: string }) {
+  const px = useContext(NookScale);
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }}>
-      {scene === 'night' && (
-        <>
-          <Path d="M34 118 L118 40 L196 108 L246 150 M118 40 L150 96" stroke="#F2E9D8" strokeOpacity={0.14} strokeWidth={0.8} fill="none" />
-          <G fill="#F2E9D8">
-            <TwinkleDot cx={34} cy={118} r={1.6} />
-            <TwinkleDot cx={118} cy={40} r={1.3} delay={700} />
-            <TwinkleDot cx={196} cy={108} r={1.5} delay={1400} />
-            <TwinkleDot cx={44} cy={232} r={1.2} delay={700} />
-            <TwinkleDot cx={318} cy={210} r={1.4} />
-            <TwinkleDot cx={246} cy={150} r={1.1} delay={1400} />
-            <TwinkleDot cx={150} cy={96} r={1} />
-            <TwinkleDot cx={300} cy={300} r={1.2} delay={700} />
-          </G>
-          <Circle cx={300} cy={140} r={16} fill="#F2E9D8" />
-          <Circle cx={307} cy={134} r={14} fill={bg} />
-        </>
-      )}
-      {scene === 'chapel' && (
-        <>
-          <Fx kind="glow">
-            <Polygon points="126,236 216,236 262,360 80,360" fill="#F2C462" />
-          </Fx>
-          <Path d="M118 236 L118 154 A53 53 0 0 1 224 154 L224 236 Z" fill="#2A2236" stroke="#C9A24B" strokeWidth={3} />
-          <Path d="M171 104 L171 236 M118 180 L224 180" stroke="#C9A24B" strokeWidth={2} />
-          <Rect x={122} y={184} width={46} height={48} fill="#8FC6A9" opacity={0.28} />
-          <Rect x={174} y={184} width={46} height={48} fill="#E8998A" opacity={0.22} />
-          <Path d="M122 176 L122 154 A49 49 0 0 1 168 106 L168 176 Z" fill="#9C84E8" opacity={0.2} />
-          <Path d="M174 176 L174 106 A49 49 0 0 1 220 154 L220 176 Z" fill="#F2C462" opacity={0.2} />
-          <Rect x={0} y={360} width={342} height={80} fill="#1F1A28" />
-        </>
-      )}
-      {scene === 'grove' && (
-        <>
-          <Fx kind="glow">
-            <Circle cx={262} cy={70} r={96} fill="#F2C462" />
-          </Fx>
-          <Ellipse cx={171} cy={474} rx={330} ry={160} fill="#1E3A2E" />
-          <Fx kind="glow">
-            <Ellipse cx={120} cy={364} rx={26} ry={6} fill="#F2C462" />
-          </Fx>
-          <Fx kind="glow">
-            <Ellipse cx={226} cy={384} rx={30} ry={7} fill="#F2C462" />
-          </Fx>
-          <Path d="M40 384 C46 334 30 302 44 262" stroke="#3A3026" strokeWidth={8} fill="none" strokeLinecap="round" />
-          <G fill="#2F4B3A">
-            <Circle cx={30} cy={250} r={30} />
-            <Circle cx={62} cy={236} r={26} />
-            <Circle cx={46} cy={212} r={22} />
-          </G>
-          <Path d="M304 392 C296 342 312 312 300 272" stroke="#3A3026" strokeWidth={8} fill="none" strokeLinecap="round" />
-          <G fill="#2F4B3A">
-            <Circle cx={302} cy={258} r={30} />
-            <Circle cx={328} cy={240} r={24} />
-            <Circle cx={282} cy={236} r={22} />
-          </G>
-          <G fill="#8DAA62" opacity={0.7}>
-            <Ellipse cx={40} cy={232} rx={5} ry={2.5} />
-            <Ellipse cx={66} cy={222} rx={5} ry={2.5} />
-            <Ellipse cx={298} cy={246} rx={5} ry={2.5} />
-            <Ellipse cx={320} cy={230} rx={5} ry={2.5} />
-          </G>
-        </>
-      )}
-      {scene === 'desert' && (
-        <>
-          <Rect x={0} y={290} width={342} height={50} fill="#E38A4B" opacity={0.08} />
-          <Fx kind="glow">
-            <Circle cx={250} cy={120} r={44} fill="#F7E3B5" />
-          </Fx>
-          <TwinkleStar x={240} y={110} fill="#FFF3C4" />
-          <G fill="#F2E9D8">
-            <TwinkleDot cx={60} cy={60} r={1.2} delay={700} />
-            <TwinkleDot cx={150} cy={110} r={1} delay={1400} />
-            <TwinkleDot cx={40} cy={190} r={1.1} />
-          </G>
-          <Path d="M-10 330 C60 290 130 300 200 330 C260 355 300 320 360 300 L360 440 L-10 440 Z" fill="#3A2E3A" />
-          <Path d="M-10 380 C80 340 160 360 240 380 C290 392 330 370 360 360 L360 440 L-10 440 Z" fill="#4A3A40" />
-        </>
-      )}
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }}>
+      {hasArtScene(scene) && <ArtScene id={scene} />}
       {scene === 'meadow' && (
         <>
           <Ellipse cx={90} cy={430} rx={220} ry={120} fill="#173A2E" />
@@ -258,65 +189,75 @@ const NODE_SPOTS: [number, number, number, number][] = [
 ];
 
 /** The prayer web: a mandala that gains rings with prayers offered, plus the four flows from the corner stats. */
-export function PrayerWeb({ level }: { level: 1 | 2 | 3 | 4 }) {
+/** The great web (rings, spokes and the twinkles on them) and the prayer lights (lines and travelling lights), each optional. */
+export function PrayerWeb({ level, web = true, lights = true }: { level: 1 | 2 | 3 | 4; web?: boolean; lights?: boolean }) {
+  const px = useContext(NookScale);
   const opacity = level === 1 ? 0.2 : level === 2 ? 0.28 : 0.36;
   const width = level >= 3 ? 1.3 : 1;
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       <Defs>
         <RadialGradient id="webglow">
           <Stop offset="0" stopColor="#F2C462" stopOpacity={0.45} />
           <Stop offset="1" stopColor="#F2C462" stopOpacity={0} />
         </RadialGradient>
       </Defs>
-      {level >= 4 && (
+      {lights && level >= 4 && (
         <Fx kind="bigglow">
           <Circle cx={171} cy={230} r={210} fill="url(#webglow)" />
         </Fx>
       )}
-      <Fx kind="shimmer">
-        <G fill="none" stroke="#8FC6A9" strokeOpacity={opacity} strokeWidth={width}>
-          <FadeInG>
-            <Path d={WEB_SPOKES} />
-          </FadeInG>
-          <FadeInG delay={350}>
-            <Path d={RINGS[0]} />
-          </FadeInG>
-          <FadeInG delay={700}>
-            <Path d={RINGS[1]} />
-          </FadeInG>
-          <FadeInG delay={1050}>
-            <Path d={RINGS[2]} />
-          </FadeInG>
-        </G>
-      </Fx>
-      {level >= 2 && (
-        <G fill="#DDF3E8">
-          {NODE_SPOTS.map(([x, y, r, d], i) => (
-            <TwinkleDot key={i} cx={x} cy={y} r={r} delay={d} />
-          ))}
-        </G>
-      )}
-      {level >= 3 &&
-        PLUS_SPOTS.map(([x, y], i) => (
-          <G key={i} transform={`translate(${x} ${y})`}>
-            <Fx kind="twinkle" delay={(i % 3) * 700}>
-              <Path d="M-5 0 L5 0 M0 -6 L0 6" stroke="#F2C462" strokeWidth={1.6} strokeLinecap="round" />
-            </Fx>
-          </G>
-        ))}
-      <FlowPath d="M74 52 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M268 52 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M74 388 L171 230" stroke="#8FC6A9" />
-      <FlowPath d="M268 388 L171 230" stroke="#8FC6A9" />
-      <TravelDot from={[74, 52]} to={[171, 230]} fill="#F2C462" />
-      {level >= 2 && (
+      {web ? (
         <>
-          <TravelDot from={[268, 52]} to={[171, 230]} fill="#F2C462" delay={750} />
-          <TravelDot from={[74, 388]} to={[171, 230]} fill="#F2C462" delay={1500} />
-          <TravelDot from={[268, 388]} to={[171, 230]} fill="#F2C462" delay={2250} />
+          <Fx kind="shimmer">
+            <G fill="none" stroke="#8FC6A9" strokeOpacity={opacity} strokeWidth={width}>
+              <FadeInG>
+                <Path d={WEB_SPOKES} />
+              </FadeInG>
+              <FadeInG delay={350}>
+                <Path d={RINGS[0]} />
+              </FadeInG>
+              <FadeInG delay={700}>
+                <Path d={RINGS[1]} />
+              </FadeInG>
+              <FadeInG delay={1050}>
+                <Path d={RINGS[2]} />
+              </FadeInG>
+            </G>
+          </Fx>
+          {level >= 2 && (
+            <G fill="#DDF3E8">
+              {NODE_SPOTS.map(([x, y, r, d], i) => (
+                <TwinkleDot key={i} cx={x} cy={y} r={r} delay={d} />
+              ))}
+            </G>
+          )}
+          {level >= 3 &&
+            PLUS_SPOTS.map(([x, y], i) => (
+              <G key={i} transform={`translate(${x} ${y})`}>
+                <Fx kind="twinkle" delay={(i % 3) * 700}>
+                  <Path d="M-5 0 L5 0 M0 -6 L0 6" stroke="#F2C462" strokeWidth={1.6} strokeLinecap="round" />
+                </Fx>
+              </G>
+            ))}
         </>
-      )}
+      ) : null}
+      {lights ? (
+        <>
+          <FlowPath d="M74 52 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M268 52 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M74 388 L171 230" stroke="#8FC6A9" />
+          <FlowPath d="M268 388 L171 230" stroke="#8FC6A9" />
+          <TravelDot from={[74, 52]} to={[171, 230]} fill="#F2C462" />
+          {level >= 2 && (
+            <>
+              <TravelDot from={[268, 52]} to={[171, 230]} fill="#F2C462" delay={750} />
+              <TravelDot from={[74, 388]} to={[171, 230]} fill="#F2C462" delay={1500} />
+              <TravelDot from={[268, 388]} to={[171, 230]} fill="#F2C462" delay={2250} />
+            </>
+          )}
+        </>
+      ) : null}
     </Svg>
   );
 }
@@ -351,7 +292,21 @@ type ItemArtProps = {
 
 /** One piece of decor, drawn at its original spot in the 342x440 nook. The caller moves it with a transform. */
 export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
+  if (isCollectionDecor(id)) return <CollectionDecorPiece id={id} />;
   const swing = hangFast ? 'swingFast' : 'swing';
+  if (id === 'lantern') {
+    return (
+      <>
+        <ArtSpace>
+          <Fx kind={lanternBright ? 'glowb' : 'glow'}>
+            <Circle cx={112} cy={476} r={lanternBright ? 50 : 34} fill="#F2C462" />
+          </Fx>
+        </ArtSpace>
+        <ArtPiece id={id} />
+      </>
+    );
+  }
+  if (hasArtPiece(id)) return <ArtPiece id={id} />;
   switch (id) {
     case 'glass':
       return (
@@ -362,13 +317,6 @@ export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
           <Circle cx={171} cy={10} r={6} fill="#F2C462" />
           <Circle cx={252} cy={24} r={5} fill="#9C84E8" />
           <Circle cx={302} cy={60} r={5} fill="#8FC6A9" />
-        </>
-      );
-    case 'cross':
-      return (
-        <>
-          <Rect x={287} y={150} width={8} height={72} rx={2} fill="#7A5C3E" />
-          <Rect x={273} y={168} width={36} height={8} rx={2} fill="#7A5C3E" />
         </>
       );
     case 'tapestry':
@@ -426,13 +374,6 @@ export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
           </Fx>
         </>
       );
-    case 'rug':
-      return (
-        <>
-          <Ellipse cx={171} cy={288} rx={98} ry={22} fill="#2E4B5E" />
-          <Ellipse cx={171} cy={288} rx={82} ry={16} fill="none" stroke="#8FC6A9" strokeWidth={2} strokeDasharray="4 5" opacity={0.7} />
-        </>
-      );
     case 'cushion':
       return (
         <>
@@ -470,21 +411,6 @@ export function ItemArt({ id, lanternBright, leafOn, hangFast }: ItemArtProps) {
             <Circle cx={258} cy={281} r={3} />
             <Circle cx={171} cy={266} r={3.5} />
           </G>
-        </>
-      );
-    case 'lantern':
-      return (
-        <>
-          <Fx kind={lanternBright ? 'glowb' : 'glow'}>
-            <Circle cx={70} cy={310} r={lanternBright ? 44 : 30} fill="#F2C462" />
-          </Fx>
-          <Path d="M62 286 Q70 272 78 286" stroke="#C9A24B" strokeWidth={2} fill="none" />
-          <Polygon points="58,294 70,284 82,294" fill="#C9A24B" />
-          <Rect x={60} y={294} width={20} height={34} rx={4} fill="#2A2236" stroke="#C9A24B" strokeWidth={2} />
-          <Fx kind="flicker" ox={70} oy={318}>
-            <Ellipse cx={70} cy={311} rx={4} ry={7} fill="#FFE08A" />
-          </Fx>
-          <Rect x={56} y={328} width={28} height={6} rx={2} fill="#C9A24B" />
         </>
       );
     case 'pilgrimlantern':
@@ -652,13 +578,14 @@ type EffectsProps = { warmLight: boolean; easterSet: boolean; sanctuarySet: bool
 
 /** Whole-nook effects that are not tied to one piece: warm light motes, drifting petals, set-bonus sparks. */
 export function NookEffects({ warmLight, easterSet, sanctuarySet }: EffectsProps) {
+  const px = useContext(NookScale);
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+    <Svg width={NOOK_W * px} height={NOOK_H * px} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       {warmLight && (
         <G fill="#FFE08A">
-          <Fx kind="mote"><Circle cx={132} cy={214} r={2} /></Fx>
-          <Fx kind="mote" delay={1300}><Circle cx={212} cy={222} r={1.8} /></Fx>
-          <Fx kind="mote" delay={2600}><Circle cx={178} cy={182} r={1.6} /></Fx>
+          <Fx kind="mote"><Circle cx={132} cy={262} r={2} /></Fx>
+          <Fx kind="mote" delay={1300}><Circle cx={212} cy={270} r={1.8} /></Fx>
+          <Fx kind="mote" delay={2600}><Circle cx={178} cy={230} r={1.6} /></Fx>
         </G>
       )}
       {easterSet && (
@@ -683,9 +610,13 @@ export function NookEffects({ warmLight, easterSet, sanctuarySet }: EffectsProps
 }
 
 /** A full-size drawing layer for one piece, so each piece can be moved on its own. */
-export function ItemLayer({ children }: { children: React.ReactNode }) {
+/** `bleed` is how far the piece's canvas reaches past the nook, so art past the edge isn't cut off when it's dragged in. */
+export function ItemLayer({ bleed, children }: { bleed: number; children: React.ReactNode }) {
+  const px = useContext(NookScale);
+  const width = NOOK_W + bleed * 2;
+  const height = NOOK_H + bleed * 2;
   return (
-    <Svg width={NOOK_W} height={NOOK_H} viewBox={`0 0 ${NOOK_W} ${NOOK_H}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+    <Svg width={width * px} height={height * px} viewBox={`${-bleed} ${-bleed} ${width} ${height}`} style={{ position: 'absolute', left: -bleed * px, top: -bleed * px }} pointerEvents="none">
       {children}
     </Svg>
   );

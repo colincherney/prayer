@@ -470,9 +470,9 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
         ))}
         {seated.length > 1 ? (
           <>
-            <Fx kind="zH" delay={0}><SvgText x={84} y={214} fontSize={9} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
-            <Fx kind="zH" delay={1200}><SvgText x={88} y={212} fontSize={11} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
-            <Fx kind="zH" delay={2400}><SvgText x={92} y={210} fontSize={13} fontStyle="italic" fill="#B5DCC6" fontFamily={FONTS.displayItalic}>z</SvgText></Fx>
+            <Fx kind="zH" delay={0}><SvgText x={84} y={214} fontSize={9} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
+            <Fx kind="zH" delay={1200}><SvgText x={88} y={212} fontSize={11} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
+            <Fx kind="zH" delay={2400}><SvgText x={92} y={210} fontSize={13} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
           </>
         ) : null}
       </Svg>

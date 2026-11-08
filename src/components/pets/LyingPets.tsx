@@ -502,20 +502,38 @@ function LookLying({ id, stage, eyes }: { id: PetId; stage: PipStage; eyes: LieE
         ) : (
           <>
             <Ellipse cx={104} cy={76} rx={50} ry={20} fill={look.fur} />
-            <Ellipse cx={106} cy={84} rx={34} ry={10} fill={look.light} />
-            <Ellipse cx={82} cy={94} rx={10} ry={5} fill={look.light} />
-            <Ellipse cx={128} cy={94} rx={10} ry={5} fill={look.light} />
+            <Ellipse cx={106} cy={84} rx={34} ry={10} fill={look.belly ?? look.light} />
+            <Ellipse cx={82} cy={94} rx={10} ry={5} fill={look.belly ?? look.light} />
+            <Ellipse cx={128} cy={94} rx={10} ry={5} fill={look.belly ?? look.light} />
           </>
         )}
       </Fx>
       <Fx kind="headNod" ox={52} oy={86}>
-        <LookEars look={look} cx={52} top={42} r={24} />
-        <Circle cx={52} cy={64} r={24} fill={look.fur} />
-        <LookEars look={look} cx={52} top={42} r={24} front />
-        <Eyes l={43} r={61} y={62} mode={eyes} rad={3.4} />
-        <LookSnout look={look} cx={52} cy={74} r={22} />
-        <Circle cx={36} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
-        <Circle cx={68} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
+        {look.longFace ? (
+          <>
+            {/* A horse or donkey: ears up top, a long muzzle resting forward, and a mane down the neck. */}
+            <LookEars look={look} cx={58} top={36} r={22} />
+            <Path d="M58 40 Q80 40 86 66" stroke={look.dark} strokeWidth={9} strokeLinecap="round" fill="none" />
+            <Ellipse cx={60} cy={58} rx={21} ry={19} fill={look.fur} />
+            <Ellipse cx={38} cy={74} rx={18} ry={13} fill={look.fur} />
+            <Ellipse cx={33} cy={78} rx={13} ry={9} fill={look.light} />
+            <Ellipse cx={28} cy={77} rx={2} ry={1.4} fill={look.dark} />
+            <Ellipse cx={37} cy={79} rx={2} ry={1.4} fill={look.dark} />
+            <Path d="M50 42 Q46 50 52 54" stroke={look.dark} strokeWidth={5} strokeLinecap="round" fill="none" />
+            <Eyes l={50} r={66} y={56} mode={eyes} rad={3.2} />
+            <Circle cx={70} cy={66} r={3.6} fill={CHEEK} opacity={0.5} />
+          </>
+        ) : (
+          <>
+            <LookEars look={look} cx={52} top={42} r={24} />
+            <Circle cx={52} cy={64} r={24} fill={look.fur} />
+            <LookEars look={look} cx={52} top={42} r={24} front />
+            <Eyes l={43} r={61} y={62} mode={eyes} rad={3.4} />
+            <LookSnout look={look} cx={52} cy={74} r={22} />
+            <Circle cx={36} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
+            <Circle cx={68} cy={72} r={3.8} fill={CHEEK} opacity={0.55} />
+          </>
+        )}
         {stage === 3 ? <Polygon points="40,40 44,26 49,34 52,22 55,34 60,26 64,40" fill="#F2C462" stroke="#C99A2E" strokeWidth={1.5} strokeLinejoin="round" /> : null}
       </Fx>
     </>

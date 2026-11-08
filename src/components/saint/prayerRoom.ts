@@ -3,6 +3,8 @@
 // palettes because the scene illustrations dictate readable contrast.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { saveEntryToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import React, {
   createContext,
   useCallback,
@@ -299,6 +301,7 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   // The room the person picked, if any; until then the seasonal default shows.
   const [chosen, setChosen] = useState<PrayerRoomName | null>(null);
 
+  const cloudVersion = useCloudVersion();
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
@@ -307,11 +310,13 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })
       .catch(() => {});
-  }, []);
+    // Runs again when the account's copy arrives (a new phone), which may have a different look.
+  }, [cloudVersion]);
 
   const setRoom = useCallback((next: PrayerRoomName) => {
     setChosen(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+    saveEntryToCloud('appearance', 'room', next);
   }, []);
 
   // A room that isn't out (e.g. its date was moved later) falls back to the seasonal default.

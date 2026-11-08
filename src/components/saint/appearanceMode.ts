@@ -3,6 +3,8 @@
 // picking one turns the other off so they never visually overlap.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { saveEntryToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import React, {
   createContext,
   useCallback,
@@ -31,6 +33,7 @@ export const AppearanceModeProvider: React.FC<{ children: React.ReactNode }> = (
 }) => {
   const [mode, setModeState] = useState<AppearanceMode>('room');
 
+  const cloudVersion = useCloudVersion();
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
@@ -39,11 +42,13 @@ export const AppearanceModeProvider: React.FC<{ children: React.ReactNode }> = (
         }
       })
       .catch(() => {});
-  }, []);
+    // Runs again when the account's copy arrives (a new phone), which may have a different look.
+  }, [cloudVersion]);
 
   const setMode = useCallback((next: AppearanceMode) => {
     setModeState(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+    saveEntryToCloud('appearance', 'mode', next);
   }, []);
 
   const value = useMemo<AppearanceModeCtx>(() => ({ mode, setMode }), [mode, setMode]);

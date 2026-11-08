@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { useAppearanceMode } from '@/components/saint/appearanceMode';
 import { DustMotes } from '@/components/saint/DustMotes';
@@ -206,8 +206,7 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     maxWidth: 220,
   },
   heroHope: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   heroIllustration: {
@@ -278,14 +277,12 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     marginTop: 8,
   },
   cardVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 10.5,
     marginTop: 8,
   },
   cardCite: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 10.5,
     color: THEME.muted,
     marginBottom: 6,
@@ -541,8 +538,7 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   heroHope: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
   },
   midTickerWrap: {
     marginTop: 14,
@@ -614,14 +610,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   cardVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 11,
     marginTop: 8,
   },
   cardCite: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 11,
     marginBottom: 6,
   },

@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { useEffect } from 'react';
 import {
   Easing,
@@ -26,10 +27,28 @@ export function keyframe(p: number, stops: readonly number[], vals: readonly num
   return vals[vals.length - 1];
 }
 
-/** Whether pet animation should run: the caller wants it and the OS reduce-motion setting is off. */
+/**
+ * Whether pet animation should run: the caller wants it, the OS reduce-motion setting is off, and its screen is the
+ * one showing. Tabs stay mounted, so without that last check every tab would keep animating out of sight.
+ */
 export function useMotionEnabled(animated: boolean): boolean {
   const reduce = useReducedMotion();
-  return animated && !reduce;
+  const focused = useIsFocused();
+  return animated && !reduce && focused;
+}
+
+/** How many steps a loop of `durationMs` gets at 30 frames a second, or enough to run at the screen's full rate if `smooth`. */
+export function frameSteps(durationMs: number, smooth = false): number {
+  return Math.max(1, Math.round(durationMs / (smooth ? 1 : 33)));
+}
+
+/**
+ * Rounds loop progress to one of `steps` values. Every change to an SVG redraws its whole canvas, and Reanimated skips
+ * the update when nothing changed, so this halves those redraws.
+ */
+export function stepped(p: number, steps: number): number {
+  'worklet';
+  return Math.round(p * steps) / steps;
 }
 
 /**

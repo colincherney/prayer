@@ -3,7 +3,10 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { NookState, ROWS, SCENES } from '@/components/pets/nookData';
 import { useAuth } from '@/lib/auth';
+import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
+import { useReleases } from '@/lib/releases';
 import { buyStoreProduct, purchasesAvailable, restoreStorePurchases } from '@/lib/purchases';
+import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
 
 /** The Saint Central+ bundle unlocks every cosmetic. */
@@ -30,7 +33,7 @@ export type Product = {
 };
 
 // Placeholder prices, used until the catalog loads from public.cosmetic_products (which is the source of truth).
-const DEFAULT_PRICE = { scene: 199, item: 99, bundle: 599 } as const;
+const DEFAULT_PRICE = { scene: 200, item: 99, bundle: 599 } as const;
 
 /** Every locked cosmetic in the nook, plus the bundle. */
 export function defaultCatalog(): Product[] {
@@ -103,6 +106,7 @@ export function stripUnowned(nook: NookState, owned: ReadonlySet<string>, fallba
   const offsets = { ...nook.offsets };
   for (const id of Object.keys(offsets)) if (!items.includes(id)) delete offsets[id];
   return {
+    ...nook,
     scene: scene?.locked && !owns(owned, sceneProductId(scene.id)) ? fallback.scene : nook.scene,
     items,
     offsets,
@@ -123,8 +127,10 @@ type CatalogRow = {
  */
 export function useOwned() {
   const { session } = useAuth();
-  const [owned, setOwned] = useState<ReadonlySet<string>>(new Set());
-  const [loaded, setLoaded] = useState(false);
+  // Starts from the last list seen on this phone. A failed refresh keeps it, so being offline can't strip paid decor.
+  const [cached] = useState(() => readForUser<string[]>(LOCAL_KEYS.owned, session?.user.id));
+  const [owned, setOwned] = useState<ReadonlySet<string>>(() => new Set(cached));
+  const [loaded, setLoaded] = useState(!!cached);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -134,7 +140,9 @@ export function useOwned() {
         .select('product_id')
         .eq('user_id', session.user.id);
       if (error) throw error;
-      setOwned(new Set((data ?? []).map(r => r.product_id as string)));
+      const ids = (data ?? []).map(r => r.product_id as string);
+      setOwned(new Set(ids));
+      writeForUser(LOCAL_KEYS.owned, session.user.id, ids);
     } catch (e) {
       // A missing table (migration not applied yet) just means nothing is owned.
       console.warn('Could not load owned cosmetics', e);
@@ -144,9 +152,9 @@ export function useOwned() {
   }, [session]);
 
   useFocusEffect(
-    useCallback(() => {
+    useCallback(() => afterLaunch(() => {
       refresh();
-    }, [refresh]),
+    }), [refresh]),
   );
 
   return { owned, loaded, refresh };
@@ -166,6 +174,7 @@ export function useStore() {
   const { isGuest, session } = useAuth();
   const [rows, setRows] = useState<CatalogRow[] | null>(null);
   const [buying, setBuying] = useState<string | null>(null);
+  const { isAvailable } = useReleases();
 
   useFocusEffect(
     useCallback(() => {
@@ -188,7 +197,8 @@ export function useStore() {
   );
 
   const catalog = useMemo(() => {
-    const base = defaultCatalog();
+    // Scheduled scenes and decor stay out of the store until their release date.
+    const base = defaultCatalog().filter(p => isAvailable(p.id));
     if (!rows) return base;
     const byId = new Map(rows.map(r => [r.id, r]));
     return base
@@ -199,7 +209,7 @@ export function useStore() {
           ? { ...p, priceCents: row.price_cents, interval: row.billing_interval, storeProductId: row.store_product_id }
           : p;
       });
-  }, [rows]);
+  }, [rows, isAvailable]);
 
   /** Reloads what the user owns now, and again a few times, since the webhook records a purchase a moment later. */
   const refreshSoon = useCallback(() => {
