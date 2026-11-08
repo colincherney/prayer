@@ -12,10 +12,12 @@ import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { syncCloudProgress } from '@/lib/cloudProgress';
 import { markLaunched } from '@/lib/launch';
 import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
 import { preloadPet } from '@/lib/pet';
+import { localDay } from '@/lib/quests';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
@@ -53,6 +55,13 @@ function RootStack() {
       markLaunched();
     }
   }, [navSettled, fontsLoaded]);
+
+  // Bring personal progress (nook, shelf, names, quests) in from the account, and upload this phone's if it's new.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    syncCloudProgress(userId, localDay());
+  }, [session?.user?.id]);
 
   // Register the device for push notifications once we have a session.
   useEffect(() => {

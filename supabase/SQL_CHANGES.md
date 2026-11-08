@@ -350,6 +350,23 @@ drop table if exists public.content_windows;
 
 ---
 
+## 12. `user_progress` (2026-11-07): personal progress follows the account
+
+- New table `public.user_progress`, one row per account: `nook` (scene, pieces and where they sit), `shelf_picks`, `pet_names`, `companions_met` (when each companion was first walked with), `levels_seen` (level-ups already celebrated) and `quest_day` (today's accepted quests and swaps). Each field has a size cap.
+- Everyone can read, add and change only their own row; nobody signed out can see it; rows go when the account is deleted (`on delete cascade`).
+- The app (`src/lib/cloudProgress.ts`) saves each change shortly after it happens, keeps unsent changes on the phone until they upload, and at launch takes the account's copy. A phone's existing progress is uploaded the first time its account syncs; a different account signing in on the same phone never inherits it.
+- Everything people grind for was already in the database (prayers, quests, pet XP, keepsakes, purchases; streaks and levels are worked out from those). This adds the personal pieces that were only on the phone.
+
+**Applied as:** `supabase/migrations/20261107_user_progress.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards: RLS on with 3 policies, no access for signed-out users, no delete; a test save and read as a signed-in user saw only its own row (rolled back).
+
+**Revert (the app then keeps this progress on the phone only, as before):**
+
+```sql
+drop table if exists public.user_progress;
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

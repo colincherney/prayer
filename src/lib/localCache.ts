@@ -10,6 +10,8 @@ export const LOCAL_KEYS = {
   trinkets: 'trinkets.cache.v3',
   owned: 'cosmetics.owned',
   companionsMet: 'companions.met',
+  cloudPending: 'cloud.pending',
+  cloudOwner: 'cloud.owner',
 } as const;
 
 type LocalKey = (typeof LOCAL_KEYS)[keyof typeof LOCAL_KEYS];

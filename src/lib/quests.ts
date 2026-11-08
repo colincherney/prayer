@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { Quest, QuestCategory, questsIn } from '@/lib/questPool';
+import { saveToCloud } from '@/lib/cloudProgress';
 import { supabase } from '@/lib/supabase';
 
 // Daily quests from the guide, the week's journey, and the spiritual rhythm rings. Finished quests are saved through
@@ -267,8 +268,9 @@ export function useQuests() {
       try {
         await AsyncStorage.setItem(acceptedKey(day), JSON.stringify(next));
       } catch {}
+      saveToCloud('quest_day', { day, accepted: next, rerolls });
     },
-    [accepted, day],
+    [accepted, day, rerolls],
   );
 
   const reroll = useCallback(
@@ -280,9 +282,10 @@ export function useQuests() {
       try {
         await AsyncStorage.setItem(rerollKey(day), JSON.stringify(next));
       } catch {}
+      saveToCloud('quest_day', { day, accepted, rerolls: next });
       return true;
     },
-    [rerolls, day],
+    [rerolls, day, accepted],
   );
 
   const record = useCallback(

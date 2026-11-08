@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId, PETS, useAvailablePets } from '@/components/pets/registry';
 import { useAuth } from '@/lib/auth';
+import { saveEntryToCloud, saveToCloud } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
@@ -78,7 +79,9 @@ export async function loadPetName(id: PetId): Promise<string> {
 
 export async function savePetName(id: PetId, name: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(nameKey(id), name.trim().slice(0, 16) || getPet(id).name);
+    const saved = name.trim().slice(0, 16) || getPet(id).name;
+    await AsyncStorage.setItem(nameKey(id), saved);
+    saveEntryToCloud('pet_names', id, saved);
   } catch {}
 }
 
@@ -97,6 +100,7 @@ async function consumeLevelUp(id: PetId, level: number): Promise<boolean> {
   try {
     const raw = await AsyncStorage.getItem(levelKey(id));
     await AsyncStorage.setItem(levelKey(id), String(level));
+    if (raw === null || level > Number(raw)) saveEntryToCloud('levels_seen', id, level);
     return raw !== null && level > Number(raw);
   } catch {
     return false;
@@ -111,7 +115,9 @@ export function metDates(): Partial<Record<PetId, string>> {
 function recordMet(id: PetId) {
   const met = metDates();
   if (met[id]) return;
-  writeLocal(LOCAL_KEYS.companionsMet, { ...met, [id]: new Date().toISOString() }).catch(() => {});
+  const next = { ...met, [id]: new Date().toISOString() };
+  writeLocal(LOCAL_KEYS.companionsMet, next).catch(() => {});
+  saveToCloud('companions_met', next);
 }
 
 /** The chosen companion and its name, reloaded whenever the screen gains focus. */

@@ -12,6 +12,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FONTS, Theme, useThemedStyles } from '@/components/saint/theme';
+import { saveToCloud } from '@/lib/cloudProgress';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { TRINKET_ORDER, TrinketStatus } from '@/lib/trinkets';
 
@@ -44,6 +45,7 @@ function useShelfPicks() {
     if (next.length > SLOT_COUNT) return;
     setPicks(next);
     writeLocal(LOCAL_KEYS.shelfPicks, next).catch(() => {});
+    saveToCloud('shelf_picks', next);
   };
   return { picks, toggle };
 }

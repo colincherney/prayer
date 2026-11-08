@@ -48,6 +48,7 @@ import { PageAmbience } from '@/components/saint/PageAmbience';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { saveToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
@@ -154,7 +155,13 @@ type Stats = {
   received: number;
 };
 
+/** Starts the screen over when progress (the nook, shelf picks) arrives from the account, e.g. on a new phone. */
 export default function MeScreen() {
+  const cloudVersion = useCloudVersion();
+  return <MeContent key={cloudVersion} />;
+}
+
+function MeContent() {
   const fontsLoaded = useSaintFonts();
   const { theme, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -245,12 +252,14 @@ export default function MeScreen() {
   useEffect(() => {
     if (!ownedLoaded) return;
     if (JSON.stringify(nook) === JSON.stringify(storedNook)) return;
+    saveToCloud('nook', nook);
     writeLocal(LOCAL_KEYS.nook, nook)
       .then(() => setNook(current => current === storedNook ? nook : current))
       .catch(() => {});
   }, [nook, storedNook, ownedLoaded]);
   const saveNook = async (next: NookState) => {
     await writeLocal(LOCAL_KEYS.nook, next);
+    saveToCloud('nook', next);
     setNook(next);
   };
 
