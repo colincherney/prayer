@@ -18,6 +18,7 @@ import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
 import { preloadPet } from '@/lib/pet';
 import { localDay } from '@/lib/quests';
+import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
@@ -60,7 +61,7 @@ function RootStack() {
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
-    syncCloudProgress(userId, localDay());
+    syncCloudProgress(userId, localDay(), PETS.map(p => p.id));
   }, [session?.user?.id]);
 
   // Register the device for push notifications once we have a session.

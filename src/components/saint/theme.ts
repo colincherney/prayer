@@ -2,6 +2,8 @@
 // are alternates the user can pick from on the Me page.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { saveEntryToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import React, {
   createContext,
   useCallback,
@@ -167,6 +169,7 @@ export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [name, setName] = useState<ThemeName>('cream');
 
+  const cloudVersion = useCloudVersion();
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
@@ -177,12 +180,14 @@ export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })
       .catch(() => {});
-  }, []);
+    // Runs again when the account's copy arrives (a new phone), which may have a different look.
+  }, [cloudVersion]);
 
   const setTheme = useCallback((next: ThemeName) => {
     Object.assign(THEME, THEMES[next]);
     setName(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+    saveEntryToCloud('appearance', 'theme', next);
   }, []);
 
   const value = useMemo<ThemeCtx>(

@@ -6,11 +6,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
-import { PETS } from '@/components/pets/registry';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 
-export type CloudField = 'nook' | 'shelf_picks' | 'pet_names' | 'companions_met' | 'levels_seen' | 'quest_day';
+export type CloudField = 'nook' | 'shelf_picks' | 'pet_names' | 'companions_met' | 'levels_seen' | 'quest_day' | 'appearance';
 type Row = Partial<Record<CloudField, unknown>>;
 export type QuestDay = { day: string; accepted: string[]; rerolls: Record<string, number> };
 
@@ -20,6 +19,8 @@ const petNameKey = (id: string) => (id === 'lamb' ? 'pet.name' : `pet.name.${id}
 const levelKey = (id: string) => `pet.lastSeenLevel.${id}`;
 const acceptedKey = (day: string) => `quests.accepted.${day}`;
 const rerollKey = (day: string) => `quests.rerolls.${day}`;
+/** The look of the app: these keys must match theme.ts, prayerRoom.ts and appearanceMode.ts. */
+const APPEARANCE_KEYS = { theme: 'saint.theme', room: 'saint.prayerRoom', mode: 'saint.appearanceMode' } as const;
 
 /** The last copy the account had, so a merged field (names, levels) adds to it instead of replacing it. */
 let known: Row = {};
@@ -58,7 +59,7 @@ export function saveToCloud(field: CloudField, value: unknown) {
 }
 
 /** For fields keyed by pet: changes one entry and keeps the rest. */
-export function saveEntryToCloud(field: 'pet_names' | 'levels_seen', key: string, value: unknown) {
+export function saveEntryToCloud(field: 'pet_names' | 'levels_seen' | 'appearance', key: string, value: unknown) {
   const base = (pending()[field] ?? known[field] ?? {}) as Record<string, unknown>;
   saveToCloud(field, { ...base, [key]: value });
 }
@@ -83,12 +84,14 @@ async function flush() {
 }
 
 // ---------------------------------------------------------------- loading
-async function localSnapshot(today: string): Promise<Row> {
-  const nameRows = await AsyncStorage.multiGet(PETS.map(p => petNameKey(p.id)));
-  const levelRows = await AsyncStorage.multiGet(PETS.map(p => levelKey(p.id)));
+async function localSnapshot(today: string, petIds: readonly string[]): Promise<Row> {
+  const nameRows = await AsyncStorage.multiGet(petIds.map(petNameKey));
+  const levelRows = await AsyncStorage.multiGet(petIds.map(levelKey));
   const [acc, rr] = await AsyncStorage.multiGet([acceptedKey(today), rerollKey(today)]);
-  const names = Object.fromEntries(PETS.map((p, i) => [p.id, nameRows[i][1]]).filter(([, v]) => v));
-  const levels = Object.fromEntries(PETS.map((p, i) => [p.id, Number(levelRows[i][1])]).filter(([, v]) => Number(v) > 0));
+  const looks = await AsyncStorage.multiGet(Object.values(APPEARANCE_KEYS));
+  const names = Object.fromEntries(petIds.map((id, i) => [id, nameRows[i][1]]).filter(([, v]) => v));
+  const levels = Object.fromEntries(petIds.map((id, i) => [id, Number(levelRows[i][1])]).filter(([, v]) => Number(v) > 0));
+  const appearance = Object.fromEntries(Object.keys(APPEARANCE_KEYS).map((k, i) => [k, looks[i][1]]).filter(([, v]) => v));
   return {
     nook: readLocal(LOCAL_KEYS.nook) ?? null,
     shelf_picks: readLocal(LOCAL_KEYS.shelfPicks) ?? null,
@@ -96,6 +99,7 @@ async function localSnapshot(today: string): Promise<Row> {
     pet_names: Object.keys(names).length ? names : null,
     levels_seen: Object.keys(levels).length ? levels : null,
     quest_day: acc[1] || rr[1] ? { day: today, accepted: JSON.parse(acc[1] ?? '[]'), rerolls: JSON.parse(rr[1] ?? '{}') } : null,
+    appearance: Object.keys(appearance).length ? appearance : null,
   };
 }
 
@@ -106,6 +110,10 @@ async function applyLocally(row: Row, today: string) {
   const pairs: [string, string][] = [];
   for (const [id, name] of Object.entries((row.pet_names ?? {}) as Record<string, string>)) pairs.push([petNameKey(id), name]);
   for (const [id, level] of Object.entries((row.levels_seen ?? {}) as Record<string, number>)) pairs.push([levelKey(id), String(level)]);
+  for (const [k, v] of Object.entries((row.appearance ?? {}) as Record<string, string>)) {
+    const key = APPEARANCE_KEYS[k as keyof typeof APPEARANCE_KEYS];
+    if (key && v) pairs.push([key, v]);
+  }
   const quest = row.quest_day as QuestDay | null | undefined;
   if (quest?.day === today) {
     pairs.push([acceptedKey(today), JSON.stringify(quest.accepted)], [rerollKey(today), JSON.stringify(quest.rerolls)]);
@@ -117,17 +125,17 @@ async function applyLocally(row: Row, today: string) {
  * At launch, once signed in: uploads anything still pending, then takes the account's copy. The first time an
  * account syncs from this phone, the phone's progress is uploaded. A different account never inherits it.
  */
-export async function syncCloudProgress(userId: string, today: string) {
+export async function syncCloudProgress(userId: string, today: string, petIds: readonly string[]) {
   try {
     await flush();
     const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
     if (error) return;
     const owner = readLocal<string>(LOCAL_KEYS.cloudOwner);
-    const fields: CloudField[] = ['nook', 'shelf_picks', 'pet_names', 'companions_met', 'levels_seen', 'quest_day'];
+    const fields: CloudField[] = ['nook', 'shelf_picks', 'pet_names', 'companions_met', 'levels_seen', 'quest_day', 'appearance'];
     const row = (data ?? {}) as Row;
     known = Object.fromEntries(fields.map(f => [f, row[f] ?? null]));
     const waiting = pending();
-    const local = await localSnapshot(today);
+    const local = await localSnapshot(today, petIds);
     // Only what differs from the phone is applied, so an ordinary launch doesn't reload anything.
     const fromCloud: Row = {};
     for (const f of fields) {

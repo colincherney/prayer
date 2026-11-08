@@ -367,6 +367,20 @@ drop table if exists public.user_progress;
 
 ---
 
+## 13. `user_progress_appearance` (2026-11-07): the app's look follows the account
+
+- `public.user_progress` gets an `appearance` column: `{ theme, room, mode }` (the theme, the prayer room, and whether Home shows the room or the theme), capped at 1 KB. Same row and permissions as #12.
+
+**Applied as:** `supabase/migrations/20261107_user_progress_appearance.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards with a rolled-back test save and read as a signed-in user.
+
+**Revert:**
+
+```sql
+alter table public.user_progress drop column if exists appearance;
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)
