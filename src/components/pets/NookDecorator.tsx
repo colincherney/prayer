@@ -75,7 +75,6 @@ const TAP_SLOP = 10;
 const TAP_MS = 300;
 const GRID = 26;
 const NO_OFFSET: Offset = { x: 0, y: 0 };
-const TOTAL_PIECES = ROWS.reduce((sum, row) => sum + row.items.length, 0);
 const ALL_ITEMS = ROWS.flatMap(row => row.items);
 
 type IconProps = { color?: string };
@@ -170,6 +169,8 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { isAvailable } = useReleases();
+  // Only pieces that are out count toward the total, so it grows as weekly releases land.
+  const totalPieces = ALL_ITEMS.filter(item => isAvailable(itemProductId(item.id))).length;
   // The tab bar's height can be counted in this inset, but this page covers the tab bar.
   const bottomInset = Math.min(insets.bottom, 34);
   const reducedMotion = useReducedMotion();
@@ -508,7 +509,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
           ) : (
             <View pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.readout, { bottom: 30 + bottomInset }]}>
               <Text numberOfLines={1} style={styles.readoutText}>Scene: {scene.name}</Text>
-              <Text style={styles.readoutText}>Pieces: {draft.items.length} / {TOTAL_PIECES}</Text>
+              <Text style={styles.readoutText}>Pieces: {draft.items.length} / {totalPieces}</Text>
               <Text numberOfLines={1} style={[styles.readoutText, setDone && styles.readoutDone]}>{setText}</Text>
               {previews.length ? (
                 <Text numberOfLines={1} style={styles.previewNote}>
