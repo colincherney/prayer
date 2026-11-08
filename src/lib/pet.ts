@@ -28,6 +28,7 @@ export function petProgressFromXp(xp: number): PetProgress {
 }
 
 /** XP comes from rows the app already writes, plus whatever finished quests were worth (public.quest_completions). */
+/** Keep in step with public.account_xp() in the database, which switch_pet uses (supabase/SQL_CHANGES.md #15). */
 export function xpFromCounts(c: { prayed: number; shared: number; journal: number; quests?: number }): number {
   return c.prayed * XP.prayed + c.shared * XP.share + c.journal * XP.journal + (c.quests ?? 0);
 }

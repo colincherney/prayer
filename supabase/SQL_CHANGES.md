@@ -381,6 +381,83 @@ alter table public.user_progress drop column if exists appearance;
 
 ---
 
+## 14. `security_hardening` (2026-11-07): closing holes found in a security review
+
+- Dropped `push_tokens claim ownership`: it let any signed-in user take over anyone's push token row. Tokens are registered through `register_push_token()`, which still works.
+- `prayer_interactions` reads: was "every signed-in user sees everything" (including who prayed on private group prayers). Now your own interactions plus interactions on prayers you can already see.
+- Revoked `anon`/`authenticated` grants on the server-only tables `notifications_config` (holds the service role key), `pair_intents`, `pair_matches`, `prayer_interaction_schedule`. RLS already blocked them; this is a second lock. Edge functions use the service role.
+- `set_my_group_pet()` now rejects anything that isn't a short lowercase pet id and a stage of 1 to 3.
+
+**Applied as:** `supabase/migrations/20261107_security_hardening.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards as a signed-in user in a rolled-back test: own and public-prayer interactions still visible, `notifications_config` blocked, a bad group pet rejected, and 0 rows changed when trying to take other users' push tokens.
+
+**Revert:**
+
+```sql
+create policy "push_tokens claim ownership" on public.push_tokens
+  for update using (auth.uid() is not null) with check (auth.uid() = user_id);
+
+drop policy if exists "interactions on visible prayers" on public.prayer_interactions;
+create policy "Anyone can read interactions" on public.prayer_interactions
+  for select to authenticated using (true);
+
+grant select, insert, update, delete, references, trigger, truncate on
+  public.notifications_config, public.pair_intents, public.pair_matches, public.prayer_interaction_schedule
+  to authenticated;
+
+create or replace function public.set_my_group_pet(p_group uuid, p_pet text, p_stage integer)
+ returns void language sql security definer set search_path to 'public'
+as $function$
+  update public.group_members set pet_id = p_pet, pet_stage = p_stage
+   where group_id = p_group and user_id = auth.uid();
+$function$;
+```
+
+---
+
+## 15. `server_side_xp_and_nook` (2026-11-07): the server checks pet XP and paid decor
+
+- New `account_xp(uid)` works out the account's XP on the server (prayed ×10, shared ×20, journal ×5, plus quest XP — same as `xpFromCounts()` in `src/lib/pet.ts`; keep them in step). Not callable from the app.
+- `switch_pet()` now uses `account_xp()` and ignores the `p_total` the phone sends, so an edited request can't add levels. The parameter stays so the app doesn't need an update.
+- New trigger `user_progress_strip_unowned_nook` (function `strip_unowned_nook()`): on every nook save, pieces and scenes that are priced in `cosmetic_products` and not owned (`user_cosmetics`, or `plus`) are removed; an unowned scene falls back to `night`. Free and earned pieces are untouched.
+
+**Applied as:** `supabase/migrations/20261107_server_side_xp_and_nook.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards as a signed-in user in a rolled-back test: saving a nook with paid `chandelier`, `snowfall` and scene `cathedral` kept only the free pieces and fell back to `night`; `switch_pet` with a fake total of 999999 banked the real 295; calling `account_xp` directly was blocked.
+
+**Revert:**
+
+```sql
+drop trigger if exists user_progress_strip_unowned_nook on public.user_progress;
+drop function if exists public.strip_unowned_nook();
+
+create or replace function public.switch_pet(p_from text, p_to text, p_total integer)
+ returns void language plpgsql security definer set search_path to 'public'
+as $function$
+declare
+  uid uuid := auth.uid();
+  allowed constant text[] := array[
+    'lamb', 'dove', 'lion', 'ember', 'dragon', 'pumpkin', 'turkey', 'donkey',
+    'rat', 'ox', 'tiger', 'rabbit', 'loong', 'snake', 'horse', 'goat', 'monkey', 'rooster', 'dog', 'pig'];
+  st public.pet_state%rowtype;
+  total int := greatest(coalesce(p_total, 0), 0);
+begin
+  if uid is null then raise exception 'not_signed_in'; end if;
+  if not (p_from = any(allowed)) or not (p_to = any(allowed)) then raise exception 'unknown_pet'; end if;
+  select * into st from public.pet_state where user_id = uid for update;
+  if not found then
+    insert into public.pet_state (user_id, active_pet, active_since_xp) values (uid, p_from, 0) on conflict (user_id) do nothing;
+    select * into st from public.pet_state where user_id = uid for update;
+  end if;
+  if st.active_pet = p_to then return; end if;
+  insert into public.pet_xp (user_id, pet_id, banked_xp) values (uid, st.active_pet, greatest(total - st.active_since_xp, 0))
+  on conflict (user_id, pet_id) do update set banked_xp = public.pet_xp.banked_xp + excluded.banked_xp;
+  update public.pet_state set active_pet = p_to, active_since_xp = total, updated_at = now() where user_id = uid;
+end;
+$function$;
+
+drop function if exists public.account_xp(uuid);
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)
