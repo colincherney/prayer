@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId, PETS, useAvailablePets } from '@/components/pets/registry';
@@ -39,18 +39,30 @@ const XP_CACHE_KEY = 'pet.xpCache';
 
 type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>> };
 
-// The last known pet and XP, kept in memory so every screen draws the right pet on its first frame.
+// The current pet and XP, shared by every screen. A change here (switching pets, new XP) reaches every screen that
+// shows a pet at once, instead of each one catching up when it's next opened.
 let knownPet: { id: PetId; name: string } | null = null;
 let knownXp: XpCache | null = null;
+/** The account's total XP and active pet from the last load, needed when switching pets. */
+let lastTotal: number | null = null;
+let activePet: PetId | null = null;
 
-/** The last XP seen on this phone. Before the session has loaded there's no user to check it against yet. */
-function cachedXp(userId?: string): XpCache['xpByPet'] {
-  if (!knownXp || (userId && knownXp.userId !== userId)) return {};
-  return knownXp.xpByPet;
+const listeners = new Set<() => void>();
+function subscribe(fn: () => void) {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+function setKnownPet(next: { id: PetId; name: string }) {
+  if (knownPet?.id === next.id && knownPet.name === next.name) return;
+  knownPet = next;
+  listeners.forEach(fn => fn());
 }
 
 function rememberXp(userId: string, xpByPet: Record<PetId, number>) {
   knownXp = { userId, xpByPet };
+  listeners.forEach(fn => fn());
   AsyncStorage.setItem(XP_CACHE_KEY, JSON.stringify(knownXp)).catch(() => {});
 }
 
@@ -122,8 +134,9 @@ function recordMet(id: PetId) {
 
 /** The chosen companion and its name, reloaded whenever the screen gains focus. */
 export function usePetChoice() {
-  const [petId, setPetIdState] = useState<PetId>(knownPet?.id ?? DEFAULT_PET);
-  const [name, setNameState] = useState(knownPet?.name ?? getPet(DEFAULT_PET).name);
+  const current = useSyncExternalStore(subscribe, () => knownPet);
+  const petId = current?.id ?? DEFAULT_PET;
+  const name = current?.name ?? getPet(DEFAULT_PET).name;
 
   useFocusEffect(
     useCallback(() => {
@@ -132,10 +145,8 @@ export function usePetChoice() {
         const id = await loadPetId();
         const n = await loadPetName(id);
         if (cancelled) return;
-        knownPet = { id, name: n };
         recordMet(id);
-        setPetIdState(id);
-        setNameState(n);
+        setKnownPet({ id, name: n });
       })();
       return () => {
         cancelled = true;
@@ -144,17 +155,16 @@ export function usePetChoice() {
   );
 
   const setPetId = useCallback(async (id: PetId) => {
-    setPetIdState(id);
+    // Every screen switches now; the saved name follows a moment later if it's been renamed.
+    setKnownPet({ id, name: knownPet?.id === id ? knownPet.name : getPet(id).name });
     recordMet(id);
     await savePetId(id);
     const n = await loadPetName(id);
-    knownPet = { id, name: n };
-    setNameState(n);
+    if (knownPet?.id === id) setKnownPet({ id, name: n });
   }, []);
 
   const setName = useCallback((n: string) => {
-    if (knownPet) knownPet = { ...knownPet, name: n };
-    setNameState(n);
+    if (knownPet) setKnownPet({ ...knownPet, name: n });
   }, []);
 
   // A companion that isn't out (e.g. its date was moved later) shows as the default until its date.
@@ -205,19 +215,18 @@ export function usePetProgress() {
   const { session } = useAuth();
   const choice = usePetChoice();
   const { setPetId: setChoice } = choice;
-  const [progress, setProgress] = useState<PetProgress>(
-    () => petProgressFromXp(cachedXp(session?.user.id)[knownPet?.id ?? DEFAULT_PET] ?? 0),
+  // Shared with every screen, so a switch or new XP shows everywhere at once.
+  const xpSnapshot = useSyncExternalStore(subscribe, () => knownXp);
+  const userId = session?.user.id;
+  const xpByPet = useMemo(
+    () => ({ ...Object.fromEntries(PETS.map(p => [p.id, 0])), ...(xpSnapshot && (!userId || xpSnapshot.userId === userId) ? xpSnapshot.xpByPet : {}) }) as Record<PetId, number>,
+    [xpSnapshot, userId],
   );
-  const [xpByPet, setXpByPet] = useState<Record<PetId, number>>(
-    () => ({ ...Object.fromEntries(PETS.map(p => [p.id, 0])), ...cachedXp(session?.user.id) }) as Record<PetId, number>,
-  );
+  const progress = useMemo(() => petProgressFromXp(xpByPet[choice.petId] ?? 0), [xpByPet, choice.petId]);
   const [leveledUp, setLeveledUp] = useState(false);
 
   // Bumped to throw away a load that finished after a newer one started (or after the screen lost focus).
   const loadId = useRef(0);
-  // The account's total XP and active pet from the last load, needed when switching pets.
-  const lastTotal = useRef<number | null>(null);
-  const activePetRef = useRef<PetId | null>(null);
 
   const reload = useCallback(async () => {
     if (!session) return;
@@ -243,17 +252,15 @@ export function usePetProgress() {
         quests: questXp,
       });
       const localPet = await loadPetId();
-      const { xpByPet: byPet, activePet } = await loadXpByPet(localPet, total);
+      const { xpByPet: byPet, activePet: active } = await loadXpByPet(localPet, total);
       if (id !== loadId.current) return;
-      lastTotal.current = total;
-      activePetRef.current = activePet;
+      lastTotal = total;
+      activePet = active;
       // Another device may have switched pets; follow the account.
-      if (activePet !== localPet) await setChoice(activePet);
-      const next = petProgressFromXp(byPet[activePet]);
+      if (active !== localPet) await setChoice(active);
+      const next = petProgressFromXp(byPet[active]);
       rememberXp(userId, byPet);
-      setXpByPet(byPet);
-      setProgress(next);
-      const up = await consumeLevelUp(activePet, next.level);
+      const up = await consumeLevelUp(active, next.level);
       if (id === loadId.current && up) {
         setLeveledUp(true);
         setTimeout(() => setLeveledUp(false), 2200);
@@ -279,18 +286,18 @@ export function usePetProgress() {
   /** Switches companion. The old pet keeps the XP it earned; the new one picks up from its own level. */
   const setPetId = useCallback(
     async (next: PetId) => {
-      const from = activePetRef.current ?? (await loadPetId());
+      const from = activePet ?? (await loadPetId());
       if (from === next) return;
-      // Show the new pet's own level straight away.
-      setProgress(petProgressFromXp(xpByPet[next] ?? 0));
+      // Every screen shows the new pet, at its own level, straight away.
       await setChoice(next);
-      if (session && lastTotal.current !== null) {
-        const { error } = await supabase.rpc('switch_pet', { p_from: from, p_to: next, p_total: lastTotal.current });
+      if (session && lastTotal !== null) {
+        activePet = next;
+        const { error } = await supabase.rpc('switch_pet', { p_from: from, p_to: next, p_total: lastTotal });
         if (error) console.warn('switch_pet failed', error.message);
       }
       await reload();
     },
-    [reload, session, setChoice, xpByPet],
+    [reload, session, setChoice],
   );
 
   return { progress, xpByPet, leveledUp, reload, ...choice, setPetId };
