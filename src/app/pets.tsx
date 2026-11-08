@@ -58,13 +58,13 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
       disabled={!released}
       onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
-      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : vaulted ? `${def.name}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
+      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming ${def.season ?? 'soon'}` : vaulted ? `${def.name}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
       style={({ pressed }) => [styles.card, { width }, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
       <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
         <Text style={styles.cardNumber}>{dexNumber(def.id)}</Text>
         {!released ? (
-          <Text style={styles.soon}>SOON</Text>
+          <Text style={styles.soon}>{def.season && companionGroup(def.id) === 'monthly' ? def.season.slice(0, 3).toUpperCase() : 'SOON'}</Text>
         ) : vaulted ? (
           <Text style={styles.soon}>VAULT</Text>
         ) : met ? (
@@ -77,7 +77,9 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
       <View style={[styles.cardArt, !met && (vaulted ? styles.vaulted : styles.silhouette)]}>
         {released ? <Pet id={def.id} stage={met ? stage : 1} size={CARD_ART} animated={false} /> : null}
       </View>
-      <Text numberOfLines={1} style={styles.cardName}>{released && (met || vaulted) ? def.name : '???'}</Text>
+      <Text numberOfLines={1} style={[styles.cardName, !released && styles.cardComing]}>
+        {!released ? (def.season ? `Coming ${def.season}` : 'Coming soon') : met || vaulted ? def.name : '???'}
+      </Text>
       {current ? <View style={styles.ribbon}><Text style={styles.ribbonText}>WITH YOU</Text></View> : null}
     </Pressable>
   );
@@ -239,6 +241,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   silhouette: { opacity: 0.18 },
   vaulted: { opacity: 0.55 },
   cardName: { textAlign: 'center', fontFamily: FONTS.display, fontSize: 14, color: theme.ink },
+  cardComing: { fontSize: 11, color: theme.muted },
   ribbon: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingVertical: 3, backgroundColor: theme.accent },
   ribbonText: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 9, letterSpacing: 1.2, color: '#2A1A0C' },
   filters: { position: 'absolute', left: 20, right: 20, bottom: 28, flexDirection: 'row', padding: 5, borderRadius: 999, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface },

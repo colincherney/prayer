@@ -48,7 +48,7 @@ export function companionGroup(id: PetId): CompanionGroup {
 export const GROUP_LABELS: Record<CompanionGroup, string> = {
   core: 'Core companions',
   seasonal: 'Seasonal',
-  monthly: 'Monthly',
+  monthly: 'Upcoming monthly releases',
 };
 
 /** The level each evolution starts at. */
