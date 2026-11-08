@@ -31,20 +31,24 @@ export type Look = {
   mote: string;
   /** Which first-six pet it moves like when just living somewhere (the hearth, the groups card). */
   movesLike: 'lamb' | 'dove' | 'lion' | 'dragon' | 'pumpkin';
+  /** Belly and paws when lying down, if `light` (often an inner-ear pink) would look wrong there. */
+  belly?: string;
+  /** A long muzzle and a mane when lying down, for the horse and donkey, instead of a round face. */
+  longFace?: boolean;
 };
 
 export type LookPetId = Exclude<PetId, 'lamb' | 'dove' | 'lion' | 'ember' | 'dragon' | 'pumpkin'>;
 
 export const LOOKS: Record<LookPetId, Look> = {
   turkey: { fur: '#8A5A3C', light: '#A8704A', dark: '#C9433A', ears: 'none', snout: 'beak', tail: 'fan', bed: ['#C9433A', '#F2C462'], sounds: ['Peep!', 'Gobble!', 'Gobble! Give thanks!'], mote: '#E8913A', movesLike: 'lamb' },
-  donkey: { fur: '#B4A698', light: '#E6DED4', dark: '#5C5048', ears: 'long', snout: 'nose', tail: 'tuft', bed: ['#C9433A', '#F2E9D8'], sounds: ['Hee!', 'Hee-haw!', 'Glory to God!'], mote: '#FFFFFF', movesLike: 'lion' },
+  donkey: { fur: '#B4A698', light: '#E6DED4', dark: '#5C5048', ears: 'long', snout: 'nose', tail: 'tuft', bed: ['#C9433A', '#F2E9D8'], sounds: ['Hee!', 'Hee-haw!', 'Glory to God!'], mote: '#FFFFFF', movesLike: 'lion', longFace: true },
   rat: { fur: '#C8C3D0', light: '#E3DEE8', dark: '#E8A9B4', ears: 'round', snout: 'nose', tail: 'thin', bed: ['#8E2A24', '#E8A24B'], sounds: ['Squeak!', 'Squeak!', 'Good fortune!'], mote: '#F2C462', movesLike: 'lamb' },
   ox: { fur: '#9A6646', light: '#E3B994', dark: '#4A2E22', ears: 'horns', snout: 'nose', tail: 'tuft', horn: '#F3EBDD', bed: ['#C9A24B', '#F3EBDD'], sounds: ['Mm-moo!', 'Moo!', 'Steady on!'], mote: '#E8C462', movesLike: 'lion' },
   tiger: { fur: '#E8913A', light: '#FFF3E2', dark: '#3A2A22', ears: 'pointy', snout: 'nose', tail: 'stripe', bed: ['#2F4B7A', '#8EC9F0'], sounds: ['Mew!', 'Rrrawr!', 'Be brave!'], mote: '#E6EEF8', movesLike: 'lion' },
-  rabbit: { fur: '#F4F1EA', light: '#F2B6B8', dark: '#E6E0D6', ears: 'long', snout: 'nose', tail: 'puff', bed: ['#6E5AA8', '#B9A6F0'], sounds: ['Hop!', 'Hop hop!', 'Moonlight!'], mote: '#F4EED8', movesLike: 'lamb' },
+  rabbit: { fur: '#F4F1EA', light: '#F2B6B8', dark: '#E6E0D6', ears: 'long', snout: 'nose', tail: 'puff', bed: ['#6E5AA8', '#B9A6F0'], sounds: ['Hop!', 'Hop hop!', 'Moonlight!'], mote: '#F4EED8', movesLike: 'lamb', belly: '#FFFFFF' },
   loong: { fur: '#C9433A', light: '#F2C462', dark: '#8E2A24', ears: 'dragon', snout: 'nose', tail: 'coil', horn: '#F2C462', bed: ['#8E2A24', '#F2C462'], sounds: ['Rawr!', 'Good fortune!', 'Pearl of peace!'], mote: '#F2C462', movesLike: 'dragon' },
   snake: { fur: '#6BAF7A', light: '#86C893', dark: '#4E8E5C', ears: 'none', snout: 'nose', tail: 'coil', bed: ['#2F6B4A', '#B5F0D8'], sounds: ['Hiss!', 'Hiss-ello!', 'Be wise!'], mote: '#B5F0D8', movesLike: 'dragon' },
-  horse: { fur: '#B9783F', light: '#E3B994', dark: '#4A2E22', ears: 'pointy', snout: 'nose', tail: 'hair', bed: ['#2F4B8A', '#E6EEF8'], sounds: ['Neigh!', 'Neigh!', 'Onward!'], mote: '#E6EEF8', movesLike: 'lion' },
+  horse: { fur: '#B9783F', light: '#E3B994', dark: '#4A2E22', ears: 'pointy', snout: 'nose', tail: 'hair', bed: ['#2F4B8A', '#E6EEF8'], sounds: ['Neigh!', 'Neigh!', 'Onward!'], mote: '#E6EEF8', movesLike: 'lion', longFace: true },
   goat: { fur: '#E6DCC4', light: '#F4ECDA', dark: '#6B5E52', ears: 'curly', snout: 'nose', tail: 'puff', horn: '#9C9488', bed: ['#3E7A4A', '#9CCB7A'], sounds: ['Meh!', 'Maa!', 'Peace on the hills!'], mote: '#F2F5FA', movesLike: 'lamb' },
   monkey: { fur: '#8A5A3C', light: '#F0CFA8', dark: '#6E4630', ears: 'round', snout: 'nose', tail: 'curl', bed: ['#B5476E', '#F2A7C0'], sounds: ['Ooh!', 'Ooh-ooh!', 'Wisdom!'], mote: '#F2A7C0', movesLike: 'dove' },
   rooster: { fur: '#F7F5F0', light: '#E6E1D7', dark: '#C9433A', ears: 'comb', snout: 'beak', tail: 'fan', bed: ['#C9433A', '#F2934A'], sounds: ['Cheep!', 'Cock-a-doodle!', 'Rise and pray!'], mote: '#F2934A', movesLike: 'dove' },
