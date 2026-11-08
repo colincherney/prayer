@@ -58,7 +58,7 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
       disabled={!released}
       onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
-      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : vaulted ? `Companion ${dexNumber(def.id)}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
+      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : vaulted ? `${def.name}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
       style={({ pressed }) => [styles.card, { width }, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
       <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
@@ -73,10 +73,11 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
           <LockIcon size={11} color={theme.muted} />
         )}
       </View>
-      <View style={[styles.cardArt, !met && styles.silhouette]}>
+      {/* A vaulted companion is shown in full, just faded and not walkable; others you haven't met are silhouettes. */}
+      <View style={[styles.cardArt, !met && (vaulted ? styles.vaulted : styles.silhouette)]}>
         {released ? <Pet id={def.id} stage={met ? stage : 1} size={CARD_ART} animated={false} /> : null}
       </View>
-      <Text numberOfLines={1} style={styles.cardName}>{released && met ? def.name : '???'}</Text>
+      <Text numberOfLines={1} style={styles.cardName}>{released && (met || vaulted) ? def.name : '???'}</Text>
       {current ? <View style={styles.ribbon}><Text style={styles.ribbonText}>WITH YOU</Text></View> : null}
     </Pressable>
   );
@@ -236,6 +237,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   soon: { overflow: 'hidden', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, borderWidth: 1, borderColor: theme.line, fontFamily: FONTS.bodyBold, fontSize: 9, color: theme.muted },
   cardArt: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   silhouette: { opacity: 0.18 },
+  vaulted: { opacity: 0.55 },
   cardName: { textAlign: 'center', fontFamily: FONTS.display, fontSize: 14, color: theme.ink },
   ribbon: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingVertical: 3, backgroundColor: theme.accent },
   ribbonText: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 9, letterSpacing: 1.2, color: '#2A1A0C' },
