@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -22,6 +22,10 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 const HERO_H = 282;
 const HERO_PET = 180;
+/** Lifts the page a little more when the verse runs to two lines, so its card isn't cut off by the button. */
+const LONG_VERSE_LIFT = 10;
+/** Roughly how wide one character of the verse is, to tell when it wraps. */
+const VERSE_CHAR_W = 8.3;
 const EVO = 74;
 const GROUP_BADGE = { core: 'CORE', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
 
@@ -79,6 +83,7 @@ export default function CompanionScreen() {
   const [tab, setTab] = useState<Tab>('about');
   const [walking, setWalking] = useState(false);
   const [now] = useState(() => Date.now());
+  const { width: screenW } = useWindowDimensions();
 
   const out = PETS.filter(def => !def.scheduled || isReleased(`pet:${def.id}`));
   const id: PetId = isPetId(params.id) ? params.id : petId;
@@ -92,6 +97,9 @@ export default function CompanionScreen() {
   const metOn = metDates()[id];
   const daysWalked = metOn ? Math.max(1, Math.ceil((now - Date.parse(metOn)) / 86400000)) : null;
   const group = companionGroup(id);
+  // The verse card's text area is the screen less the page and card padding.
+  const verseWraps = info.verse.text.length + 2 > (screenW - 44 - 32) / VERSE_CHAR_W;
+  const heroH = HERO_H - (verseWraps ? LONG_VERSE_LIFT : 0);
 
   const go = (step: number) => {
     if (out.length < 2) return;
@@ -111,19 +119,19 @@ export default function CompanionScreen() {
     <View style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }} showsVerticalScrollIndicator={false}>
-        <View style={[styles.hero, { height: HERO_H + insets.top }]}>
+        <View style={[styles.hero, { height: heroH + insets.top }]}>
           <LinearGradient colors={[mixColors(info.hue, '#FFFFFF', 0.12), mixColors(info.hue, '#000000', 0.45)]} style={StyleSheet.absoluteFill} />
           {/* Soft beams of light across the scene. */}
           <View pointerEvents="none" style={[styles.beam, { left: '42%', top: -60 }]} />
           <View pointerEvents="none" style={[styles.beam, { left: '72%', top: -40, width: 34, opacity: 0.06 }]} />
-          <View pointerEvents="none" style={[styles.pedestal, { top: insets.top + HERO_H - 70 }]} />
+          <View pointerEvents="none" style={[styles.pedestal, { top: insets.top + heroH - 70 }]} />
           <View style={[styles.heroBar, { top: insets.top + 10 }]}>
             <Pressable onPress={() => router.back()} style={styles.heroBtn} accessibilityRole="button" accessibilityLabel="Back">
               <BackIcon size={15} color="#FFFFFF" />
             </Pressable>
             <Text style={styles.heroNo}>No. {String(PETS.findIndex(p => p.id === id) + 1).padStart(3, '0')}</Text>
           </View>
-          <View style={[styles.heroPet, { top: insets.top + HERO_H - 52 - (HERO_PET * 260) / 240 }]}>
+          <View style={[styles.heroPet, { top: insets.top + heroH - 52 - (HERO_PET * 260) / 240 }]}>
             <Acting petId={id} size={HERO_PET}>
               <Pet id={id} stage={own.stage} size={HERO_PET} />
             </Acting>
@@ -131,11 +139,11 @@ export default function CompanionScreen() {
           {out.length > 1 ? (
             <>
               <Pressable onPress={() => go(-1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Previous companion"
-                style={[styles.arrow, { left: 12, top: insets.top + HERO_H / 2 }]}>
+                style={[styles.arrow, { left: 12, top: insets.top + heroH / 2 }]}>
                 <Chevron left color="#FFFFFF" />
               </Pressable>
               <Pressable onPress={() => go(1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Next companion"
-                style={[styles.arrow, { right: 12, top: insets.top + HERO_H / 2 }]}>
+                style={[styles.arrow, { right: 12, top: insets.top + heroH / 2 }]}>
                 <Chevron color="#FFFFFF" />
               </Pressable>
             </>
