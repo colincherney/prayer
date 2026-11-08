@@ -20,8 +20,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'evolution', label: 'Evolution' },
   { id: 'together', label: 'Together' },
 ];
-const HERO_H = 330;
-const HERO_PET = 210;
+const HERO_H = 282;
+const HERO_PET = 180;
 const EVO = 74;
 const GROUP_BADGE = { core: 'CORE', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
 
