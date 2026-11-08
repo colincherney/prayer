@@ -558,9 +558,9 @@ export default function PrayLauncherScreen() {
             colW={colW}
             orb={orb}
             slot={orb}
-            name="Meet the pets"
+            name="Meet the pals"
             xp=""
-            label="Meet the companions"
+            label="Meet the pals"
             icon={(c, s) => <StarIcon color={c} size={s} />}
             onPress={() => router.push('/pets')}
           />
