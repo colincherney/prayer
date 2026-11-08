@@ -330,6 +330,26 @@ update public.cosmetic_products set price_cents = 199 where id in ('scene:advent
 
 ---
 
+## 11. `content_windows` (2026-11-07): the seasonal vault
+
+- New table `public.content_windows` (id, opens_at, closes_at): when seasonal content can be claimed. Outside every window it's in the vault, so anyone who already claimed it keeps it but nobody new can. Readable by everyone (it's a schedule, like `content_releases`); nobody can write it from the app.
+- Seasonal companions (midnight US Eastern):
+  - Gourdy (`pet:pumpkin`): until Jan 7, 2027, then Oct 1 to Nov 1, 2027.
+  - Gobbles (`pet:turkey`): Nov 14, 2026 to Jan 7, 2027, then Nov 14 to Dec 1, 2027.
+  - Noel (`pet:donkey`): Dec 1, 2026 to Jan 7, 2027, then Dec 1, 2027 to Jan 1, 2028.
+- "Claimed" means the companion has XP with you or is your current companion. The app enforces the vault (the Dex shows VAULT and the companion page won't let you walk with it); `switch_pet` doesn't check it yet.
+- **To add a season:** `insert into public.content_windows values ('pet:pumpkin', '2028-10-01 00:00'::timestamp at time zone 'America/New_York', '2028-11-01 00:00'::timestamp at time zone 'America/New_York');`
+
+**Applied as:** `supabase/migrations/20261107_content_windows.sql`. Applied to the live project on 2026-11-07 through the Supabase connector. Checked afterwards as the app's anon role: all six windows readable.
+
+**Revert (seasonal companions are then never vaulted):**
+
+```sql
+drop table if exists public.content_windows;
+```
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)

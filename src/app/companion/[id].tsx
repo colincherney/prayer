@@ -79,7 +79,7 @@ export default function CompanionScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string }>();
   const { petId, name: currentName, xpByPet, setPetId } = usePetProgress();
-  const { isReleased } = useReleases();
+  const { isReleased, isClaimable, nextWindow } = useReleases();
   const [tab, setTab] = useState<Tab>('about');
   const [walking, setWalking] = useState(false);
   const [now] = useState(() => Date.now());
@@ -97,6 +97,10 @@ export default function CompanionScreen() {
   const metOn = metDates()[id];
   const daysWalked = metOn ? Math.max(1, Math.ceil((now - Date.parse(metOn)) / 86400000)) : null;
   const group = companionGroup(id);
+  // Seasonal companions can only be claimed in their season. Anyone who already has one keeps it.
+  const claimed = isCurrent || xp > 0;
+  const vaulted = !claimed && !isClaimable(`pet:${id}`);
+  const returns = vaulted ? nextWindow(`pet:${id}`) : null;
   // The verse card's text area is the screen less the page and card padding.
   const verseWraps = info.verse.text.length + 2 > (screenW - 44 - 32) / VERSE_CHAR_W;
   const heroH = HERO_H - (verseWraps ? LONG_VERSE_LIFT : 0);
@@ -107,7 +111,7 @@ export default function CompanionScreen() {
     router.setParams({ id: next.id });
   };
   const walk = async () => {
-    if (isCurrent || walking) return;
+    if (isCurrent || walking || vaulted) return;
     setWalking(true);
     await setPetId(id);
     setWalking(false);
@@ -226,10 +230,16 @@ export default function CompanionScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <Pressable onPress={walk} disabled={isCurrent || walking} accessibilityRole="button"
-          accessibilityState={{ disabled: isCurrent || walking }}
-          style={({ pressed }) => [styles.walk, isCurrent && styles.walkCurrent, pressed && { transform: [{ scale: 0.98 }] }]}>
-          <Text style={[styles.walkText, isCurrent && styles.walkTextCurrent]}>{isCurrent ? `${name} is walking with you` : `Walk with ${name}`}</Text>
+        <Pressable onPress={walk} disabled={isCurrent || walking || vaulted} accessibilityRole="button"
+          accessibilityState={{ disabled: isCurrent || walking || vaulted }}
+          style={({ pressed }) => [styles.walk, (isCurrent || vaulted) && styles.walkCurrent, pressed && { transform: [{ scale: 0.98 }] }]}>
+          <Text style={[styles.walkText, (isCurrent || vaulted) && styles.walkTextCurrent]}>
+            {isCurrent
+              ? `${name} is walking with you`
+              : vaulted
+                ? returns ? `In the vault until ${returns.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : 'In the vault'
+                : `Walk with ${name}`}
+          </Text>
         </Pressable>
       </View>
     </View>

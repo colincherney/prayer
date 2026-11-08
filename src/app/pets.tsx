@@ -37,7 +37,9 @@ function SearchGlyph({ color }: { color: string }) {
 }
 
 /** One companion's card in the grid: met, not met yet (a silhouette), or not out yet. */
-const DexCard = memo(function DexCard({ def, level, stage, met, released, current, width }: {
+const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulted, current, width }: {
+  /** Not claimed and outside its season: it can't be met until it comes back. */
+  vaulted: boolean;
   /** Exactly a third of the row, so three always fit. */
   width: number;
   def: PetDef;
@@ -56,13 +58,15 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, curren
       disabled={!released}
       onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
-      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
+      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : vaulted ? `Companion ${dexNumber(def.id)}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
       style={({ pressed }) => [styles.card, { width }, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
       <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
         <Text style={styles.cardNumber}>{dexNumber(def.id)}</Text>
         {!released ? (
           <Text style={styles.soon}>SOON</Text>
+        ) : vaulted ? (
+          <Text style={styles.soon}>VAULT</Text>
         ) : met ? (
           <Text style={styles.cardLevel}>LV {level}</Text>
         ) : (
@@ -83,7 +87,7 @@ export default function CompanionDexScreen() {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { petId, name, progress, xpByPet } = usePetProgress();
-  const { isReleased } = useReleases();
+  const { isReleased, isClaimable } = useReleases();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState<string | null>(null);
   const { width: screenW } = useWindowDimensions();
@@ -174,7 +178,7 @@ export default function CompanionDexScreen() {
                   const own = petProgressFromXp(xpByPet[def.id] ?? 0);
                   return (
                     <DexCard key={def.id} def={def} level={own.level} stage={own.stage}
-                      met={met(def.id)} released={released(def)} current={def.id === petId} width={cardW} />
+                      met={met(def.id)} released={released(def)} vaulted={!met(def.id) && !isClaimable(`pet:${def.id}`)} current={def.id === petId} width={cardW} />
                   );
                 })}
               </View>

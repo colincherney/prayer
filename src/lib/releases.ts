@@ -70,17 +70,31 @@ const BUNDLED: Record<string, string> = {
   ...COLLECTION_RELEASES,
 };
 
+/**
+ * When seasonal content can be claimed (public.content_windows). Outside every window it's in the vault: whoever
+ * claimed it keeps it, but nobody new can. Same schedule as the database, for a phone that has never reached it.
+ */
+const BUNDLED_WINDOWS: Record<string, [string, string][]> = {
+  // Out until Jan 7, 2027; then back for one month each: October, Thanksgiving to December, December.
+  'pet:pumpkin': [['2026-01-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-10-01T04:00:00Z', '2027-11-01T04:00:00Z']],
+  'pet:turkey': [['2026-11-14T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-11-14T05:00:00Z', '2027-12-01T05:00:00Z']],
+  'pet:donkey': [['2026-12-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-12-01T05:00:00Z', '2028-01-01T05:00:00Z']],
+};
+
 const CACHE_KEY = 'releases.released';
+const WINDOWS_KEY = 'releases.windows';
 /** TEST BRANCH ONLY (test-all-releases): shows all upcoming content for testing. */
 const PREVIEW_ALL = true;
 
 let preloaded: Set<string> | null = null;
+let preloadedWindows: Record<string, [string, string][]> | null = null;
 
 /** Reads the saved release list into memory, so a seasonal pet doesn't start as the default. Runs behind the splash screen. */
 export async function preloadReleases(): Promise<void> {
   try {
-    const cached = await AsyncStorage.getItem(CACHE_KEY);
+    const [cached, windows] = await Promise.all([AsyncStorage.getItem(CACHE_KEY), AsyncStorage.getItem(WINDOWS_KEY)]);
     if (cached) preloaded = new Set(JSON.parse(cached) as string[]);
+    if (windows) preloadedWindows = JSON.parse(windows) as Record<string, [string, string][]>;
   } catch {}
 }
 
@@ -89,17 +103,36 @@ type ReleasesCtx = {
   isReleased: (id: string) => boolean;
   /** True for anything not on a release schedule, and for scheduled content once it's out. */
   isAvailable: (id: string) => boolean;
+  /** Whether content with claim windows (seasonal companions) can be claimed right now. True if it has none. */
+  isClaimable: (id: string) => boolean;
+  /** When it can next be claimed, if it's in the vault and a window is coming. */
+  nextWindow: (id: string) => Date | null;
 };
 
 const bundledNow = () => new Set(Object.keys(BUNDLED).filter(id => Date.parse(BUNDLED[id]) <= Date.now()));
 
-const ReleasesContext = createContext<ReleasesCtx>({ isReleased: () => false, isAvailable: id => !(id in BUNDLED) });
+const ReleasesContext = createContext<ReleasesCtx>({
+  isReleased: () => false,
+  isAvailable: id => !(id in BUNDLED),
+  isClaimable: () => true,
+  nextWindow: () => null,
+});
 
 export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [released, setReleased] = useState<Set<string> | null>(preloaded);
+  const [windows, setWindows] = useState<Record<string, [string, string][]>>(preloadedWindows ?? BUNDLED_WINDOWS);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase.from('content_releases').select('id');
+    const [{ data, error }, win] = await Promise.all([
+      supabase.from('content_releases').select('id'),
+      supabase.from('content_windows').select('id, opens_at, closes_at'),
+    ]);
+    if (!win.error && win.data) {
+      const byId: Record<string, [string, string][]> = {};
+      for (const row of win.data) (byId[row.id as string] ??= []).push([row.opens_at as string, row.closes_at as string]);
+      setWindows(byId);
+      AsyncStorage.setItem(WINDOWS_KEY, JSON.stringify(byId)).catch(() => {});
+    }
     if (error || !data) return;
     const ids = data.map(r => r.id as string);
     setReleased(new Set(ids));
@@ -128,9 +161,19 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // TEST BRANCH ONLY: every scheduled pet, room, trinket, scene and decoration shows now, whatever its date.
       // Never merge this into a release branch.
       const isReleased = (id: string) => PREVIEW_ALL || (released ?? bundledNow()).has(id);
-      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id) };
+      const isClaimable = (id: string) => {
+        const list = windows[id];
+        const now = Date.now();
+        return !list || list.some(([open, close]) => Date.parse(open) <= now && now < Date.parse(close));
+      };
+      const nextWindow = (id: string) => {
+        const now = Date.now();
+        const next = (windows[id] ?? []).map(([open]) => Date.parse(open)).filter(t => t > now).sort((a, b) => a - b)[0];
+        return next ? new Date(next) : null;
+      };
+      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow };
     },
-    [released],
+    [released, windows],
   );
 
   return React.createElement(ReleasesContext.Provider, { value }, children);
