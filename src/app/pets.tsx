@@ -1,211 +1,237 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { memo, useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { memo, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
-import { Pet, PetDef, PetId, useAvailablePets } from '@/components/pets/registry';
-import { BackIcon } from '@/components/saint/Icons';
-import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
+import { COMPANION_INFO, CompanionGroup, companionGroup, GROUP_LABELS, STAGE_LEVELS } from '@/components/pets/companionInfo';
+import { Pet, PetDef, PetId, PETS } from '@/components/pets/registry';
+import { BackIcon, LockIcon } from '@/components/saint/Icons';
+import { SafeAreaView } from '@/components/saint/SafeArea';
+import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { petProgressFromXp, usePetProgress } from '@/lib/pet';
+import { petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
+import { useReleases } from '@/lib/releases';
 
-/**
- * Size of each companion's picture (dp), and of the evolution stages under it. ART_SIZE is also the width of the
- * picture column on every card, so the text lines up. Gourdy is drawn a little larger because its artwork sits
- * smaller on its canvas; it is centered in the same column.
- */
-const ART_COLUMN = 130; // width of the picture column; unchanged, so the text stays exactly where it was
-const ART_SIZE = 176; // the main picture, 0.3 inch (about 46 dp) larger than before; it spills evenly past the column
-const EVO_SIZE = 92;
-const PUMPKIN_ART_SIZE = 202; // Gourdy, also 46 dp larger than before
-const PUMPKIN_EVO_SIZE = 102;
-const LEVELS = ['Levels 1–4', 'Levels 5–9', 'Level 10+'] as const;
+type Filter = 'all' | CompanionGroup;
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'core', label: 'Core' },
+  { id: 'seasonal', label: 'Seasonal' },
+  { id: 'monthly', label: 'Monthly' },
+];
+const GROUPS: CompanionGroup[] = ['core', 'seasonal', 'monthly'];
+const CARD_ART = 92;
 
-/**
- * The three evolution stages. The row opens at full size straight away, then the pets arrive one per frame, because
- * mounting three animated pets in one go is what froze the screen for a moment.
- */
-function EvolutionRow({ def, size }: { def: PetDef; size: number }) {
-  const styles = useThemedStyles(makeStyles);
-  const [mounted, setMounted] = useState(0);
-  useEffect(() => {
-    if (mounted >= 3) return;
-    const frame = requestAnimationFrame(() => setMounted(count => count + 1));
-    return () => cancelAnimationFrame(frame);
-  }, [mounted]);
+export const dexNumber = (id: PetId) => String(PETS.findIndex(p => p.id === id) + 1).padStart(3, '0');
+
+function SearchGlyph({ color }: { color: string }) {
   return (
-    <View style={styles.evoRow}>
-      {([1, 2, 3] as const).map(st => (
-        <View key={st} style={styles.evoCol}>
-          <View style={{ minHeight: Math.round((size * 260) / 240) }}>
-            {st <= mounted ? <Pet id={def.id} stage={st} size={size} interactive /> : null}
-          </View>
-          <Text style={styles.evoName}>{def.stages[st - 1]}</Text>
-          <Text style={styles.evoLevel}>{LEVELS[st - 1]}</Text>
-        </View>
-      ))}
-    </View>
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round">
+      <Circle cx={11} cy={11} r={6.5} />
+      <Path d="M16 16 L21 21" />
+    </Svg>
   );
 }
 
-/** Memoized so opening one card doesn't re-render every other animated pet on the page. */
-const PetCard = memo(function PetCard({
-  def,
-  selected,
-  stage,
-  level,
-  onPick,
-  expanded,
-  onToggle,
-}: {
+/** One companion's card in the grid: met, not met yet (a silhouette), or not out yet. */
+const DexCard = memo(function DexCard({ def, level, stage, met, released, current }: {
   def: PetDef;
-  selected: boolean;
-  stage: 1 | 2 | 3;
-  /** This pet's own level; pets level up separately. */
   level: number;
-  onPick: (id: PetId) => void;
-  /** Whether this card shows all three evolution stages. The chosen companion's card is always open. */
-  expanded: boolean;
-  onToggle: (id: PetId) => void;
+  stage: 1 | 2 | 3;
+  met: boolean;
+  released: boolean;
+  current: boolean;
 }) {
   const styles = useThemedStyles(makeStyles);
-  const artSize = def.id === 'pumpkin' ? PUMPKIN_ART_SIZE : ART_SIZE;
-  const evoSize = def.id === 'pumpkin' ? PUMPKIN_EVO_SIZE : EVO_SIZE;
+  const { theme } = useTheme();
+  const hue = COMPANION_INFO[def.id].hue;
+  const tint = met && released ? [mixColors(hue, '#000000', 0.15), mixColors(hue, '#000000', 0.55)] as const : [theme.surface, theme.surface] as const;
   return (
     <Pressable
-      onPress={() => onPick(def.id)}
+      disabled={!released}
+      onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={`${def.name} the ${def.species}${selected ? ', your companion' : ''}`}
-      style={({ pressed }) => [styles.card, selected && styles.cardOn, pressed && { opacity: 0.9 }]}>
+      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming soon` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
+      style={({ pressed }) => [styles.card, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
+      <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
-        <View style={[styles.artBox, { width: ART_COLUMN, height: Math.round((artSize * 260) / 240) }]}>
-          <View style={{ position: 'absolute', bottom: 0, left: (ART_COLUMN - artSize) / 2, width: artSize }}>
-            {/* Still on the list; only the evolution stages below move. */}
-            <Pet id={def.id} stage={stage} size={artSize} interactive={selected} animated={false} />
-          </View>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.petName}>{def.name}</Text>
-          <Text style={styles.species}>
-            {def.species.toUpperCase()}
-            {def.season ? `  ·  ${def.season.toUpperCase()}` : ''}
-          </Text>
-          <Text style={styles.tagline}>{def.tagline}</Text>
-          <Text style={styles.badge}>
-            {selected ? 'YOUR COMPANION  ·  ' : ''}LEVEL {level}
-          </Text>
-        </View>
+        <Text style={styles.cardNumber}>{dexNumber(def.id)}</Text>
+        {!released ? (
+          <Text style={styles.soon}>SOON</Text>
+        ) : met ? (
+          <Text style={styles.cardLevel}>LV {level}</Text>
+        ) : (
+          <LockIcon size={11} color={theme.muted} />
+        )}
       </View>
-      {expanded ? (
-        <EvolutionRow def={def} size={evoSize} />
-      ) : (
-        <Text style={styles.stageLine}>{def.stages.join('  ·  ')}</Text>
-      )}
-      {selected ? null : (
-        <Pressable onPress={() => onToggle(def.id)} hitSlop={8} accessibilityRole="button" style={styles.evoToggle}>
-          <Text style={styles.evoToggleText}>{expanded ? 'Hide evolution' : 'See evolution'}</Text>
-        </Pressable>
-      )}
+      <View style={[styles.cardArt, !met && styles.silhouette]}>
+        {released ? <Pet id={def.id} stage={met ? stage : 1} size={CARD_ART} animated={false} /> : null}
+      </View>
+      <Text numberOfLines={1} style={styles.cardName}>{released && met ? def.name : '???'}</Text>
+      {current ? <View style={styles.ribbon}><Text style={styles.ribbonText}>WITH YOU</Text></View> : null}
     </Pressable>
   );
 });
 
-export default function PetsScreen() {
+export default function CompanionDexScreen() {
   const fontsLoaded = useSaintFonts();
-  const { theme: THEME } = useTheme();
+  const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const insets = useSafeAreaInsets();
-  const { petId, setPetId, xpByPet } = usePetProgress();
-  const pets = useAvailablePets();
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const toggleOpen = useCallback((id: PetId) => {
-    setOpen(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const { petId, name, progress, xpByPet } = usePetProgress();
+  const { isReleased } = useReleases();
+  const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState<string | null>(null);
 
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
+  const released = (def: PetDef) => !def.scheduled || isReleased(`pet:${def.id}`);
+  const met = (id: PetId) => id === petId || (xpByPet[id] ?? 0) > 0;
+  const metCount = PETS.filter(def => released(def) && met(def.id)).length;
+
+  const shown = useMemo(() => {
+    const q = (query ?? '').trim().toLowerCase();
+    return PETS.filter(def => (filter === 'all' || companionGroup(def.id) === filter)
+      && (!q || (met(def.id) && (def.name.toLowerCase().includes(q) || def.species.toLowerCase().includes(q)))));
+  // met reads xpByPet and petId, both listed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, query, xpByPet, petId]);
+
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
+
+  const current = PETS.find(def => def.id === petId) ?? PETS[0];
+  const upcoming = progress.stage === 3 ? null : (progress.stage as 1 | 2);
+  const nextStage = upcoming ? STAGE_LEVELS[upcoming] : null;
+  const nextXp = nextStage ? (nextStage - 1) * XP_PER_LEVEL : 1;
+  const towardNext = nextStage ? Math.min(1, progress.xp / nextXp) : 1;
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">
-            <BackIcon size={15} color={THEME.ink} />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.circleBtn} accessibilityRole="button" accessibilityLabel="Back">
+            <BackIcon size={15} color={theme.ink} />
+          </Pressable>
+          <Text accessibilityRole="header" style={styles.title}>
+            Companion <Text style={styles.titleAccent}>Dex</Text>
+          </Text>
+          <Pressable onPress={() => setQuery(q => (q === null ? '' : null))} style={styles.circleBtn}
+            accessibilityRole="button" accessibilityLabel={query === null ? 'Search companions' : 'Close search'}>
+            <SearchGlyph color={theme.ink} />
           </Pressable>
         </View>
-        <View style={{ paddingHorizontal: 22 }}>
-          <Text style={styles.title}>
-            Your <Text style={styles.titleItalic}>companion</Text>
-          </Text>
-          <Text style={styles.subtitle}>
-            Pick who walks with you. Praying grows whoever is with you, each at their own pace, and each one evolves at levels 5 and 10.
-          </Text>
+        {query !== null ? (
+          <TextInput value={query} onChangeText={setQuery} autoFocus placeholder="Search by name or kind"
+            placeholderTextColor={theme.muted} style={styles.search} accessibilityLabel="Search companions" />
+        ) : null}
+
+        <Pressable onPress={() => router.push({ pathname: '/companion/[id]', params: { id: current.id } })}
+          accessibilityRole="button" accessibilityLabel={`${name}, level ${progress.level}, walking with you`} style={styles.hero}>
+          <LinearGradient colors={[mixColors(COMPANION_INFO[current.id].hue, '#FFFFFF', 0.12), mixColors(COMPANION_INFO[current.id].hue, '#000000', 0.35)]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={styles.heroArt}>
+            <Pet id={current.id} stage={progress.stage} size={112} animated={false} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.eyebrow}>WALKING WITH YOU</Text>
+            <Text numberOfLines={1} style={styles.heroName}>{name} <Text style={styles.heroLevel}>LV {progress.level}</Text></Text>
+            <Text style={styles.heroStage}>{current.stages[progress.stage - 1]}</Text>
+            <View style={styles.heroTrack}><View style={[styles.heroFill, { width: `${towardNext * 100}%` }]} /></View>
+            <Text style={styles.heroNote}>
+              {upcoming && nextStage ? <>Becomes <Text style={styles.bold}>{current.stages[upcoming]}</Text> at level {nextStage}</> : 'Fully grown and radiant'}
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.metRow}>
+          <Text style={styles.metCount}>{metCount}<Text style={styles.metOf}> / {PETS.length} met</Text></Text>
+          <View style={styles.dots}>
+            {PETS.map(def => (
+              <View key={def.id} style={[styles.dot, released(def) && met(def.id) && { backgroundColor: def.id === petId ? theme.accent : mixColors(COMPANION_INFO[def.id].hue, '#FFFFFF', 0.35) }]} />
+            ))}
+          </View>
         </View>
-        <View style={styles.list}>
-          {pets.map(def => {
-            const own = petProgressFromXp(xpByPet[def.id] ?? 0);
-            return (
-            <PetCard
-              key={def.id}
-              def={def}
-              selected={def.id === petId}
-              expanded={def.id === petId || open.has(def.id)}
-              onToggle={toggleOpen}
-              stage={own.stage}
-              level={own.level}
-              onPick={setPetId}
-            />
-            );
-          })}
-        </View>
+
+        {GROUPS.filter(g => filter === 'all' || filter === g).map(group => {
+          const pets = shown.filter(def => companionGroup(def.id) === group);
+          if (!pets.length) return null;
+          const all = PETS.filter(def => companionGroup(def.id) === group);
+          const groupMet = all.filter(def => released(def) && met(def.id)).length;
+          return (
+            <View key={group} style={styles.section}>
+              <View style={styles.sectionHead}>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>{GROUP_LABELS[group]}</Text>
+                <Text style={styles.sectionCount}>{groupMet} / {all.length}</Text>
+              </View>
+              <View style={styles.sectionTrack}><View style={[styles.sectionFill, { width: `${(groupMet / all.length) * 100}%` }]} /></View>
+              <View style={styles.grid}>
+                {pets.map(def => {
+                  const own = petProgressFromXp(xpByPet[def.id] ?? 0);
+                  return (
+                    <DexCard key={def.id} def={def} level={own.level} stage={own.stage}
+                      met={met(def.id)} released={released(def)} current={def.id === petId} />
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
       </ScrollView>
-    </View>
+
+      <View style={styles.filters} accessibilityRole="tablist">
+        {FILTERS.map(f => (
+          <Pressable key={f.id} onPress={() => setFilter(f.id)} accessibilityRole="tab" accessibilityState={{ selected: filter === f.id }}
+            style={[styles.filter, filter === f.id && styles.filterOn]}>
+            <Text style={[styles.filterText, filter === f.id && styles.filterTextOn]}>{f.label.toUpperCase()}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </SafeAreaView>
   );
 }
 
-const makeStyles = (THEME: Theme) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: THEME.bg },
-  brandRow: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 6 },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: THEME.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 44, color: THEME.ink, marginTop: 14 },
-  titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
-  subtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, color: THEME.muted, marginTop: 8 },
-  list: { paddingHorizontal: 22, marginTop: 22, gap: 12 },
-  card: {
-    borderRadius: 22,
-    padding: 16,
-    backgroundColor: THEME.surface,
-    borderWidth: 1.5,
-    borderColor: THEME.line,
-    gap: 12,
-  },
-  cardOn: { borderColor: THEME.accent },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  artBox: { overflow: 'visible' },
-  petName: { fontFamily: FONTS.displaySemi, fontSize: 24, color: THEME.ink },
-  species: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.4, color: THEME.muted, marginTop: 2 },
-  tagline: { fontFamily: FONTS.display, fontSize: 14, lineHeight: 19, color: THEME.inkSoft, marginTop: 8 },
-  badge: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 1.4, color: THEME.accent, marginTop: 10 },
-  stageLine: { fontFamily: FONTS.body, fontSize: 12, color: THEME.muted },
-  evoToggle: { alignSelf: 'flex-start' },
-  evoToggleText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.accent },
-  evoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
-  evoCol: { flex: 1, alignItems: 'center', gap: 2 },
-  evoName: { fontFamily: FONTS.bodySemi, fontSize: 12, color: THEME.ink, textAlign: 'center' },
-  evoLevel: { fontFamily: FONTS.body, fontSize: 11, color: THEME.muted },
+const makeStyles = (theme: Theme) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.bg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 8 },
+  circleBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface },
+  title: { flex: 1, fontFamily: FONTS.display, fontSize: 28, lineHeight: 34, color: theme.ink },
+  titleAccent: { color: theme.accent },
+  search: { marginHorizontal: 20, marginTop: 12, paddingHorizontal: 16, height: 44, borderRadius: 22, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, fontFamily: FONTS.body, fontSize: 14, color: theme.ink },
+  hero: { marginHorizontal: 20, marginTop: 16, padding: 16, minHeight: 148, borderRadius: 24, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  heroArt: { width: 112, alignItems: 'center' },
+  eyebrow: { fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1.6, color: '#F7E3B5' },
+  heroName: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 32, color: '#FFFFFF' },
+  heroLevel: { fontFamily: FONTS.bodyBold, fontSize: 12, color: '#F7E3B5' },
+  heroStage: { fontFamily: FONTS.display, fontStyle: 'italic', fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  heroTrack: { height: 5, borderRadius: 3, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 4 },
+  heroFill: { height: '100%', backgroundColor: '#F2C462' },
+  heroNote: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.85)' },
+  bold: { fontFamily: FONTS.bodyBold, color: '#FFFFFF' },
+  metRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginTop: 18 },
+  metCount: { fontFamily: FONTS.display, fontSize: 22, color: theme.ink },
+  metOf: { fontSize: 13, color: theme.muted },
+  dots: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  dot: { width: 10, height: 6, borderRadius: 2, backgroundColor: theme.line },
+  section: { marginTop: 24, paddingHorizontal: 20 },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  sectionTitle: { fontFamily: FONTS.display, fontSize: 19, color: theme.ink },
+  sectionCount: { fontFamily: FONTS.bodySemi, fontSize: 12, color: theme.muted },
+  sectionTrack: { height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: theme.line, marginTop: 8 },
+  sectionFill: { height: '100%', backgroundColor: theme.accent },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  card: { width: '31.5%', aspectRatio: 0.72, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: theme.line, padding: 8, justifyContent: 'space-between' },
+  cardCurrent: { borderWidth: 2, borderColor: theme.accent, paddingBottom: 24 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardNumber: { fontFamily: FONTS.bodyBold, fontSize: 11, fontVariant: ['lining-nums'], color: theme.inkSoft },
+  cardLevel: { overflow: 'hidden', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.3)', fontFamily: FONTS.bodyBold, fontSize: 9.5, fontVariant: ['lining-nums'], color: '#F7E3B5' },
+  soon: { overflow: 'hidden', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, borderWidth: 1, borderColor: theme.line, fontFamily: FONTS.bodyBold, fontSize: 9, color: theme.muted },
+  cardArt: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  silhouette: { opacity: 0.18 },
+  cardName: { textAlign: 'center', fontFamily: FONTS.display, fontSize: 14, color: theme.ink },
+  ribbon: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingVertical: 3, backgroundColor: theme.accent },
+  ribbonText: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 9, letterSpacing: 1.2, color: '#2A1A0C' },
+  filters: { position: 'absolute', left: 20, right: 20, bottom: 28, flexDirection: 'row', padding: 5, borderRadius: 999, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface },
+  filter: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  filterOn: { backgroundColor: theme.accent },
+  filterText: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.2, color: theme.inkSoft },
+  filterTextOn: { color: '#2A1A0C' },
 });

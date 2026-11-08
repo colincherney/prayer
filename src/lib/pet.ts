@@ -6,6 +6,7 @@ import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId, PETS, useAvailablePets } from '@/components/pets/registry';
 import { useAuth } from '@/lib/auth';
 import { afterLaunch } from '@/lib/launch';
+import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 
 /** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level). */
@@ -102,6 +103,17 @@ async function consumeLevelUp(id: PetId, level: number): Promise<boolean> {
   }
 }
 
+/** The day each companion first walked with you on this phone, as an ISO date. */
+export function metDates(): Partial<Record<PetId, string>> {
+  return readLocal<Partial<Record<PetId, string>>>(LOCAL_KEYS.companionsMet) ?? {};
+}
+
+function recordMet(id: PetId) {
+  const met = metDates();
+  if (met[id]) return;
+  writeLocal(LOCAL_KEYS.companionsMet, { ...met, [id]: new Date().toISOString() }).catch(() => {});
+}
+
 /** The chosen companion and its name, reloaded whenever the screen gains focus. */
 export function usePetChoice() {
   const [petId, setPetIdState] = useState<PetId>(knownPet?.id ?? DEFAULT_PET);
@@ -115,6 +127,7 @@ export function usePetChoice() {
         const n = await loadPetName(id);
         if (cancelled) return;
         knownPet = { id, name: n };
+        recordMet(id);
         setPetIdState(id);
         setNameState(n);
       })();
@@ -126,6 +139,7 @@ export function usePetChoice() {
 
   const setPetId = useCallback(async (id: PetId) => {
     setPetIdState(id);
+    recordMet(id);
     await savePetId(id);
     const n = await loadPetName(id);
     knownPet = { id, name: n };

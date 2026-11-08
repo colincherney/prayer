@@ -98,6 +98,7 @@ function RootStack() {
       <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
       <Stack.Screen name="customization" options={{ presentation: 'card' }} />
       <Stack.Screen name="pets" options={{ presentation: 'card' }} />
+      <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="store" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />

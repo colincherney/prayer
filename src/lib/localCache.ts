@@ -9,6 +9,7 @@ export const LOCAL_KEYS = {
   shelfPicks: 'keepsakes.shelf.v1',
   trinkets: 'trinkets.cache.v3',
   owned: 'cosmetics.owned',
+  companionsMet: 'companions.met',
 } as const;
 
 type LocalKey = (typeof LOCAL_KEYS)[keyof typeof LOCAL_KEYS];
