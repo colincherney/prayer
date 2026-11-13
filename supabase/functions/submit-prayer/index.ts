@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
   const groupId = payload.group_id?.toString().trim() || null;
 
   if (!body) return json({ error: 'body_required' }, 400);
-  if (body.length > 2000) return json({ error: 'body_too_long' }, 400);
+  if (body.length > 1000) return json({ error: 'body_too_long' }, 400);
 
   let modResult;
   try {

@@ -236,7 +236,7 @@ const IntentPhase: React.FC<{
             placeholder="One or two sentences. They'll see only this — never your name."
             placeholderTextColor={THEME.muted}
             multiline
-            maxLength={240}
+            maxLength={1000}
             style={styles.intentInput}
           />
           <View style={styles.intentFoot}>
@@ -244,7 +244,7 @@ const IntentPhase: React.FC<{
               <ShieldIcon size={11} color={THEME.muted} />
               <Text style={styles.intentFootText}>Not saved to your account</Text>
             </View>
-            <Text style={styles.intentFootText}>{intent.length}/240</Text>
+            <Text style={styles.intentFootText}>{intent.length}/1000</Text>
           </View>
         </View>
 

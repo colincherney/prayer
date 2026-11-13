@@ -213,7 +213,7 @@ export default function SubmitPrayerScreen() {
               }
               placeholderTextColor={THEME.muted}
               multiline
-              maxLength={500}
+              maxLength={1000}
               style={styles.textarea}
             />
             <View style={styles.textareaFoot}>
@@ -221,7 +221,7 @@ export default function SubmitPrayerScreen() {
                 <ShieldIcon size={11} color={THEME.muted} />
                 <Text style={styles.textareaFootText}>Always anonymous</Text>
               </View>
-              <Text style={styles.textareaFootText}>{text.length}/500</Text>
+              <Text style={styles.textareaFootText}>{text.length}/1000</Text>
             </View>
           </View>
           <View pointerEvents="box-none" style={{ position: 'absolute', right: 20, top: 4 - petFeetOffset(92) }}>

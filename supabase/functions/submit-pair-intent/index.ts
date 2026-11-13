@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
 
   const body = payload.body?.trim() ?? '';
   if (!body) return json({ error: 'body_required' }, 400);
-  if (body.length > 500) return json({ error: 'body_too_long' }, 400);
+  if (body.length > 1000) return json({ error: 'body_too_long' }, 400);
 
   let modResult;
   try {
