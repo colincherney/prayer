@@ -10,7 +10,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { FONTS } from '@/components/saint/theme';
 
@@ -27,7 +27,6 @@ const BUBBLE_MS = 3000;
 const CLOUD_H = 130;
 /** How far the top of the cloud art sits above the bottom of the sill. */
 const CLOUD_RISE = 74;
-const CANDLES_H = 30;
 const CLOUD_ART_W = 390;
 /** How strong the clouds are over the middle of the nook, so the scene and top of the sill show through. */
 const CLOUD_VEIL = 0.22;
@@ -55,20 +54,6 @@ const CLOUDS = [
   circle(382, 60, 42),
 ].join('');
 const SPARKLE = 'M12 1 L14 10 L23 12 L14 14 L12 23 L10 14 L1 12 L10 10 Z';
-
-function Candles() {
-  return (
-    <Svg width={38} height={CANDLES_H} viewBox="0 0 38 30">
-      <Rect x={3} y={15} width={8} height={13} rx={1} fill="#F2E9D8" />
-      <Rect x={15} y={8} width={9} height={20} rx={1} fill="#FBF4E6" />
-      <Rect x={28} y={18} width={7} height={10} rx={1} fill="#E9DCC4" />
-      <Ellipse cx={7} cy={11} rx={2.2} ry={3.6} fill="#F2A23B" />
-      <Ellipse cx={19.5} cy={4} rx={2.4} ry={3.9} fill="#F2A23B" />
-      <Ellipse cx={31.5} cy={14} rx={2} ry={3.3} fill="#F2A23B" />
-      <Rect x={1} y={27} width={36} height={3} rx={1.5} fill="#C9A06A" />
-    </Svg>
-  );
-}
 
 type Props = {
   /** Outer width of the wooden arch, in dp. The sill overhangs it on both sides. */
@@ -213,10 +198,6 @@ export function NookAlcove({ frameWidth, archHeight, screenWidth, cloudColor, sp
           <G mask="url(#alcoveCloudFade)">{clouds}</G>
         </Svg>
       </View>
-
-      <View pointerEvents="none" style={[styles.candles, { left: width * 0.24, top: archHeight + 2 - CANDLES_H }]}>
-        <Candles />
-      </View>
     </View>
   );
 }
@@ -244,6 +225,5 @@ const styles = StyleSheet.create({
   bubbleText: { fontFamily: FONTS.display, fontSize: 13, lineHeight: 18, color: '#1A2230' },
   bubbleTail: { position: 'absolute', left: 18, bottom: -8 },
   clouds: { position: 'absolute' },
-  candles: { position: 'absolute' },
   sparkle: { position: 'absolute' },
 });

@@ -162,7 +162,7 @@ const ITEM_LABEL: Record<string, string> = {
   cross: 'Olivewood cross',
   bluerug: 'Woven rug',
   rug: 'Prayer rug',
-  candles: 'Candle trio',
+  candles: 'Candle',
   lily: 'Lily pot',
   treeL: 'Olive tree',
   treeR: 'Olive tree',

@@ -4,6 +4,7 @@ import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Polygon, Rect, Text as S
 import { CollectionDecorThumb, isCollectionDecor } from './collectionDecor';
 import { COLLECTION_SCENES } from './collectionData';
 import { ArtThumb, hasArtThumb } from './NookArt';
+import { hasNookImage, NookImage } from './NookImages';
 
 export type CosmeticKind = 'scene' | 'item' | 'bundle';
 
@@ -412,6 +413,9 @@ function ItemArt({ id }: { id: string }) {
 
 /** Tiny picture for any nook cosmetic: scenes are round thumbnails, decor is a glyph, the bundle is a gold sparkle. */
 export function CosmeticIcon({ kind, id, size = 28 }: Props) {
+  if (kind === 'item' && hasNookImage(id)) {
+    return <NookImage id={id} thumbnail style={{ width: size, height: size }} />;
+  }
   if (kind === 'scene') {
     return (
       <Svg width={size} height={size} viewBox="0 0 32 32">

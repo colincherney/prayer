@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { ITEM_META, Offset } from './nookData';
+import { hasNookImage, NookImage } from './NookImages';
 import { ItemLayer, NOOK_H, NOOK_W } from './NookScene';
 
 const LONG_PRESS_MS = 220;
@@ -106,7 +107,7 @@ export function NookItem({ id, offset, scale, editable, art, tapLabel, onTap, on
 
   return (
     <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', left: 0, top: 0, width: NOOK_W * scale, height: NOOK_H * scale }, layerStyle]}>
-      <ItemLayer bleed={bleed}>{art}</ItemLayer>
+      {hasNookImage(id) ? <NookImage id={id} style={zoneStyle} /> : <ItemLayer bleed={bleed}>{art}</ItemLayer>}
       {editable ? (
         <GestureDetector gesture={Gesture.Race(pan, tap)}>
           <View accessibilityLabel={`${tapLabel}. Press and hold, then drag to move.`} style={zoneStyle} />

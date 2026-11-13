@@ -27,6 +27,7 @@ import Svg, { Circle, Defs, LinearGradient, Mask, Path, Pattern, RadialGradient,
 
 import { NookDecorator } from '@/components/pets/NookDecorator';
 import { Nook } from '@/components/pets/Nook';
+import { prefetchNookImages } from '@/components/pets/NookImages';
 import { KeepsakeShelf } from '@/components/pets/KeepsakeShelf';
 import { ALCOVE_SILL_H, MEDALLION_RISE, NookAlcove } from '@/components/pets/NookAlcove';
 import {
@@ -169,6 +170,9 @@ function MeContent() {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { session, isGuest, signOut } = useAuth();
+  useEffect(() => afterLaunch(() => {
+    void prefetchNookImages().catch(() => {});
+  }), []);
   // Stats still feed the nook scene (web level) and the decorator.
   const [stats, setStats] = useState<Stats>(
     () => readForUser<Stats>(LOCAL_KEYS.nookStats, session?.user.id) ?? { offered: 0, shared: 0, sent: 0, received: 0 },
