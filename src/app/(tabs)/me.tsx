@@ -1,8 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   PressableProps,
@@ -48,7 +46,7 @@ import { Squiggle } from '@/components/saint/Common';
 import { PageAmbience } from '@/components/saint/PageAmbience';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { forgetPhone, useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { saveToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
@@ -225,7 +223,6 @@ function MeContent() {
     }, [session]),
   );
 
-  const [deleting, setDeleting] = useState(false);
   const { petId, name: petName, progress: petProgress } = usePetProgress();
   const { width: screenW, height: screenH, fontScale } = useWindowDimensions();
   const { trinkets, currentStreak } = useTrinkets();
@@ -281,37 +278,8 @@ function MeContent() {
     router.replace('/auth');
   };
 
-  const onDeleteAccount = () => {
-    Alert.alert(
-      'Delete account?',
-      'This permanently removes your account, your prayers, the notes you sent, and the prayers others sent in response. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            const deletedEmail = session?.user?.email;
-            const { data, error } = await supabase.functions.invoke('delete-account');
-            if (error || data?.ok === false) {
-              setDeleting(false);
-              Alert.alert(
-                'Could not delete account',
-                error?.message || data?.error || 'Please try again in a moment.',
-              );
-              return;
-            }
-            setSettingsOpen(false);
-            await forgetPhone(deletedEmail);
-            await signOut();
-            setDeleting(false);
-            router.replace('/auth');
-          },
-        },
-      ],
-    );
-  };
+  // Deleting needs a code emailed to the account (checked by the delete-account function), so it has its own screen.
+  const onDeleteAccount = () => go('/deleteAccount');
 
   if (!fontsLoaded) return <View style={styles.safe} />;
 
@@ -443,8 +411,8 @@ function MeContent() {
               <Text style={styles.textLinkText}>Change email</Text>
             </NookButton>
           ) : null}
-          <NookButton onPress={onDeleteAccount} disabled={deleting} style={styles.accountButton}>
-            {deleting ? <ActivityIndicator size="small" color={theme.accent} /> : <Text style={styles.deleteText}>Delete account</Text>}
+          <NookButton onPress={onDeleteAccount} style={styles.accountButton}>
+            <Text style={styles.deleteText}>Delete account</Text>
           </NookButton>
         </View>
       </Modal>

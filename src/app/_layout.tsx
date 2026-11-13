@@ -109,6 +109,7 @@ function RootStack() {
       <Stack.Screen name="store" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="changeEmail" options={{ presentation: 'card' }} />
+      <Stack.Screen name="deleteAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />
       <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />

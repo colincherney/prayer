@@ -45,6 +45,8 @@ type AuthContextValue = {
    * so the person still logs in afterwards with the password and the emailed sign-in code.
    */
   resetPasswordWithCode: (email: string, code: string, newPassword: string) => Promise<{ error: string | null }>;
+  /** Emails a one-time code to the signed-in account's address, to confirm deleting it. */
+  sendDeleteCode: (email: string) => Promise<{ error: string | null }>;
   /** Starts moving a signed-in account to a new email; Supabase emails a code that has to be entered first. */
   changeEmail: (newEmail: string) => Promise<{ error: string | null }>;
   /** Re-reads the user from the server, so a just-confirmed email is noticed without signing in again. */
@@ -238,6 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInAnonymously,
         upgradeToAccount,
         changeEmail,
+        sendDeleteCode: sendSignInCode,
         sendPasswordReset,
         resetPasswordWithCode,
         refreshUser,
