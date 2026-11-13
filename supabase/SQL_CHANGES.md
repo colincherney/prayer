@@ -458,11 +458,53 @@ drop function if exists public.account_xp(uuid);
 
 ---
 
+## 16. `biography_entries_cascade` (2026-11-13): deleting an account also deletes its biography entries
+
+**Why:** deleting an account failed for anyone who had written a biography entry. That table's link to the
+account had no "on delete" rule, so Supabase refused to delete the user. Every other user table already
+clears itself when the account goes.
+
+**What:** the biography entries now get deleted along with their account. No existing rows change.
+
+**Apply as:** `supabase/migrations/20261113_biography_entries_cascade.sql`
+
+```sql
+alter table public.biography_entries
+  drop constraint biography_entries_user_id_fkey,
+  add constraint biography_entries_user_id_fkey
+    foreign key (user_id) references auth.users(id) on delete cascade;
+```
+
+**Revert:**
+
+```sql
+alter table public.biography_entries
+  drop constraint biography_entries_user_id_fkey,
+  add constraint biography_entries_user_id_fkey
+    foreign key (user_id) references auth.users(id);
+```
+
+---
+
+## 17. `delete-account` edge function v7 (2026-11-13): deleting needs an emailed code
+
+Not SQL. Accounts with an email must send a one-time code (emailed with the "Magic link or OTP" template) and the
+function checks it against the signed-in user before deleting anything. Guests (no email) are unchanged. It also
+deletes the `public.users` row, which v6 skipped.
+
+**Revert:** redeploy `supabase/functions/delete-account/index.ts` from commit `31f349b`. The app's new screen still
+works with it; the old function just ignores the code.
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)
 - **Site URL** `prayer://` and redirect URL `prayer://**`. (Done.)
-- **Confirm email**: currently OFF for testing. Turn it back ON once custom SMTP is set up.
+- **Confirm email**: ON (2026-11-13). Sign-up and guest upgrade confirm with an emailed code.
+- **Custom SMTP**: Resend, sender `noreply@mail.saint-central.com` (domain must stay verified in Resend).
+- **Secure email change**: ON. Changing email needs a code from both the old and new address.
+- **Email templates**: Confirm sign up, Magic link or OTP, Change email address and Reset password all show `{{ .Token }}` (an 8-digit code) and no link. The app has no web pages for these, so a template with a link breaks that flow.
 - **Captcha protection: leave OFF.** The app has no captcha step, so turning it on would block every sign-in and anonymous sign-in.
 - **Leaked password protection**: optional, safe to enable (may need a paid plan).
 ## Subscription checkout (2026-11-13)

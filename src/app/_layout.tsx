@@ -33,19 +33,15 @@ function RootStack() {
   const segments = useSegments();
   const router = useRouter();
   const fontsLoaded = useSaintFonts();
-  const [navSettled, setNavSettled] = useState(false);
+
+  const inAuth = segments[0] === 'auth';
+  // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
+  const navSettled = !loading && !session === inAuth;
 
   useEffect(() => {
-    if (loading) return;
-    const inAuth = segments[0] === 'auth';
-    if (!session && !inAuth) {
-      router.replace('/auth');
-    } else if (session && inAuth) {
-      router.replace('/');
-    } else {
-      setNavSettled(true);
-    }
-  }, [session, loading, segments, router]);
+    if (loading || navSettled) return;
+    router.replace(session ? '/' : '/auth');
+  }, [session, loading, navSettled, router]);
 
   // Hide the native splash only once auth, fonts, and navigation are all
   // settled — so the splash transitions directly to a fully-rendered
@@ -65,18 +61,19 @@ function RootStack() {
   }, [session?.user?.id]);
 
   // Register the device for push notifications once we have a session.
+  const signedInId = session?.user?.id;
   useEffect(() => {
-    if (!session) return;
+    if (!signedInId) return;
     let cancelled = false;
     (async () => {
       const token = await registerForPushNotifications();
       if (cancelled || !token) return;
-      await savePushToken(session.user.id, token);
+      await savePushToken(signedInId, token);
     })();
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id]);
+  }, [signedInId]);
 
   // Tap-to-navigate: open the relevant prayer when a notification is tapped.
   useEffect(() => {
@@ -111,6 +108,8 @@ function RootStack() {
       <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="store" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
+      <Stack.Screen name="changeEmail" options={{ presentation: 'card' }} />
+      <Stack.Screen name="deleteAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="groups" options={{ presentation: 'card' }} />
       <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
