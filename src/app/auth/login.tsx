@@ -47,8 +47,12 @@ export default function LoginScreen() {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    const { error: e, kind } = await signInWithPassword(email.trim(), password);
+    const { error: e, kind, signedIn } = await signInWithPassword(email.trim(), password);
     setBusy(false);
+    if (signedIn) {
+      router.replace('/');
+      return;
+    }
     if (e || !kind) {
       setError(e ?? 'Something went wrong. Please try again.');
       return;

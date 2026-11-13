@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -14,15 +15,21 @@ type AuthContextValue = {
   /**
    * Step one of sign-in: checks the password without signing in, then emails a code.
    * `kind` says which code was sent: 'email' for a normal sign-in, 'signup' when the account was never confirmed.
+   * On a phone remembered for this email, there's no code: `signedIn` is true and the person is already in.
    */
   signInWithPassword: (
     email: string,
     password: string,
-  ) => Promise<{ error: string | null; kind?: EmailCodeKind }>;
+  ) => Promise<{ error: string | null; kind?: EmailCodeKind; signedIn?: boolean }>;
   /** Creates the account; Supabase emails a code that confirms it. */
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
-  /** Step two: the emailed code signs the person in. */
-  verifyEmailCode: (email: string, code: string, kind: EmailCodeKind) => Promise<{ error: string | null }>;
+  /** Step two: the emailed code signs the person in. `remember` skips the code on this phone for a while. */
+  verifyEmailCode: (
+    email: string,
+    code: string,
+    kind: EmailCodeKind,
+    remember?: boolean,
+  ) => Promise<{ error: string | null }>;
   resendEmailCode: (email: string, kind: EmailCodeKind) => Promise<{ error: string | null }>;
   signInAnonymously: () => Promise<{ error: string | null }>;
   /**
@@ -81,6 +88,34 @@ function friendlyError(message: string | undefined | null): string | null {
   return message;
 }
 
+/** How long a phone stays remembered after a code is entered on it. */
+export const REMEMBER_DAYS = 30;
+const rememberKey = (email: string) => `remembered-phone:${email.trim().toLowerCase()}`;
+
+// A remembered phone only skips the emailed code; the password is still checked by Supabase every time.
+async function isRemembered(email: string): Promise<boolean> {
+  try {
+    const until = Number(await AsyncStorage.getItem(rememberKey(email)));
+    return Number.isFinite(until) && until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+async function rememberPhone(email: string) {
+  try {
+    await AsyncStorage.setItem(rememberKey(email), String(Date.now() + REMEMBER_DAYS * 24 * 60 * 60 * 1000));
+  } catch {}
+}
+
+/** Forgets this phone for an email, so the next sign-in asks for a code again. */
+export async function forgetPhone(email: string | null | undefined) {
+  if (!email) return;
+  try {
+    await AsyncStorage.removeItem(rememberKey(email));
+  } catch {}
+}
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -111,13 +146,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithPassword: AuthContextValue['signInWithPassword'] = async (email, password) => {
-    const { error } = await passwordCheckClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await passwordCheckClient.auth.signInWithPassword({ email, password });
     if (error?.code === 'email_not_confirmed') {
       // Right password, but the sign-up code was never entered: send a fresh one and confirm that instead.
       const resent = await supabase.auth.resend({ type: 'signup', email });
       return { error: friendlyError(resent.error?.message), kind: 'signup' };
     }
     if (error) return { error: friendlyError(error.message) };
+    if (data.session && (await isRemembered(email))) {
+      // A code was entered on this phone recently: hand the password's session straight to the app.
+      const moved = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+      if (!moved.error) return { error: null, signedIn: true };
+    }
     // The password was right. Drop that session so the code is the only way in.
     await passwordCheckClient.auth.signOut({ scope: 'local' });
     const sent = await sendSignInCode(email);
@@ -129,8 +172,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: friendlyError(error?.message) };
   };
 
-  const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind) => {
+  const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind, remember) => {
     const { error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
+    if (!error && remember && kind !== 'email_change') await rememberPhone(email);
     return { error: friendlyError(error?.message) };
   };
 

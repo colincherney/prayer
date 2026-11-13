@@ -48,7 +48,7 @@ import { Squiggle } from '@/components/saint/Common';
 import { PageAmbience } from '@/components/saint/PageAmbience';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { useAuth } from '@/lib/auth';
+import { forgetPhone, useAuth } from '@/lib/auth';
 import { saveToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
@@ -292,6 +292,7 @@ function MeContent() {
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
+            const deletedEmail = session?.user?.email;
             const { data, error } = await supabase.functions.invoke('delete-account');
             if (error || data?.ok === false) {
               setDeleting(false);
@@ -302,6 +303,7 @@ function MeContent() {
               return;
             }
             setSettingsOpen(false);
+            await forgetPhone(deletedEmail);
             await signOut();
             setDeleting(false);
             router.replace('/auth');

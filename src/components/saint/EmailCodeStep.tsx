@@ -14,10 +14,10 @@ import {
 } from 'react-native';
 
 import { PrimaryButton, Squiggle } from '@/components/saint/Common';
-import { ArrowIcon, BackIcon, ShieldIcon } from '@/components/saint/Icons';
+import { ArrowIcon, BackIcon, CheckIcon, ShieldIcon } from '@/components/saint/Icons';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, THEME } from '@/components/saint/theme';
-import { type EmailCodeKind, emailCooldown, useAuth } from '@/lib/auth';
+import { type EmailCodeKind, emailCooldown, REMEMBER_DAYS, useAuth } from '@/lib/auth';
 
 // Must match "Email OTP Length" in Supabase (Authentication → Sign In / Providers → Email). This project sends 8.
 export const CODE_LENGTH = 8;
@@ -53,6 +53,9 @@ export function EmailCodeStep({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [wait, setWait] = useState(RESEND_WAIT_S);
+  // Signing in or confirming a new account can remember this phone; changing an email never does.
+  const canRemember = !verify && kind !== 'email_change';
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
     if (wait <= 0) return;
@@ -67,7 +70,7 @@ export function EmailCodeStep({
     setBusy(true);
     setError(null);
     setNote(null);
-    const { error: e } = verify ? await verify(code) : await verifyEmailCode(email, code, kind);
+    const { error: e } = verify ? await verify(code) : await verifyEmailCode(email, code, kind, canRemember && remember);
     setBusy(false);
     if (e) {
       setError(/expired|invalid/i.test(e) ? 'That code is wrong or has expired. Try again or send a new one.' : e);
@@ -153,6 +156,19 @@ export function EmailCodeStep({
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             {note ? <Text style={styles.noteText}>{note}</Text> : null}
+
+            {canRemember ? (
+              <Pressable
+                onPress={() => setRemember(r => !r)}
+                style={styles.rememberRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: remember }}>
+                <View style={[styles.checkbox, remember && styles.checkboxOn]}>
+                  {remember ? <CheckIcon size={12} color={THEME.cardDarkInk} /> : null}
+                </View>
+                <Text style={styles.rememberText}>Remember this phone for {REMEMBER_DAYS} days</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable onPress={onResend} disabled={wait > 0} hitSlop={8}>
               <Text style={[styles.resend, wait > 0 && { opacity: 0.5 }]}>
@@ -249,6 +265,18 @@ const styles = StyleSheet.create({
   },
   errorText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.accent },
   noteText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.pillInk },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: THEME.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: THEME.cardDark, borderColor: THEME.cardDark },
+  rememberText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.inkSoft },
   resend: {
     fontFamily: FONTS.bodySemi,
     fontSize: 13,
