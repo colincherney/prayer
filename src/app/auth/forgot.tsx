@@ -19,7 +19,7 @@ import { CODE_LENGTH } from '@/components/saint/EmailCodeStep';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, THEME } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { emailCooldown, useAuth } from '@/lib/auth';
+import { emailCooldown, passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
 
 type Step = 'email' | 'reset' | 'done';
 type FieldKey = 'email' | 'code' | 'pass' | null;
@@ -77,7 +77,8 @@ export default function ForgotPasswordScreen() {
     setWait(RESEND_WAIT_S);
   };
 
-  const canReset = code.length >= CODE_LENGTH && password.length >= 6 && !busy;
+  const pwProblem = passwordProblem(password);
+  const canReset = code.length >= CODE_LENGTH && !pwProblem && !busy;
 
   const onReset = async () => {
     if (!canReset) return;
@@ -201,7 +202,7 @@ export default function ForgotPasswordScreen() {
                       onFocus={() => setFocused('pass')}
                       onBlur={() => setFocused(null)}
                       onSubmitEditing={onReset}
-                      placeholder="At least 6 characters"
+                      placeholder={`At least ${PASSWORD_MIN} characters`}
                       placeholderTextColor={THEME.muted}
                       secureTextEntry={!showPass}
                       autoComplete="new-password"
@@ -213,6 +214,7 @@ export default function ForgotPasswordScreen() {
                     </Pressable>
                   </View>
                 </View>
+                {password && pwProblem ? <Text style={styles.hint}>{pwProblem}</Text> : null}
                 <Pressable onPress={sendCode} disabled={wait > 0 || busy} hitSlop={8}>
                   <Text style={[styles.resend, wait > 0 && { opacity: 0.5 }]}>
                     {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
@@ -319,6 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
+  hint: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: THEME.muted, marginTop: -6 },
   resend: { fontFamily: FONTS.bodySemi, fontSize: 13, color: THEME.ink, paddingVertical: 4 },
   errorText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.accent },
   noteText: { fontFamily: FONTS.body, fontSize: 12, color: THEME.pillInk },

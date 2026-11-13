@@ -18,7 +18,7 @@ import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
-import { useAuth } from '@/lib/auth';
+import { passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
 
 const PERKS = [
   'Keep your prayers, notes and companion if you change phones.',
@@ -43,7 +43,8 @@ export default function CreateAccountScreen() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
-  const canSubmit = email.includes('@') && password.length >= 6 && !busy;
+  const pwProblem = passwordProblem(password);
+  const canSubmit = email.includes('@') && !pwProblem && !busy;
 
   const onSubmit = async () => {
     if (!canSubmit) return;
@@ -140,7 +141,7 @@ export default function CreateAccountScreen() {
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="At least 6 characters"
+                  placeholder={`At least ${PASSWORD_MIN} characters`}
                   placeholderTextColor={THEME.muted}
                   secureTextEntry={!showPass}
                   autoComplete="new-password"
@@ -150,6 +151,7 @@ export default function CreateAccountScreen() {
                   <Text style={styles.showHide}>{showPass ? 'Hide' : 'Show'}</Text>
                 </Pressable>
               </View>
+              {password && pwProblem ? <Text style={styles.helper}>{pwProblem}</Text> : null}
               <Text style={styles.helper}>Used only to bring your things back. Never shown to anyone.</Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
 

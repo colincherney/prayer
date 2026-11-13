@@ -24,7 +24,7 @@ import {
 } from '@/components/saint/Icons';
 import { FONTS, THEME } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { useAuth } from '@/lib/auth';
+import { passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
 
 type FieldKey = 'email' | 'pass' | null;
 
@@ -41,7 +41,8 @@ export default function SignUpScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
-  const canSubmit = email.includes('@') && password.length >= 6 && !busy;
+  const pwProblem = passwordProblem(password);
+  const canSubmit = email.includes('@') && !pwProblem && !busy;
 
   const onSubmit = async () => {
     if (!canSubmit) return;
@@ -132,7 +133,7 @@ export default function SignUpScreen() {
                   onChangeText={setPassword}
                   onFocus={() => setFocused('pass')}
                   onBlur={() => setFocused(null)}
-                  placeholder="At least 6 characters"
+                  placeholder={`At least ${PASSWORD_MIN} characters`}
                   placeholderTextColor={THEME.muted}
                   secureTextEntry={!showPass}
                   autoComplete="new-password"
@@ -143,6 +144,8 @@ export default function SignUpScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {password && pwProblem ? <Text style={styles.helper}>{pwProblem}</Text> : null}
 
             <Text style={styles.helper}>
               Used only to bring your prayers back. Never shown to anyone.

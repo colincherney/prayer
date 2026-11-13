@@ -45,6 +45,22 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
 };
 
+/**
+ * The password rule set in Supabase (Authentication → Sign In / Providers → Email): at least 12 characters with a
+ * lowercase letter, an uppercase letter, a digit and a symbol. Keep the two in step. Returns what's still missing,
+ * or null when the password is fine. Only new passwords are checked; logging in accepts older, shorter ones.
+ */
+export const PASSWORD_MIN = 12;
+export function passwordProblem(pw: string): string | null {
+  const missing: string[] = [];
+  if (pw.length < PASSWORD_MIN) missing.push(`${PASSWORD_MIN - pw.length} more character${PASSWORD_MIN - pw.length === 1 ? '' : 's'}`);
+  if (!/[a-z]/.test(pw)) missing.push('a lowercase letter');
+  if (!/[A-Z]/.test(pw)) missing.push('an uppercase letter');
+  if (!/\d/.test(pw)) missing.push('a number');
+  if (!/[^A-Za-z0-9]/.test(pw)) missing.push('a symbol');
+  return missing.length ? `Still needs ${missing.join(', ')}.` : null;
+}
+
 /** Seconds Supabase says to wait before another email can go to this account (one email per address per minute). */
 export function emailCooldown(message: string | null | undefined): number | null {
   const m = message ? /after (\d+) seconds?/i.exec(message) : null;
@@ -57,6 +73,9 @@ function friendlyError(message: string | undefined | null): string | null {
   const wait = emailCooldown(message);
   if (wait !== null) {
     return `A code was just sent to this account. You can ask for another in ${wait} second${wait === 1 ? '' : 's'}.`;
+  }
+  if (/weak|password should|password is known/i.test(message)) {
+    return `Pick a stronger password: at least ${PASSWORD_MIN} characters with upper and lower case letters, a number and a symbol.`;
   }
   if (/rate limit/i.test(message)) return 'Too many emails have gone out in the last hour. Please try again a bit later.';
   return message;
