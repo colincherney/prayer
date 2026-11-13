@@ -458,7 +458,7 @@ drop function if exists public.account_xp(uuid);
 
 ---
 
-## 16. `biography_entries_cascade` (2026-11-13): NOT APPLIED YET, paste it in the SQL editor
+## 16. `biography_entries_cascade` (2026-11-13): deleting an account also deletes its biography entries
 
 **Why:** deleting an account failed for anyone who had written a biography entry. That table's link to the
 account had no "on delete" rule, so Supabase refused to delete the user. Every other user table already
