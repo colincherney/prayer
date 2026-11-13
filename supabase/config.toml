@@ -1,0 +1,10 @@
+# RevenueCat authenticates with REVENUECAT_WEBHOOK_AUTH rather than a Supabase JWT.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.revenuecat-subscription-sync]
+verify_jwt = true
+
+# Notifications are re-verified against RevenueCat; their payload never grants access.
+[functions.revenuecat-subscription-webhook]
+verify_jwt = false

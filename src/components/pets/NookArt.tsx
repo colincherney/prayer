@@ -584,7 +584,7 @@ export const ArtFullScene = memo(function ArtFullScene({ id, web, webOffset, wid
     <Svg width={width} height={height} viewBox={`0 0 ${ART_W} ${ART_H}`} preserveAspectRatio="xMidYMid slice"
       style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
       {Scene ? <Scene /> : null}
-      {web ? <G transform={`translate(${webOffset.x / ART_SCALE} ${webOffset.y / ART_SCALE})`}><PiecePrayerweb /></G> : null}
+      {web ? <G opacity={0.25} transform={`translate(${webOffset.x / ART_SCALE} ${webOffset.y / ART_SCALE})`}><PiecePrayerweb /></G> : null}
     </Svg>
   );
 });

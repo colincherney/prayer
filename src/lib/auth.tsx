@@ -1,7 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
-import { signOutOfPurchases } from './purchases';
+import { initializePurchases, purchasesAvailable, signOutOfPurchases } from './purchases';
 import { supabase } from './supabase';
 
 type AuthContextValue = {
@@ -27,6 +28,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const purchasingUserId = session?.user.is_anonymous ? undefined : session?.user.id;
+  useEffect(() => {
+    if (!purchasingUserId || !purchasesAvailable) return;
+    const refresh = () => initializePurchases(purchasingUserId).catch(() => {});
+    refresh();
+    const listener = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh();
+    });
+    return () => listener.remove();
+  }, [purchasingUserId]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

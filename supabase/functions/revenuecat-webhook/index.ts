@@ -12,6 +12,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 //      RevenueCat reports as `product_id` for that cosmetic.
 // The app signs users in to RevenueCat with their Supabase user id (a uuid), so `app_user_id` is that id.
 // Requests without the right Authorization header are rejected, so nobody can fake a purchase.
+// For a development Supabase project only, set REVENUECAT_TEST_PLUS_PRODUCT_ID=monthly
+// to map the verified Test Store monthly product to plus. Test Store is ignored by default.
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -32,8 +34,8 @@ const GRANT = new Set([
   'NON_RENEWING_PURCHASE',
   'RENEWAL',
   'UNCANCELLATION',
-  'PRODUCT_CHANGE',
-  'TEMPORARY_ENTITLEMENT_GRANT',
+  'SUBSCRIPTION_EXTENDED',
+  'REFUND_REVERSED',
 ]);
 
 Deno.serve(async (req) => {
@@ -45,7 +47,7 @@ Deno.serve(async (req) => {
   if (!SUPABASE_URL || !SERVICE_KEY || !SECRET) return json({ error: 'server_misconfigured' }, 500);
 
   const provided = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!safeEqual(provided, SECRET)) return json({ error: 'unauthorized' }, 401);
+  if (!safeEqual(provided, SECRET.replace(/^Bearer\s+/i, ''))) return json({ error: 'unauthorized' }, 401);
 
   let body: { event?: Record<string, unknown> };
   try {
@@ -53,30 +55,40 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'invalid_json' }, 400);
   }
-  const event = body.event;
-  if (!event || typeof event.type !== 'string') return json({ ok: true, ignored: true });
+  const event = body?.event;
+  if (!event || typeof event !== 'object' || typeof event.type !== 'string') return json({ ok: true, ignored: true });
 
   const type = event.type as string;
+  // Product changes can be scheduled for the next renewal. Temporary grants
+  // need expiry tracking, which user_cosmetics does not provide.
+  if (!GRANT.has(type) && type !== 'CANCELLATION' && type !== 'EXPIRATION') {
+    return json({ ok: true, ignored: true });
+  }
   const userId = String(event.app_user_id ?? '');
   // Anonymous RevenueCat ids ("$RCAnonymousID:...") are not our users; ignore them.
   if (!UUID.test(userId)) return json({ ok: true, ignored: true });
 
-  // PRODUCT_CHANGE reports the product they moved to in new_product_id.
-  const storeProductId = String((type === 'PRODUCT_CHANGE' ? event.new_product_id : event.product_id) ?? '');
+  const storeProductId = String(event.product_id ?? '');
   if (!storeProductId) return json({ ok: true, ignored: true });
+  const testProductId = Deno.env.get('REVENUECAT_TEST_PLUS_PRODUCT_ID');
+  const isTestStore = event.store === 'TEST_STORE';
+  if (isTestStore && (event.environment !== 'SANDBOX' || !testProductId || storeProductId !== testProductId)) {
+    return json({ ok: true, ignored: true, reason: 'test_store_not_enabled' });
+  }
   // Google Play subscription ids look like "product:base-plan"; match on the part before the colon too.
   const candidates = Array.from(new Set([storeProductId, storeProductId.split(':')[0]]));
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  const { data: product, error: productErr } = await admin
+  const productQuery = admin
     .from('cosmetic_products')
-    .select('id, billing_interval')
-    .in('store_product_id', candidates)
-    .maybeSingle();
+    .select('id, billing_interval');
+  const { data: product, error: productErr } = await (isTestStore
+    ? productQuery.eq('id', 'plus')
+    : productQuery.in('store_product_id', candidates)).maybeSingle();
   if (productErr) {
     console.error('product lookup failed', productErr);
-    return json({ error: productErr.message }, 500);
+    return json({ error: 'product_lookup_failed' }, 500);
   }
   if (!product) return json({ ok: true, ignored: true, reason: 'unknown_product' });
 
@@ -93,7 +105,7 @@ Deno.serve(async (req) => {
     if (error) {
       console.error('grant failed', error);
       // 500 makes RevenueCat retry the webhook.
-      return json({ error: error.message }, 500);
+      return json({ error: 'grant_failed' }, 500);
     }
     return json({ ok: true, granted: product.id });
   }
@@ -103,10 +115,11 @@ Deno.serve(async (req) => {
   const refunded = type === 'CANCELLATION' && event.cancel_reason === 'CUSTOMER_SUPPORT';
   const expired = type === 'EXPIRATION' && product.billing_interval !== null;
   if (refunded || expired) {
-    const { error } = await admin.from('user_cosmetics').delete().eq('user_id', userId).eq('product_id', product.id);
+    const { error } = await admin.from('user_cosmetics').delete()
+      .eq('user_id', userId).eq('product_id', product.id).eq('source', 'revenuecat');
     if (error) {
       console.error('revoke failed', error);
-      return json({ error: error.message }, 500);
+      return json({ error: 'revoke_failed' }, 500);
     }
     return json({ ok: true, revoked: product.id });
   }

@@ -24,6 +24,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { usePetChoice } from '@/lib/pet';
+import { usingTestStore } from '@/lib/purchases';
 import { formatPrice, owns, PLUS_PRODUCT, Product, useStore } from '@/lib/store';
 
 const NO_STATS = { offered: 0, shared: 0, sent: 0, received: 0 };
@@ -51,7 +52,7 @@ function ProductRow({ product, owned, onOpen }: RowProps) {
     <Pressable
       onPress={onOpen}
       accessibilityRole="button"
-      accessibilityLabel={`${product.name}, ${owned ? 'owned' : formatPrice(product)}. Opens details.`}
+      accessibilityLabel={`${product.name}, ${owned ? 'owned' : product.availableForPurchase ? formatPrice(product) : 'not available yet'}. Opens details.`}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
       <View style={styles.swatch}>
         <CosmeticIcon kind={product.kind} id={product.id.split(':')[1] ?? product.id} size={34} />
@@ -67,7 +68,7 @@ function ProductRow({ product, owned, onOpen }: RowProps) {
         <Text style={styles.owned}>Owned</Text>
       ) : (
         <View style={styles.pricePill}>
-          <Text style={styles.priceText}>{formatPrice(product)}</Text>
+          <Text style={styles.priceText}>{product.availableForPurchase ? formatPrice(product) : 'Soon'}</Text>
         </View>
       )}
     </Pressable>
@@ -78,6 +79,7 @@ type DetailProps = {
   product: Product | null;
   owned: boolean;
   busy: boolean;
+  pricesLoading: boolean;
   /** Anonymous sessions can look at the store but need an account before buying. */
   needsAccount: boolean;
   onClose: () => void;
@@ -86,14 +88,14 @@ type DetailProps = {
 };
 
 /** Full-screen window for one product: a live preview in a nook, what it is, and the buy button. */
-function ProductDetail({ product, owned, busy, needsAccount, onClose, onBuy, onCreateAccount }: DetailProps) {
+function ProductDetail({ product, owned, busy, pricesLoading, needsAccount, onClose, onBuy, onCreateAccount }: DetailProps) {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { width: sw, height: sh } = useWindowDimensions();
   const { petId } = usePetChoice();
   // Leave room for the header, the text block and the button under the preview.
-  const maxH = sh - insets.top - insets.bottom - 290;
+  const maxH = sh - insets.top - insets.bottom - 350;
   const previewW = Math.max(180, Math.min(sw - 44, maxH * (NOOK_W / NOOK_H)));
 
   return (
@@ -142,6 +144,11 @@ function ProductDetail({ product, owned, busy, needsAccount, onClose, onBuy, onC
               </Text>
             </View>
             <View style={{ flex: 1 }} />
+            {product.interval && product.availableForPurchase && !owned ? (
+              <Text style={styles.accountNote}>
+                {formatPrice(product)}. Renews automatically until canceled. Manage or cancel in your store account.
+              </Text>
+            ) : null}
             {owned ? (
               <View style={[styles.detailBtn, styles.detailBtnOwned]}>
                 <Text style={styles.detailOwnedText}>{product.kind === 'bundle' ? 'You are subscribed' : 'You own this'}</Text>
@@ -161,15 +168,17 @@ function ProductDetail({ product, owned, busy, needsAccount, onClose, onBuy, onC
             ) : (
               <Pressable
                 onPress={() => onBuy(product)}
-                disabled={busy}
+                disabled={busy || pricesLoading || !product.availableForPurchase}
                 accessibilityRole="button"
-                accessibilityLabel={`Buy ${product.name} for ${formatPrice(product)}`}
-                style={({ pressed }) => [styles.detailBtn, (pressed || busy) && { opacity: 0.75 }]}>
-                {busy ? (
+                accessibilityLabel={product.availableForPurchase ? `Buy ${product.name} for ${formatPrice(product)}` : 'Not available yet'}
+                style={({ pressed }) => [styles.detailBtn, (pressed || busy || !product.availableForPurchase) && { opacity: 0.6 }]}>
+                {busy || pricesLoading ? (
                   <ActivityIndicator color={THEME.accentInk} />
                 ) : (
                   <Text style={styles.detailBtnText}>
-                    {product.kind === 'bundle' ? 'Get Saint Central+' : 'Buy'} · {formatPrice(product)}
+                    {product.availableForPurchase
+                      ? `${product.kind === 'bundle' ? 'Get Saint Central+' : 'Buy'} · ${formatPrice(product)}`
+                      : 'Not available yet'}
                   </Text>
                 )}
               </Pressable>
@@ -186,8 +195,8 @@ export default function StoreScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { catalog, owned, loaded, buying, buy, restore } = useStore();
-  const { isGuest } = useAuth();
+  const { catalog, owned, loaded, buying, restoring, pricesLoading, priceError, retryPrices, buy, restore } = useStore();
+  const { isGuest, session } = useAuth();
   const [selected, setSelected] = useState<Product | null>(null);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
@@ -195,12 +204,23 @@ export default function StoreScreen() {
   const onBuy = async (product: Product) => {
     const result = await buy(product.id);
     if (!result.ok && result.message) Alert.alert('Saint Central+', result.message);
+    if (result.ok) Alert.alert(usingTestStore ? 'Test purchase complete' : 'Purchase complete', usingTestStore
+      ? 'Simulated checkout completed. Use the native iOS app to activate Saint Central+.'
+      : 'Your purchase is being synced to your account.');
+  };
+
+  const onRestore = async () => {
+    const result = await restore();
+    if (result.ok && result.active === false) Alert.alert('Restore purchases', 'No active subscription was found for this account.');
+    else if (result.ok) Alert.alert('Purchases checked', 'Your subscription has been checked and your account is being updated.');
+    else if (result.message) Alert.alert('Restore purchases', result.message);
   };
 
   const bundle = catalog.find(p => p.id === PLUS_PRODUCT);
   const scenes = catalog.filter(p => p.kind === 'scene');
   const items = catalog.filter(p => p.kind === 'item');
   const hasPlus = owned.has(PLUS_PRODUCT);
+  const selectedProduct = selected ? catalog.find(product => product.id === selected.id) ?? null : null;
 
   const renderRow = (p: Product) => (
     <ProductRow key={p.id} product={p} owned={owns(owned, p.id)} onOpen={() => setSelected(p)} />
@@ -224,6 +244,13 @@ export default function StoreScreen() {
           </Text>
         </View>
 
+        {usingTestStore ? (
+          <View style={styles.accountBanner}>
+            <Text style={styles.accountBannerTitle}>Test checkout · no real charges</Text>
+            <Text style={styles.accountBannerBody}>Try a successful purchase, a failed payment, or cancel checkout.</Text>
+          </View>
+        ) : null}
+
         {isGuest ? (
           <Pressable
             onPress={() => router.push('/createAccount')}
@@ -238,9 +265,17 @@ export default function StoreScreen() {
 
         {bundle ? (
           <Pressable
-            onPress={() => setSelected(bundle)}
+            onPress={() => {
+              if (isGuest || !session) router.push('/createAccount');
+              else if (hasPlus) setSelected(bundle);
+              else if (!bundle.availableForPurchase) retryPrices();
+              else onBuy(bundle);
+            }}
+            disabled={buying !== null || restoring || (!hasPlus && !isGuest && !!session && pricesLoading)}
             accessibilityRole="button"
-            accessibilityLabel="Saint Central+, every scene and decor piece. Opens details."
+            accessibilityLabel={!pricesLoading && !bundle.availableForPurchase && !hasPlus && !isGuest
+              ? 'Retry Saint Central+ checkout'
+              : 'Saint Central+, every scene and decor piece. Opens subscription checkout.'}
             style={({ pressed }) => [styles.bundle, pressed && { opacity: 0.9 }]}>
             <Text style={styles.bundleTag}>SAINT CENTRAL+</Text>
             <Text style={styles.bundleTitle}>Every scene and decor piece</Text>
@@ -249,10 +284,14 @@ export default function StoreScreen() {
             </Text>
             <View style={styles.bundleBtn}>
               <Text style={styles.bundleBtnText}>
-                {hasPlus ? 'You are subscribed. Thank you!' : `See Saint Central+ · ${formatPrice(bundle)}`}
+                {buying === PLUS_PRODUCT ? 'Opening checkout…' : hasPlus ? 'You are subscribed. Thank you!' : isGuest ? 'Create an account to subscribe' : bundle.availableForPurchase ? `Subscribe · ${formatPrice(bundle)}` : pricesLoading ? 'Loading price…' : 'Retry checkout'}
               </Text>
             </View>
           </Pressable>
+        ) : null}
+
+        {bundle && priceError && !hasPlus && !isGuest ? (
+          <Text accessibilityRole="alert" style={[styles.accountNote, { marginHorizontal: 22, marginTop: 10 }]}>{priceError}</Text>
         ) : null}
 
         <Text style={styles.section}>SCENES</Text>
@@ -262,17 +301,18 @@ export default function StoreScreen() {
         <View style={styles.list}>{items.map(renderRow)}</View>
 
         <View style={{ alignItems: 'center', marginTop: 24 }}>
-          <Pressable onPress={restore} accessibilityRole="button" style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-            <Text style={styles.restore}>{loaded ? 'Restore purchases' : 'Loading…'}</Text>
+          <Pressable onPress={onRestore} disabled={restoring || buying !== null} accessibilityRole="button" style={({ pressed }) => [(pressed || restoring) && { opacity: 0.6 }]}>
+            <Text style={styles.restore}>{restoring ? 'Restoring…' : loaded ? 'Restore purchases' : 'Loading…'}</Text>
           </Pressable>
         </View>
       </ScrollView>
 
       <ProductDetail
-        product={selected}
-        owned={selected ? owns(owned, selected.id) : false}
-        busy={selected !== null && buying === selected.id}
-        needsAccount={isGuest}
+        product={selectedProduct}
+        owned={selectedProduct ? owns(owned, selectedProduct.id) : false}
+        busy={buying !== null || restoring}
+        pricesLoading={pricesLoading}
+        needsAccount={isGuest || !session}
         onClose={() => setSelected(null)}
         onBuy={onBuy}
         onCreateAccount={() => {
