@@ -486,6 +486,17 @@ alter table public.biography_entries
 
 ---
 
+## 17. `delete-account` edge function v7 (2026-11-13): deleting needs an emailed code
+
+Not SQL. Accounts with an email must send a one-time code (emailed with the "Magic link or OTP" template) and the
+function checks it against the signed-in user before deleting anything. Guests (no email) are unchanged. It also
+deletes the `public.users` row, which v6 skipped.
+
+**Revert:** redeploy `supabase/functions/delete-account/index.ts` from commit `31f349b`, and switch the app back to
+the old Delete account pop-up, since the new screen sends a code the old function ignores.
+
+---
+
 ## Dashboard settings (not SQL)
 
 - **Allow manual linking**: needed for "create an account to keep everything". Turn on in Authentication settings. (Done.)
