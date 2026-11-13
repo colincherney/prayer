@@ -87,8 +87,8 @@ export type ItemMeta = {
 const PET_DROP = 48;
 
 export const ITEM_META: Record<string, ItemMeta> = {
-  bluerug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 55, y: 316, w: 232, h: 46 } },
-  rug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 55, y: 316, w: 232, h: 46 } },
+  bluerug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 78, y: 296, w: 186, h: 85 } },
+  rug: { slot: 'floor', base: { x: 0, y: 0 }, hit: { x: 78, y: 296, w: 186, h: 85 } },
   cushion: { slot: 'floor', base: { x: 0, y: PET_DROP }, hit: { x: 100, y: 264, w: 142, h: 44 } },
   wreath: { slot: 'floor', base: { x: 0, y: PET_DROP }, hit: { x: 74, y: 262, w: 196, h: 54 } },
   lantern: { slot: 'left', base: { x: 0, y: 0 }, hit: { x: 74, y: 232, w: 44, h: 195 } },
@@ -178,7 +178,7 @@ export const ROWS: RowDef[] = [
     items: [
       { id: 'bluerug', name: 'Woven rug', sw: '#2E3E5A', locked: false },
       { id: 'rug', name: 'Prayer rug', sw: '#8E2F2A', locked: false },
-      { id: 'candles', name: 'Candle trio', sw: '#F3EBDD', locked: false },
+      { id: 'candles', name: 'Candle', sw: '#F3EBDD', locked: false },
       { id: 'lily', name: 'Lily pot', sw: '#C9702E', locked: false },
       { id: 'cushion', name: 'Prayer cushion', sw: '#1E2E5A', locked: true },
       { id: 'wreath', name: 'Lily wreath', sw: '#8DAA62', locked: true },

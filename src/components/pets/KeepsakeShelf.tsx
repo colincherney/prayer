@@ -94,7 +94,7 @@ function KeepsakePicker({ earned, picks, onToggle, onClose }: {
                 accessibilityLabel={`${TRINKET_INFO[t.id].name}, ${rarity}`} accessibilityState={{ checked: place >= 0, disabled: full }}
                 style={[styles.tile, { borderColor: place >= 0 ? RARITY_COLOR[rarity] : 'transparent' }, full && styles.tileFull]}>
                 <TrinketArt id={t.id} size={54} animated={false} />
-                <Text numberOfLines={2} style={styles.tileName}>{TRINKET_INFO[t.id].name}</Text>
+                <Text style={styles.tileName}>{TRINKET_INFO[t.id].name}</Text>
                 <Text style={[styles.tileRarity, { color: RARITY_COLOR[rarity] }]}>{rarity}</Text>
                 {place >= 0 ? (
                   <View style={[styles.tileBadge, { backgroundColor: RARITY_COLOR[rarity] }]}>
@@ -153,6 +153,7 @@ export function KeepsakeShelf({ trinkets, onOpen }: Props) {
   const locked = trinkets.filter(t => !t.earned);
   const { picks, toggle } = useShelfPicks();
   const [picking, setPicking] = useState(false);
+  const [shelfWidth, setShelfWidth] = useState(0);
   const chosen = picks.flatMap(id => earned.find(t => t.id === id) ?? []);
   const shown = chosen.length
     ? [...chosen, ...locked].slice(0, SLOT_COUNT)
@@ -172,17 +173,18 @@ export function KeepsakeShelf({ trinkets, onOpen }: Props) {
     if (pillTimer.current) clearTimeout(pillTimer.current);
     pillTimer.current = setTimeout(() => setPill(null), PILL_MS);
   };
-  // The end slots hug the sides so a long name stays on the screen.
+  // Keep every tooltip within the shelf, including the middle slots on small screens.
+  const pillWidth = Math.min(PILL_W, shelfWidth || PILL_W);
   const pillPosition = !pill
     ? null
-    : pill.slot === 0
-      ? { left: 0, alignItems: 'flex-start' as const }
-      : pill.slot === SLOT_COUNT - 1
-        ? { right: 0, alignItems: 'flex-end' as const }
-        : { left: `${((pill.slot + 0.5) / SLOT_COUNT) * 100}%` as const, marginLeft: -PILL_W / 2, alignItems: 'center' as const };
+    : {
+      left: Math.max(0, Math.min(((pill.slot + 0.5) / SLOT_COUNT) * shelfWidth - pillWidth / 2, shelfWidth - pillWidth)),
+      width: pillWidth,
+      alignItems: pill.slot === 0 ? 'flex-start' as const : pill.slot === SLOT_COUNT - 1 ? 'flex-end' as const : 'center' as const,
+    };
 
   return (
-    <Pressable onLongPress={onOpen} accessible={false}>
+    <Pressable onLongPress={onOpen} accessible={false} onLayout={e => setShelfWidth(e.nativeEvent.layout.width)}>
       <View style={styles.heading}>
         <Text accessibilityRole="header" style={styles.title}>Keepsakes</Text>
         <View style={styles.headingActions}>
@@ -205,7 +207,7 @@ export function KeepsakeShelf({ trinkets, onOpen }: Props) {
         {pill && pillPosition ? (
           <View pointerEvents="none" style={[styles.pillRow, pillPosition]}>
             <View style={styles.pill}>
-              <Text numberOfLines={1} style={styles.pillText}>{pill.text}</Text>
+              <Text style={styles.pillText}>{pill.text}</Text>
             </View>
           </View>
         ) : null}
@@ -216,23 +218,23 @@ export function KeepsakeShelf({ trinkets, onOpen }: Props) {
 }
 
 const makeStyles = (theme: Theme) => StyleSheet.create({
-  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  headingActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: 12, rowGap: 8, marginBottom: 8 },
+  headingActions: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', alignItems: 'center', gap: 14 },
   editText: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 18, color: theme.accent },
-  title: { fontFamily: FONTS.display, fontSize: 16, lineHeight: 22, color: theme.ink },
+  title: { flexShrink: 1, fontFamily: FONTS.display, fontSize: 16, lineHeight: 22, color: theme.ink },
   count: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: theme.accent },
   countText: { fontFamily: FONTS.bodySemi, fontSize: 11, lineHeight: 16, fontVariant: ['lining-nums'], color: theme.accent },
   cards: { flexDirection: 'row', gap: 8 },
-  card: { flex: 1, height: 82, paddingBottom: 6, borderRadius: 16, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'flex-end' },
+  card: { flex: 1, minHeight: 82, paddingTop: 12, paddingBottom: 6, borderRadius: 16, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'flex-end' },
   number: { fontFamily: FONTS.display, fontSize: 12, lineHeight: 16, fontVariant: ['lining-nums'], color: theme.accent },
   numberLocked: { color: theme.muted },
-  pillRow: { position: 'absolute', top: -28, width: PILL_W },
+  pillRow: { position: 'absolute', bottom: '100%', marginBottom: 6 },
   pill: { maxWidth: PILL_W, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: '#F2E9D8' },
-  pillText: { fontFamily: FONTS.bodyBold, fontSize: 12, lineHeight: 16, color: '#1A2230' },
+  pillText: { fontFamily: FONTS.bodyBold, fontSize: 12, lineHeight: 16, textAlign: 'center', color: '#1A2230' },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '80%', paddingHorizontal: 22, paddingTop: 18, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: theme.surface },
-  sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetTitle: { fontFamily: FONTS.display, fontSize: 22, lineHeight: 28, color: theme.ink },
+  sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  sheetTitle: { flex: 1, fontFamily: FONTS.display, fontSize: 22, lineHeight: 28, color: theme.ink },
   sheetNote: { marginTop: 4, fontFamily: FONTS.body, fontSize: 12, lineHeight: 18, color: theme.inkSoft },
   filters: { flexGrow: 0, marginTop: 12 },
   filterRow: { gap: 8 },
@@ -244,8 +246,8 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   pickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 8 },
   tile: { width: '31%', minHeight: 116, padding: 6, borderRadius: 14, borderWidth: 2, backgroundColor: theme.bgSoft, alignItems: 'center' },
   tileFull: { opacity: 0.45 },
-  tileName: { fontFamily: FONTS.display, fontSize: 11, lineHeight: 14, color: theme.ink, textAlign: 'center' },
-  tileRarity: { marginTop: 1, fontFamily: FONTS.bodySemi, fontSize: 10, lineHeight: 13, textTransform: 'capitalize' },
-  tileBadge: { position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  tileName: { alignSelf: 'stretch', fontFamily: FONTS.display, fontSize: 11, lineHeight: 14, color: theme.ink, textAlign: 'center' },
+  tileRarity: { alignSelf: 'stretch', marginTop: 1, fontFamily: FONTS.bodySemi, fontSize: 10, lineHeight: 13, textTransform: 'capitalize', textAlign: 'center' },
+  tileBadge: { position: 'absolute', top: 4, right: 4, minWidth: 18, minHeight: 18, paddingHorizontal: 3, paddingVertical: 2, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   tileBadgeText: { fontFamily: FONTS.bodyBold, fontSize: 10, lineHeight: 13, fontVariant: ['lining-nums'], color: '#1A2230' },
 });

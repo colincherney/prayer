@@ -255,15 +255,16 @@ export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
   return useMemo(() => factory(theme), [theme, factory]);
 }
 
-/** The whole app uses Playfair Display, upright. The names only set the weight. */
+/** One Inter family throughout the app; each role uses its actual font weight. */
 export const FONTS = {
-  display: 'PlayfairDisplay_500Medium',
-  displaySemi: 'PlayfairDisplay_600SemiBold',
-  body: 'PlayfairDisplay_500Medium',
-  bodyMed: 'PlayfairDisplay_500Medium',
-  bodySemi: 'PlayfairDisplay_600SemiBold',
-  bodyBold: 'PlayfairDisplay_700Bold',
-};
+  display: 'Inter_500Medium',
+  displaySemi: 'Inter_600SemiBold',
+  displayItalic: 'Inter_500Medium_Italic',
+  body: 'Inter_400Regular',
+  bodyMed: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+} as const;
 
 /** Light-themed verses for the All Hallows' Eve room's scripture tickers. */
 export const HALLOWEEN_VERSES = [

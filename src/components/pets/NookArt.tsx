@@ -264,55 +264,6 @@ function SceneDesert() {
   );
 }
 
-function PieceRug() {
-  return (
-    <>
-      <Ellipse cx={195} cy={566} rx={132} ry={26} fill="#8E2A24" />
-      <Ellipse cx={195} cy={566} rx={108} ry={18} fill="none" stroke="#E8C462" strokeWidth={2} strokeDasharray="7 5" opacity={0.8} />
-    </>
-  );
-}
-
-function PieceCandles() {
-  return (
-    <>
-      <G transform="translate(92 640)">
-        <Rect x={-6} y={0} width={12} height={26} rx={2} fill="#F3EBDD" />
-        <Fx kind="artFlicker" delay={0} ox={0} oy={0}>
-          <Path d="M0 -14 Q6 -6 0 0 Q-6 -6 0 -14 Z" fill="#F2A93B" />
-        </Fx>
-      </G>
-      <G transform="translate(108 630)">
-        <Rect x={-6} y={0} width={12} height={36} rx={2} fill="#F3EBDD" />
-        <Fx kind="artFlicker" delay={450} ox={0} oy={0}>
-          <Path d="M0 -14 Q6 -6 0 0 Q-6 -6 0 -14 Z" fill="#F2A93B" />
-        </Fx>
-      </G>
-      <G transform="translate(124 644)">
-        <Rect x={-6} y={0} width={12} height={22} rx={2} fill="#F3EBDD" />
-        <Fx kind="artFlicker" delay={900} ox={0} oy={0}>
-          <Path d="M0 -14 Q6 -6 0 0 Q-6 -6 0 -14 Z" fill="#F2A93B" />
-        </Fx>
-      </G>
-    </>
-  );
-}
-
-function PieceLily() {
-  return (
-    <>
-      <G transform="translate(296 640)">
-        <Path d="M-16 0 L16 0 L12 26 L-12 26 Z" fill="#C9702E" />
-        <Fx kind="artSway" ox={0} oy={0}>
-          <Path d="M0 0 Q-2 -26 2 -44" stroke="#6E9B4E" strokeWidth={3} fill="none" />
-          <Path d="M2 -44 Q-12 -50 -16 -62 Q-4 -56 2 -50 Q8 -56 20 -62 Q16 -50 2 -44 Z" fill="#FFFFFF" />
-          <Path d="M0 -12 Q-14 -18 -18 -30 Q-6 -24 0 -18 Z" fill="#7FBF6A" />
-        </Fx>
-      </G>
-    </>
-  );
-}
-
 function PieceLantern() {
   return (
     <>
@@ -465,45 +416,6 @@ function PiecePrayerweb() {
   );
 }
 
-function ThumbBluerug() {
-  return (
-    <>
-      <Ellipse cx={20} cy={22} rx={17} ry={7} fill="#2E3E5A" />
-      <Ellipse cx={20} cy={22} rx={13} ry={4.5} fill="none" stroke="#9CC6B8" strokeWidth={1.2} strokeDasharray="2 2" />
-    </>
-  );
-}
-
-function ThumbRug() {
-  return (
-    <>
-      <Ellipse cx={20} cy={22} rx={17} ry={7} fill="#8E2A24" />
-      <Ellipse cx={20} cy={22} rx={13} ry={4.5} fill="none" stroke="#E8C462" strokeWidth={1.2} strokeDasharray="2 2" />
-    </>
-  );
-}
-
-function ThumbCandles() {
-  return (
-    <>
-      <Rect x={10} y={20} width={6} height={12} rx={1} fill="#F3EBDD" />
-      <Rect x={18} y={14} width={6} height={18} rx={1} fill="#F3EBDD" />
-      <Rect x={26} y={22} width={6} height={10} rx={1} fill="#F3EBDD" />
-      <Path d="M21 6 Q24 10 21 13 Q18 10 21 6 Z" fill="#F2A93B" />
-    </>
-  );
-}
-
-function ThumbLily() {
-  return (
-    <>
-      <Path d="M13 26 L27 26 L25 36 L15 36 Z" fill="#C9702E" />
-      <Path d="M20 26 V14" stroke="#6E9B4E" strokeWidth={2} />
-      <Path d="M20 14 Q12 10 10 4 Q16 8 20 10 Q24 8 30 4 Q28 10 20 14 Z" fill="#FFFFFF" />
-    </>
-  );
-}
-
 function ThumbLantern() {
   return (
     <>
@@ -595,15 +507,6 @@ function ThumbPrayerweb() {
   );
 }
 
-function PieceBluerug() {
-  return (
-    <>
-      <Ellipse cx={195} cy={566} rx={132} ry={26} fill="#2E3E5A" />
-      <Ellipse cx={195} cy={566} rx={108} ry={18} fill="none" stroke="#9CC6B8" strokeWidth={2} strokeDasharray="7 5" opacity={0.7} />
-    </>
-  );
-}
-
 const SCENES: Record<string, () => React.JSX.Element> = {
   night: SceneNight,
   chapel: SceneChapel,
@@ -613,10 +516,6 @@ const SCENES: Record<string, () => React.JSX.Element> = {
 };
 
 const PIECES: Record<string, () => React.JSX.Element> = {
-  bluerug: PieceBluerug,
-  rug: PieceRug,
-  candles: PieceCandles,
-  lily: PieceLily,
   lantern: PieceLantern,
   treeL: PieceTreeL,
   treeR: PieceTreeR,
@@ -629,10 +528,6 @@ const PIECES: Record<string, () => React.JSX.Element> = {
 };
 
 const THUMBS: Record<string, () => React.JSX.Element> = {
-  bluerug: ThumbBluerug,
-  rug: ThumbRug,
-  candles: ThumbCandles,
-  lily: ThumbLily,
   lantern: ThumbLantern,
   treeL: ThumbTreeL,
   treeR: ThumbTreeR,
