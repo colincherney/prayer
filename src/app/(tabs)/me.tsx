@@ -429,6 +429,11 @@ function MeContent() {
           ) : null}
           <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
           {session?.user?.email ? <Text style={styles.accountEmail}>Signed in as {session.user.email}</Text> : null}
+          {!isGuest && session?.user?.email ? (
+            <NookButton onPress={() => go('/changeEmail')} accessibilityRole="link" style={styles.accountButton}>
+              <Text style={styles.textLinkText}>Change email</Text>
+            </NookButton>
+          ) : null}
           <NookButton onPress={onDeleteAccount} disabled={deleting} style={styles.accountButton}>
             {deleting ? <ActivityIndicator size="small" color={theme.accent} /> : <Text style={styles.deleteText}>Delete account</Text>}
           </NookButton>

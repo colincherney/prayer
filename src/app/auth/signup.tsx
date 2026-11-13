@@ -12,13 +12,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Pill, PrimaryButton, Squiggle } from '@/components/saint/Common';
 import {
   ArrowIcon,
   BackIcon,
-  CheckIcon,
   ShieldIcon,
   SparkleIcon,
 } from '@/components/saint/Icons';
@@ -57,35 +57,7 @@ export default function SignUpScreen() {
   };
 
   if (confirmSent) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.confirmRoot}>
-          <View style={styles.confirmIcon}>
-            <CheckIcon size={28} color={THEME.pillInk} />
-          </View>
-          <View style={{ alignItems: 'center', marginBottom: 14 }}>
-            <Squiggle color={THEME.accent} w={56} />
-          </View>
-          <Text style={styles.confirmTitle}>
-            Check your <Text style={styles.confirmTitleItalic}>inbox</Text>.
-          </Text>
-          <Text style={styles.confirmBody}>
-            We sent a confirmation link to {email.trim()}. Tap it, then come back
-            and log in.
-          </Text>
-        </View>
-        <View style={{ paddingHorizontal: 22, paddingBottom: 16 }}>
-          <PrimaryButton
-            label="Back to log in"
-            bg={THEME.cardDark}
-            fg={THEME.cardDarkInk}
-            rightIcon={<ArrowIcon size={16} color={THEME.cardDarkInk} />}
-            onPress={() => router.replace('/auth/login')}
-          />
-        </View>
-      </SafeAreaView>
-    );
+    return <EmailCodeStep email={email.trim()} kind="signup" onBack={() => setConfirmSent(false)} />;
   }
 
   return (
@@ -320,41 +292,5 @@ const styles = StyleSheet.create({
   swapStrong: {
     fontFamily: FONTS.bodySemi,
     color: THEME.ink,
-  },
-  confirmRoot: {
-    flex: 1,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmIcon: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: THEME.pillBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 22,
-  },
-  confirmTitle: {
-    fontFamily: FONTS.displaySemi,
-    fontSize: 40,
-    lineHeight: 44,
-    letterSpacing: -0.8,
-    color: THEME.ink,
-    textAlign: 'center',
-  },
-  confirmTitleItalic: {
-    fontFamily: FONTS.display,
-    color: THEME.accent,
-  },
-  confirmBody: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    lineHeight: 22,
-    color: THEME.inkSoft,
-    textAlign: 'center',
-    marginTop: 14,
-    maxWidth: 320,
   },
 });

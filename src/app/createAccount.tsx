@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +17,7 @@ import { SafeAreaView } from '@/components/saint/SafeArea';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
 import { useAuth } from '@/lib/auth';
 
 const PERKS = [
@@ -40,15 +41,6 @@ export default function CreateAccountScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  // When the person comes back from tapping the email link, notice that the account is now permanent.
-  useFocusEffect(
-    useCallback(() => {
-      if (sentTo) refreshUser();
-    }, [sentTo, refreshUser]),
-  );
-
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
   const canSubmit = email.includes('@') && password.length >= 6 && !busy;
@@ -62,22 +54,23 @@ export default function CreateAccountScreen() {
     if (e) {
       // Supabase's email sender has a small hourly limit; say what happened instead of showing its raw message.
       setError(
-        /rate limit/i.test(e)
-          ? 'Too many emails have been sent recently. Please try again in a little while.'
-          : e,
+        /already been registered|already registered|email_exists/i.test(e)
+            ? 'That email already has its own account. Deleting this guest account doesn\'t remove it. To use that account, sign out and log in with the email instead.'
+            : e,
       );
       return;
     }
     setSentTo(email.trim());
   };
 
-  const onCheck = async () => {
-    setChecking(true);
-    await refreshUser();
-    setChecking(false);
-  };
-
   const done = sentTo !== null && !isGuest;
+
+  // The emailed code turns this guest session into a permanent account; refreshing then shows "all set".
+  if (sentTo && isGuest) {
+    return (
+      <EmailCodeStep email={sentTo} kind="email_change" onBack={() => setSentTo(null)} onVerified={refreshUser} />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -109,24 +102,6 @@ export default function CreateAccountScreen() {
               <Pressable onPress={() => router.back()} style={styles.primary}>
                 <Text style={styles.primaryText}>Done</Text>
               </Pressable>
-            </>
-          ) : sentTo ? (
-            <>
-              <Text style={styles.title}>
-                Check your <Text style={styles.titleItalic}>inbox</Text>.
-              </Text>
-              <Text style={styles.body}>
-                We sent a link to {sentTo}. Tap it to finish creating your account. Your prayers, companion and
-                anything you&apos;ve bought stay with you.
-              </Text>
-              <Pressable onPress={onCheck} disabled={checking} style={[styles.primary, checking && { opacity: 0.7 }]}>
-                {checking ? (
-                  <ActivityIndicator color={THEME.accentInk} />
-                ) : (
-                  <Text style={styles.primaryText}>I tapped the link</Text>
-                )}
-              </Pressable>
-              <Text style={styles.helper}>Until you tap it, you&apos;re still using this device only.</Text>
             </>
           ) : (
             <>

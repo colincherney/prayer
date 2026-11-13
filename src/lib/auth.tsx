@@ -2,25 +2,65 @@ import type { Session } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 import { signOutOfPurchases } from './purchases';
-import { supabase } from './supabase';
+import { passwordCheckClient, supabase } from './supabase';
+
+/** Which emailed code is being entered: sign-in, a new sign-up, or a guest adding an email to their account. */
+export type EmailCodeKind = 'email' | 'signup' | 'email_change';
 
 type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   isGuest: boolean;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  /**
+   * Step one of sign-in: checks the password without signing in, then emails a code.
+   * `kind` says which code was sent: 'email' for a normal sign-in, 'signup' when the account was never confirmed.
+   */
+  signInWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; kind?: EmailCodeKind }>;
+  /** Creates the account; Supabase emails a code that confirms it. */
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Step two: the emailed code signs the person in. */
+  verifyEmailCode: (email: string, code: string, kind: EmailCodeKind) => Promise<{ error: string | null }>;
+  resendEmailCode: (email: string, kind: EmailCodeKind) => Promise<{ error: string | null }>;
   signInAnonymously: () => Promise<{ error: string | null }>;
   /**
    * Turns the current anonymous session into a real account by attaching an email and password to the same user.
    * Everything already saved (prayers, notes, companion progress) stays, because the user id does not change.
-   * Supabase emails a confirmation link; the account becomes permanent once it is tapped.
+   * Supabase emails a code; the account becomes permanent once it's entered (verifyEmailCode with 'email_change').
    */
   upgradeToAccount: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Emails a password-reset code (Supabase's "Reset password" template). */
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /**
+   * Checks the reset code and sets the new password without signing in here,
+   * so the person still logs in afterwards with the password and the emailed sign-in code.
+   */
+  resetPasswordWithCode: (email: string, code: string, newPassword: string) => Promise<{ error: string | null }>;
+  /** Starts moving a signed-in account to a new email; Supabase emails a code that has to be entered first. */
+  changeEmail: (newEmail: string) => Promise<{ error: string | null }>;
   /** Re-reads the user from the server, so a just-confirmed email is noticed without signing in again. */
   refreshUser: () => Promise<void>;
   signOut: () => Promise<void>;
 };
+
+/** Seconds Supabase says to wait before another email can go to this account (one email per address per minute). */
+export function emailCooldown(message: string | null | undefined): number | null {
+  const m = message ? /after (\d+) seconds?/i.exec(message) : null;
+  return m ? Number(m[1]) : null;
+}
+
+/** Turns Supabase's email errors into plain words; anything else passes through unchanged. */
+function friendlyError(message: string | undefined | null): string | null {
+  if (!message) return null;
+  const wait = emailCooldown(message);
+  if (wait !== null) {
+    return `A code was just sent to this account. You can ask for another in ${wait} second${wait === 1 ? '' : 's'}.`;
+  }
+  if (/rate limit/i.test(message)) return 'Too many emails have gone out in the last hour. Please try again a bit later.';
+  return message;
+}
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -43,24 +83,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const sendSignInCode = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    return { error: friendlyError(error?.message) };
+  };
+
   const signInWithPassword: AuthContextValue['signInWithPassword'] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { error } = await passwordCheckClient.auth.signInWithPassword({ email, password });
+    if (error?.code === 'email_not_confirmed') {
+      // Right password, but the sign-up code was never entered: send a fresh one and confirm that instead.
+      const resent = await supabase.auth.resend({ type: 'signup', email });
+      return { error: friendlyError(resent.error?.message), kind: 'signup' };
+    }
+    if (error) return { error: friendlyError(error.message) };
+    // The password was right. Drop that session so the code is the only way in.
+    await passwordCheckClient.auth.signOut({ scope: 'local' });
+    const sent = await sendSignInCode(email);
+    return { error: sent.error, kind: 'email' };
   };
 
   const signUpWithPassword: AuthContextValue['signUpWithPassword'] = async (email, password) => {
     const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+    return { error: friendlyError(error?.message) };
+  };
+
+  const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
+    return { error: friendlyError(error?.message) };
+  };
+
+  const resendEmailCode: AuthContextValue['resendEmailCode'] = async (email, kind) => {
+    if (kind === 'email') return sendSignInCode(email);
+    const { error } = await supabase.auth.resend({ type: kind, email });
+    return { error: friendlyError(error?.message) };
   };
 
   const signInAnonymously: AuthContextValue['signInAnonymously'] = async () => {
     const { error } = await supabase.auth.signInAnonymously();
-    return { error: error?.message ?? null };
+    return { error: friendlyError(error?.message) };
   };
 
   const upgradeToAccount: AuthContextValue['upgradeToAccount'] = async (email, password) => {
     const { error } = await supabase.auth.updateUser({ email, password });
-    return { error: error?.message ?? null };
+    return { error: friendlyError(error?.message) };
+  };
+
+  const sendPasswordReset: AuthContextValue['sendPasswordReset'] = async email => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    return { error: friendlyError(error?.message) };
+  };
+
+  const resetPasswordWithCode: AuthContextValue['resetPasswordWithCode'] = async (email, code, newPassword) => {
+    // The throwaway client holds the short recovery session, so the app itself never becomes signed in here.
+    const verified = await passwordCheckClient.auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if (verified.error) return { error: friendlyError(verified.error.message) };
+    const { error } = await passwordCheckClient.auth.updateUser({ password: newPassword });
+    await passwordCheckClient.auth.signOut({ scope: 'local' });
+    return { error: friendlyError(error?.message) };
+  };
+
+  const changeEmail: AuthContextValue['changeEmail'] = async newEmail => {
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    return { error: friendlyError(error?.message) };
   };
 
   const refreshUser: AuthContextValue['refreshUser'] = async () => {
@@ -83,8 +170,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGuest,
         signInWithPassword,
         signUpWithPassword,
+        verifyEmailCode,
+        resendEmailCode,
         signInAnonymously,
         upgradeToAccount,
+        changeEmail,
+        sendPasswordReset,
+        resetPasswordWithCode,
         refreshUser,
         signOut,
       }}>
