@@ -9,6 +9,7 @@ export const LOCAL_KEYS = {
   shelfPicks: 'keepsakes.shelf.v1',
   trinkets: 'trinkets.cache.v3',
   owned: 'cosmetics.owned',
+  ownedDetails: 'cosmetics.owned.v2',
   companionsMet: 'companions.met',
   cloudPending: 'cloud.pending',
   cloudOwner: 'cloud.owner',

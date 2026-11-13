@@ -12,18 +12,22 @@ export type SceneId =
   | 'night' | 'chapel' | 'grove' | 'desert' | 'meadow' | 'aurora' | 'advent' | 'easter' | 'harvest'
   | (typeof COLLECTION_SCENE_IDS)[number];
 export type SlotId = 'floor' | 'left' | 'right' | 'wall' | 'hang' | 'ambience';
+export type DecorSpotId = 'rug' | 'left' | 'right' | 'accentLeft' | 'accentRight' | 'wall' | 'overhead' | 'atmosphere';
+export type NookLayoutId = 'balanced' | 'cozy' | 'garden';
 
 /** How far a piece has been dragged from its default spot, in the nook's own 342x440 units. */
 export type Offset = { x: number; y: number };
 
 /**
- * `items` holds every equipped piece (any number per spot). `offsets` holds only pieces that have been dragged,
- * so removing a piece also removes its entry and it returns to its default spot next time.
+ * Equipped pieces occupy designed spots. Legacy offsets are retained in the storage shape for older clients;
+ * current layouts use placements so decorations cannot pile up over the pet.
  */
 export type NookState = {
   scene: SceneId;
   items: string[];
   offsets: Record<string, Offset>;
+  layout?: NookLayoutId;
+  placements?: Record<string, DecorSpotId>;
   /** 3 since the great web and the prayer lights became two removable pieces. Older saves had both built in. */
   v?: 3;
 };
@@ -35,7 +39,7 @@ export const GREAT_WEB = 'greatweb';
 
 /** The pet always stands on one rug. The blue one is the default, and choosing another swaps it out. */
 export const DEFAULT_RUG = 'bluerug';
-const RUGS = [DEFAULT_RUG, 'rug'];
+const RUGS = [DEFAULT_RUG, 'rug', 'roundrug', 'starrug', 'reedmat', 'flagstones'];
 export const isRug = (id: string) => RUGS.includes(id);
 
 /** Leaves at most one rug in the list. */
@@ -46,14 +50,15 @@ function withOneRug(items: string[]): string[] {
 
 export const DEFAULT_NOOK: NookState = {
   scene: 'grove',
-  items: ['bluerug', 'cross', 'treeL', 'treeR', 'prayerweb', GREAT_WEB, PRAYER_LIGHTS],
+  items: ['bluerug', 'cross', 'treeL', 'candles', 'lily'],
   offsets: {},
+  layout: 'balanced',
   v: 3,
 };
 
 /** Turns anything read from storage into a valid NookState. Understands the older one-item-per-spot format. */
 export function migrateNook(raw: unknown): NookState {
-  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null>; v?: number };
+  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null>; v?: number; layout?: NookLayoutId; placements?: Record<string, DecorSpotId> };
   const known = new Set(ROWS.flatMap(row => row.items.map(it => it.id)));
   let items: string[];
   if (Array.isArray(r.items)) items = r.items.filter((id): id is string => typeof id === 'string' && known.has(id));
@@ -71,7 +76,7 @@ export function migrateNook(raw: unknown): NookState {
     }
   }
   const scene = SCENES.some(sc => sc.id === r.scene) ? (r.scene as SceneId) : DEFAULT_NOOK.scene;
-  return { scene, items, offsets, v: 3 };
+  return arrangeNook({ scene, items, offsets, layout: r.layout, placements: r.placements, v: 3 });
 }
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -128,18 +133,16 @@ for (const d of SHOWN_COLLECTION_DECOR) {
 
 /** Equip or unequip a piece. Unequipping also forgets where it was dragged to. */
 export function toggleItem(n: NookState, id: string): NookState {
-  if (isRug(id)) {
-    const placing = !n.items.includes(id);
-    const offsets = { ...n.offsets };
-    for (const rug of RUGS) delete offsets[rug];
-    return { ...n, items: [...n.items.filter(x => !isRug(x)), ...(placing ? [id] : [])], offsets };
-  }
-  if (n.items.includes(id)) {
-    const offsets = { ...n.offsets };
-    delete offsets[id];
-    return { ...n, items: n.items.filter(x => x !== id), offsets };
-  }
-  return { ...n, items: [...n.items, id] };
+  const current = arrangeNook(n);
+  if (current.items.includes(id)) return arrangeNook({ ...current, items: current.items.filter(item => item !== id) });
+  const spots = spotsForItem(id);
+  if (!spots.length) return current;
+  const spot = spots.find(candidate => !Object.values(current.placements ?? {}).includes(candidate)) ?? spots[0];
+  return arrangeNook({
+    ...current,
+    items: [...current.items.filter(item => current.placements?.[item] !== spot), id],
+    placements: { ...current.placements, [id]: spot },
+  });
 }
 
 export function hasItem(n: NookState, id: string): boolean {
@@ -287,4 +290,117 @@ export function isEasterSet(n: NookState): boolean {
 // The nook collection's decorations join the rows for their spot, released weekly (public.content_releases, id item:<id>).
 for (const d of SHOWN_COLLECTION_DECOR) {
   ROWS.find(row => row.slot === d.slot)?.items.push({ id: d.id, name: d.name, sw: d.sw, locked: true });
+}
+
+export const DECOR_SPOTS: { id: DecorSpotId; label: string }[] = [
+  { id: 'rug', label: 'Carpet' },
+  { id: 'left', label: 'Left corner' },
+  { id: 'right', label: 'Right corner' },
+  { id: 'accentLeft', label: 'Left accent' },
+  { id: 'accentRight', label: 'Right accent' },
+  { id: 'wall', label: 'Wall feature' },
+  { id: 'overhead', label: 'Above' },
+  { id: 'atmosphere', label: 'Light effect' },
+];
+
+export const NOOK_LAYOUTS: { id: NookLayoutId; label: string }[] = [
+  { id: 'balanced', label: 'Balanced' },
+  { id: 'cozy', label: 'Cozy corner' },
+  { id: 'garden', label: 'Garden' },
+];
+
+type SpotFrame = { cx: number; bottom: number; w: number; h: number };
+const BALANCED_SPOTS: Record<DecorSpotId, SpotFrame> = {
+  rug: { cx: 171, bottom: 387, w: 186, h: 85 },
+  left: { cx: 49, bottom: 350, w: 78, h: 180 },
+  right: { cx: 293, bottom: 350, w: 78, h: 180 },
+  accentLeft: { cx: 64, bottom: 414, w: 48, h: 62 },
+  accentRight: { cx: 278, bottom: 414, w: 48, h: 62 },
+  wall: { cx: 171, bottom: 161, w: 94, h: 106 },
+  overhead: { cx: 171, bottom: 48, w: 264, h: 44 },
+  atmosphere: { cx: 171, bottom: 440, w: 342, h: 440 },
+};
+const LAYOUT_SPOTS: Record<NookLayoutId, Record<DecorSpotId, SpotFrame>> = {
+  balanced: BALANCED_SPOTS,
+  cozy: {
+    ...BALANCED_SPOTS,
+    rug: { cx: 176, bottom: 385, w: 170, h: 78 },
+    left: { cx: 51, bottom: 348, w: 82, h: 166 },
+    right: { cx: 299, bottom: 340, w: 64, h: 150 },
+    accentLeft: { cx: 73, bottom: 410, w: 44, h: 56 },
+    accentRight: { cx: 281, bottom: 402, w: 44, h: 56 },
+    wall: { cx: 175, bottom: 159, w: 84, h: 96 },
+    overhead: { cx: 158, bottom: 48, w: 236, h: 40 },
+  },
+  garden: {
+    ...BALANCED_SPOTS,
+    rug: { cx: 171, bottom: 383, w: 166, h: 76 },
+    left: { cx: 47, bottom: 345, w: 78, h: 192 },
+    right: { cx: 295, bottom: 345, w: 78, h: 192 },
+    accentLeft: { cx: 55, bottom: 421, w: 48, h: 70 },
+    accentRight: { cx: 287, bottom: 421, w: 48, h: 70 },
+    wall: { cx: 171, bottom: 149, w: 88, h: 96 },
+    overhead: { cx: 171, bottom: 48, w: 280, h: 44 },
+  },
+};
+
+const ATMOSPHERE = [PRAYER_LIGHTS, GREAT_WEB, 'prayerweb'];
+const FRAMING = ['glass', 'lights', 'garland', 'fairycurtain', 'flagbunting', 'canopy', 'driedgarland', 'skylight', ...ATMOSPHERE];
+
+/** A piece may change sides, but always stays in a spot suited to its size and purpose. */
+export function spotsForItem(id: string): DecorSpotId[] {
+  const meta = ITEM_META[id];
+  if (!meta) return [];
+  if (ATMOSPHERE.includes(id)) return ['atmosphere'];
+  if (isRug(id) || id === 'cushion' || id === 'wreath') return ['rug'];
+  if (meta.slot === 'wall') return ['wall'];
+  if (meta.slot === 'hang') return ['overhead'];
+  if (meta.slot === 'left') return ['left', 'right'];
+  if (meta.slot === 'right') return ['right', 'left'];
+  return meta.hit.x + meta.hit.w / 2 < 171 ? ['accentLeft', 'accentRight'] : ['accentRight', 'accentLeft'];
+}
+
+/** Repair older or crowded arrangements without changing the inventory of available decorations. */
+export function arrangeNook(n: NookState): NookState {
+  const layout = NOOK_LAYOUTS.some(candidate => candidate.id === n.layout) ? n.layout! : 'balanced';
+  const placements: Record<string, DecorSpotId> = {};
+  const occupied = new Map<DecorSpotId, string>();
+  for (const id of [...new Set(n.items)]) {
+    const allowed = spotsForItem(id);
+    if (!allowed.length) continue;
+    const saved = n.placements?.[id];
+    const spot = saved && allowed.includes(saved) ? saved : allowed.find(candidate => !occupied.has(candidate)) ?? allowed[0];
+    const previous = occupied.get(spot);
+    if (previous) delete placements[previous];
+    occupied.set(spot, id);
+    placements[id] = spot;
+  }
+  return { ...n, layout, items: Object.keys(placements), placements, offsets: {}, v: 3 };
+}
+
+/** Moving into an occupied spot swaps the two decorations instead of covering one with the other. */
+export function moveItemToSpot(n: NookState, id: string, destination: DecorSpotId): NookState {
+  const current = arrangeNook(n);
+  const origin = current.placements?.[id];
+  if (!origin || origin === destination || !spotsForItem(id).includes(destination)) return current;
+  const other = current.items.find(item => current.placements?.[item] === destination);
+  const placements = { ...current.placements, [id]: destination };
+  if (other) placements[other] = origin;
+  return { ...current, placements };
+}
+
+export type ItemPlacement = { spot: DecorSpotId; x: number; y: number; scale: number };
+
+export function placementForItem(n: NookState, id: string, destination?: DecorSpotId): ItemPlacement {
+  const { hit, base } = ITEM_META[id];
+  const spot = destination ?? n.placements?.[id] ?? spotsForItem(id)[0];
+  if (FRAMING.includes(id)) return { spot, x: hit.x + base.x, y: hit.y + base.y, scale: 1 };
+  const frame = LAYOUT_SPOTS[n.layout ?? 'balanced'][spot];
+  const scale = Math.min(1, frame.w / hit.w, frame.h / hit.h);
+  return { spot, x: frame.cx - hit.w * scale / 2, y: frame.bottom - hit.h * scale, scale };
+}
+
+export function spotFrame(n: NookState, spot: DecorSpotId): Box {
+  const frame = LAYOUT_SPOTS[n.layout ?? 'balanced'][spot];
+  return { x: frame.cx - frame.w / 2, y: frame.bottom - frame.h, w: frame.w, h: frame.h };
 }

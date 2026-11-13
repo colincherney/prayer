@@ -507,3 +507,29 @@ works with it; the old function just ignores the code.
 - **Email templates**: Confirm sign up, Magic link or OTP, Change email address and Reset password all show `{{ .Token }}` (an 8-digit code) and no link. The app has no web pages for these, so a template with a link breaks that flow.
 - **Captcha protection: leave OFF.** The app has no captcha step, so turning it on would block every sign-in and anonymous sign-in.
 - **Leaked password protection**: optional, safe to enable (may need a paid plan).
+## Subscription checkout (2026-11-13)
+
+Applied `20261113215233_revenuecat_subscription_checkout.sql` to the connected project.
+Added server-only RevenueCat subscription configuration and verification snapshots,
+the service-role-only `apply_revenuecat_subscription` RPC, and `user_cosmetics.expires_at`.
+Ownership reads and nook saves now check expiry; stale verification results cannot
+overwrite newer snapshots, and manual grants are preserved.
+
+Connected `plus` to the `monthly_599` subscription, deployed the authenticated
+`revenuecat-subscription-sync` function and the independently verified
+`revenuecat-subscription-webhook` notification endpoint, and registered a sandbox
+subscription integration in the Saint Central App RevenueCat project.
+The existing cosmetic webhook deployment was left in place.
+
+Grant/revoke, expiry, ordering, and client-permission checks passed in a rolled-back
+database transaction. The user will perform the final purchase/restore test in the app.
+See `docs/revenuecat-checkout.md` for configuration and validation details.
+
+### iOS subscription checkout
+
+Applied `20261113224400_ios_subscription_checkout.sql`: `plus` maps to Apple's
+`saintcentral_plus_monthly`. Provisioned the public iOS SDK key separately in the
+server-only configuration, allowing Apple sandbox receipts for TestFlight.
+Deployed subscription verification that requires the matching store, so Test Store
+receipts cannot grant production subscription access. RevenueCat notifications now
+target the App Store app in both sandbox and production environments.

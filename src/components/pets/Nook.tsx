@@ -1,4 +1,4 @@
-import React, { memo, useContext, useEffect, useRef, useState } from 'react';
+import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GestureResponderEvent,
   Modal,
@@ -29,7 +29,12 @@ import {
   GREETINGS,
   Lighting,
   NookState,
-  Offset,
+  DecorSpotId,
+  DECOR_SPOTS,
+  arrangeNook,
+  placementForItem,
+  spotFrame,
+  spotsForItem,
   GREAT_WEB,
   PRAYER_LIGHTS,
   SHOWN_COLLECTION_DECOR,
@@ -61,11 +66,11 @@ type Props = {
   /** Lets decor be dragged (press and hold, then move). Needs a gesture-handler root above it. */
   editable?: boolean;
   /** Called when a dragged piece is dropped. */
-  onMoveItem?: (id: string, offset: Offset) => void;
+  onMoveItem?: (id: string, spot: DecorSpotId) => void;
   /** Called when a piece is tapped. */
   onTapItem?: (id: string) => void;
-  /** Rounds where dragged pieces land to this many nook units. */
-  snap?: number;
+  showSpots?: boolean;
+  selectedItem?: string;
   /** The caller draws the scene, tint and Prayer web full screen behind this view (the decorator). */
   fullBleed?: boolean;
 };
@@ -116,7 +121,6 @@ const PET = 150;
 const HERO_PET = 1.16;
 /** Puts the pet's feet on the rug. */
 const PET_TOP = 198;
-const NO_OFFSET: Offset = { x: 0, y: 0 };
 /** Back to front, so floor pieces sit under the lantern and plant, and hanging pieces are on top. */
 /** Collection pieces go back to front by spot: rugs and wall art, then floor and side pieces, then overhead and ambience. */
 const LAYER_RANK: Record<string, number> = { wall: 0, floor: 1, left: 2, right: 2, hang: 3, ambience: 4 };
@@ -295,7 +299,7 @@ function CornerStat({ value, label, at, px }: { value: number; label: string; at
 /** "Your nook": themed scene with the sleeping pet, prayer web, decor and the four prayer stats in the corners. */
 /** Memoized so a parent's unrelated state changes (a selection, a panel) don't redraw the whole scene. */
 export const NookView = memo(function NookView({
-  nook,
+  nook: savedNook,
   stats,
   lighting,
   petId,
@@ -308,9 +312,11 @@ export const NookView = memo(function NookView({
   editable,
   onMoveItem,
   onTapItem,
-  snap,
+  showSpots,
+  selectedItem,
   fullBleed,
 }: ViewProps) {
+  const nook = useMemo(() => arrangeNook(savedNook), [savedNook]);
   const scale = width / NOOK_W;
   // Keeps the pet uncapped when a parent (the decorator) has already lifted the cap.
   const smoothAround = useContext(SmoothMotion);
@@ -389,18 +395,24 @@ export const NookView = memo(function NookView({
         ]}>
         {fullBleed && hasArtScene(nook.scene) ? null : <SceneBackdrop scene={nook.scene} bg={scene.bg} />}
         {fullBleed ? null : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: TINTS[lighting] }]} />}
-        {has(PRAYER_LIGHTS) || has(GREAT_WEB) ? <PrayerWeb level={webLevel} web={has(GREAT_WEB)} lights={has(PRAYER_LIGHTS)} /> : null}
+        {has(PRAYER_LIGHTS) || has(GREAT_WEB) ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0.4 }]}><PrayerWeb level={webLevel} web={has(GREAT_WEB)} lights={has(PRAYER_LIGHTS)} /></View> : null}
+        {editable && (showSpots || selectedItem) ? DECOR_SPOTS.filter(spot => spot.id !== 'atmosphere' && (showSpots || spotsForItem(selectedItem!).includes(spot.id))).map(spot => {
+          const box = spotFrame(nook, spot.id);
+          return <View key={spot.id} pointerEvents="none" style={{ position: 'absolute', left: box.x * scale, top: box.y * scale, width: box.w * scale, height: box.h * scale, borderRadius: 12 * scale, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(242,196,98,0.48)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: FONTS.bodySemi, fontSize: 9 * scale, color: '#F2E9D8', backgroundColor: 'rgba(20,17,42,0.55)', paddingHorizontal: 5, paddingVertical: 3, borderRadius: 5 }}>{spot.label}</Text>
+          </View>;
+        }) : null}
         {ITEM_ORDER.filter(has).map(id => (
           <NookItem
             key={id}
             id={id}
-            offset={nook.offsets[id] ?? NO_OFFSET}
+            placement={placementForItem(nook, id)}
+            targets={spotsForItem(id).map(spot => placementForItem(nook, id, spot))}
             scale={scale}
             editable={!!editable}
             tapLabel={ITEM_LABEL[id]}
             onTap={onTapItem ? () => { tapFor(id)?.(); onTapItem(id); } : tapFor(id)}
             onMove={onMoveItem}
-            snap={snap}
             art={fullBleed && id === 'prayerweb' ? null : <ItemArt id={id} lanternBright={lanternBright} leafOn={leafOn} hangFast={hangFast} />}
           />
         ))}

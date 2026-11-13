@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -29,13 +29,17 @@ import { CosmeticIcon } from './CosmeticIcon';
 import { NookStats, NookView } from './Nook';
 import { PetMotion } from './Fx';
 import { ArtFullScene, ART_H, ART_TOP, ART_W, hasArtScene } from './NookArt';
-import { NOOK_W } from './NookScene';
 import {
   isEasterSet,
   isSanctuarySet,
   Lighting,
   NookState,
-  Offset,
+  DecorSpotId,
+  DECOR_SPOTS,
+  NOOK_LAYOUTS,
+  arrangeNook,
+  moveItemToSpot,
+  spotsForItem,
   ROWS,
   SCENES,
   TINTS,
@@ -73,9 +77,16 @@ const SAVED = '#5FBF8A';
 const HISTORY_LIMIT = 30;
 const TAP_SLOP = 10;
 const TAP_MS = 300;
-const GRID = 26;
-const NO_OFFSET: Offset = { x: 0, y: 0 };
+const NO_OFFSET = { x: 0, y: 0 };
 const ALL_ITEMS = ROWS.flatMap(row => row.items);
+const DECOR_SECTIONS: { spot: DecorSpotId; label: string }[] = [
+  { spot: 'rug', label: 'Carpets' },
+  { spot: 'left', label: 'Corners' },
+  { spot: 'accentLeft', label: 'Accents' },
+  { spot: 'wall', label: 'Wall' },
+  { spot: 'overhead', label: 'Above' },
+  { spot: 'atmosphere', label: 'Light' },
+];
 
 type IconProps = { color?: string };
 const stroke = { fill: 'none', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
@@ -169,8 +180,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { isAvailable } = useReleases();
-  // Only pieces that are out count toward the total, so it grows as weekly releases land.
-  const totalPieces = ALL_ITEMS.filter(item => isAvailable(itemProductId(item.id))).length;
   // The tab bar's height can be counted in this inset, but this page covers the tab bar.
   const bottomInset = Math.min(insets.bottom, 34);
   const reducedMotion = useReducedMotion();
@@ -184,10 +193,10 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     setRailOpen(open);
     railShift.set(reducedMotion ? (open ? 0 : 1) : withTiming(open ? 0 : 1, { duration: 200 }));
   };
-  const [history, setHistory] = useState<History>({ now: nook, past: [] });
+  const [history, setHistory] = useState<History>(() => ({ now: arrangeNook(nook), past: [] }));
   const [selected, setSelected] = useState<Selection>(null);
   const [showAll, setShowAll] = useState(false);
-  const [grid, setGrid] = useState(false);
+  const [showSpots, setShowSpots] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -240,12 +249,11 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
     claimTap();
     setSelected({ kind: 'item', id });
   }, [claimTap]);
-  const onMoveItem = useCallback((id: string, offset: Offset) => {
+  const onMoveItem = useCallback((id: string, spot: DecorSpotId) => {
+    claimTap();
     setSelected({ kind: 'item', id });
-    commit(current => current.items.includes(id)
-      ? { ...current, offsets: { ...current.offsets, [id]: offset } }
-      : current);
-  }, [commit]);
+    commit(current => moveItemToSpot(current, id, spot));
+  }, [commit, claimTap]);
   const undo = () => {
     setSelected(null);
     setHistory(current => {
@@ -259,7 +267,6 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   const nookWidth = ART_W * artScale;
   const nookLeft = (width - nookWidth) / 2;
   const nookTop = (height - ART_H * artScale) / 2 + ART_TOP * artScale;
-  const nookScale = nookWidth / NOOK_W;
 
   const scene = SCENES.find(s => s.id === draft.scene) ?? SCENES[0];
   const sceneOwned = (id: string) => {
@@ -301,12 +308,12 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
   };
   const resetPositions = () => {
     setMenuOpen(false);
-    commit(current => Object.keys(current.offsets).length === 0 ? current : { ...current, offsets: {} });
+    commit(current => arrangeNook({ ...current, placements: {}, offsets: {} }));
   };
   const clearNook = () => {
     setMenuOpen(false);
     setSelected(null);
-    commit(current => current.items.length === 0 ? current : { ...current, items: [], offsets: {} });
+    commit(current => current.items.length === 0 ? current : { ...current, items: [], placements: {}, offsets: {} });
   };
   const goStore = () => dismiss(() => onBrowse('/store'));
   /** Locked pieces (and a locked scene) that are only being tried on. */
@@ -335,21 +342,15 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
 
   const selectedItem = selected?.kind === 'item' ? ALL_ITEMS.find(item => item.id === selected.id) : undefined;
   const selectedScene = selected?.kind === 'scene' ? SCENES.find(s => s.id === selected.id) : undefined;
-  const selectedRow = selectedItem ? ROWS.find(row => row.items.includes(selectedItem)) : undefined;
+  const selectedSpots = selectedItem ? spotsForItem(selectedItem.id) : [];
+  const selectedSpot = selectedItem ? draft.placements?.[selectedItem.id] : undefined;
   const selectedOwned = selectedItem ? itemOwned(selectedItem.id) : selectedScene ? sceneOwned(selectedScene.id) : true;
   const selectedPlaced = !!selectedItem && has(selectedItem.id);
   const chipNote = !selectedOwned
     ? selectedItem?.earned ?? 'Preview: get it in the store to keep it'
     : selectedScene
       ? 'Your backdrop'
-      : selectedPlaced ? 'Hold it to move it' : 'Tap again to add';
-
-  const gridPath = useMemo(() => {
-    let d = '';
-    for (let x = GRID; x < width; x += GRID) d += `M${x} 0V${height}`;
-    for (let y = GRID; y < height; y += GRID) d += `M0 ${y}H${width}`;
-    return d;
-  }, [width, height]);
+      : selectedPlaced ? `${DECOR_SPOTS.find(spot => spot.id === selectedSpot)?.label ?? 'In place'}${selectedSpots.length > 1 ? ' · Hold to switch sides' : ' · Placed for you'}` : 'Tap again to add';
 
   // Set progress: the Easter set once the room leans that way, otherwise the sanctuary.
   const easterFocus = draft.scene === 'easter' || has('wreath') || has('chimes');
@@ -393,17 +394,12 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
               compact
               fullBleed
               editable={!busy}
-              snap={grid ? GRID / nookScale : 0}
+              showSpots={showSpots}
+              selectedItem={selectedItem?.id}
               onTapItem={onTapItem}
               onMoveItem={onMoveItem}
             />
           </View>
-
-          {grid ? (
-            <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Path d={gridPath} stroke="rgba(232,145,58,0.16)" strokeWidth={1} fill="none" />
-            </Svg>
-          ) : null}
 
           <View style={[styles.topBar, { top: barTop }]}>
             <Press onPress={() => setMenuOpen(open => !open)} disabled={busy} hitSlop={4}
@@ -423,9 +419,20 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
             </Press>
           </View>
 
+          <View style={[styles.presets, { top: barTop + 52 }]}>
+            {NOOK_LAYOUTS.map(layout => (
+              <Press key={layout.id} disabled={busy} accessibilityRole="button" accessibilityLabel={`${layout.label} arrangement`}
+                accessibilityState={{ selected: draft.layout === layout.id }}
+                onPress={() => { setSelected(null); commit(current => current.layout === layout.id ? current : { ...current, layout: layout.id }); }}
+                style={[styles.preset, draft.layout === layout.id && styles.presetActive]}>
+                <Text style={[styles.presetText, draft.layout === layout.id && styles.presetTextActive]}>{layout.label}</Text>
+              </Press>
+            ))}
+          </View>
+
           <Animated.View pointerEvents={railOpen ? 'box-none' : 'none'} accessibilityElementsHidden={!railOpen}
             importantForAccessibility={railOpen ? 'auto' : 'no-hide-descendants'} style={[StyleSheet.absoluteFill, railMotion]}>
-          <View style={[styles.rail, { top: barTop + 52, bottom: 214 + bottomInset }]}>
+          <View style={[styles.rail, { top: barTop + 98, bottom: 214 + bottomInset }]}>
             <Press onPress={() => toggleRail(false)} hitSlop={6} accessibilityLabel="Hide the parts list" style={styles.railClose}>
               <ChevronIcon left />
             </Press>
@@ -440,10 +447,10 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
                   locked={!sceneOwned(s.id)}
                   onPress={onTile} />
               ))}
-              {ROWS.map(row => (
-                <React.Fragment key={row.slot}>
-                  <Text accessibilityRole="header" style={[styles.section, selectedRow?.slot === row.slot && styles.sectionActive]}>{row.label}</Text>
-                  {row.items.filter(item => (isAvailable(itemProductId(item.id)) && (showAll || itemOwned(item.id))) || has(item.id)).map(item => (
+              {DECOR_SECTIONS.map(section => (
+                <React.Fragment key={section.spot}>
+                  <Text accessibilityRole="header" style={[styles.section, selectedSpots.includes(section.spot) && styles.sectionActive]}>{section.label}</Text>
+                  {ALL_ITEMS.filter(item => spotsForItem(item.id).includes(section.spot) && ((isAvailable(itemProductId(item.id)) && (showAll || itemOwned(item.id))) || has(item.id))).map(item => (
                     <Tile key={item.id} kind="item" id={item.id} label={item.name} disabled={busy}
                       selected={selectedItem?.id === item.id}
                       placed={has(item.id)}
@@ -468,11 +475,11 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
                 <Text style={[styles.toggleText, !showAll && styles.toggleActive]}>Mine</Text>
               </Press>
             </View>
-            <Press onPress={() => setGrid(on => !on)} disabled={busy} accessibilityLabel="Snap grid"
-              accessibilityState={{ selected: grid }} style={[styles.tool, grid && styles.toolOn]}>
-              <GridIcon color={grid ? ACCENT : INK} />
+            <Press onPress={() => setShowSpots(on => !on)} disabled={busy} accessibilityLabel="Show decorating spots"
+              accessibilityState={{ selected: showSpots }} style={[styles.tool, showSpots && styles.toolOn]}>
+              <GridIcon color={showSpots ? ACCENT : INK} />
             </Press>
-            <Press onPress={resetPositions} disabled={busy} accessibilityLabel="Reset positions" style={styles.tool}>
+            <Press onPress={resetPositions} disabled={busy} accessibilityLabel="Arrange neatly" style={styles.tool}>
               <ResetIcon />
             </Press>
           </View>
@@ -481,7 +488,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
 
           {railOpen ? null : (
             <Press onPress={() => toggleRail(true)} hitSlop={2} accessibilityLabel="Show the parts list"
-              style={[styles.control, styles.railOpen, { top: barTop + 52 }]}>
+              style={[styles.control, styles.railOpen, { top: barTop + 98 }]}>
               <ChevronIcon left={false} />
             </Press>
           )}
@@ -490,6 +497,17 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
             <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(160)} style={[styles.panel, { bottom: 24 + bottomInset }]}>
               <Text numberOfLines={1} style={styles.readoutText}>{selectedItem?.name ?? selectedScene?.name}</Text>
               <Text numberOfLines={2} style={styles.panelNote}>{chipNote}</Text>
+              {selectedPlaced && selectedSpots.length > 1 ? (
+                <View style={styles.spotChoices}>
+                  {selectedSpots.map(spot => (
+                    <Press key={spot} disabled={busy} accessibilityRole="button" accessibilityLabel={`Place ${selectedItem!.name} in ${DECOR_SPOTS.find(candidate => candidate.id === spot)?.label}`}
+                      accessibilityState={{ selected: selectedSpot === spot }} onPress={() => onMoveItem(selectedItem!.id, spot)}
+                      style={[styles.spotChoice, selectedSpot === spot && styles.presetActive]}>
+                      <Text style={[styles.panelButtonText, selectedSpot === spot && styles.presetTextActive]}>{spot === 'left' || spot === 'accentLeft' ? 'Left' : 'Right'}</Text>
+                    </Press>
+                  ))}
+                </View>
+              ) : null}
               <View style={styles.panelActions}>
                 {!selectedOwned ? (
                   <Press onPress={selectedItem?.earned ? () => dismiss(() => onBrowse('/quests')) : goStore} accessibilityRole="link" style={styles.panelStore}>
@@ -509,7 +527,7 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
           ) : (
             <View pointerEvents="none" accessibilityLiveRegion="polite" style={[styles.readout, { bottom: 30 + bottomInset }]}>
               <Text numberOfLines={1} style={styles.readoutText}>Scene: {scene.name}</Text>
-              <Text style={styles.readoutText}>Pieces: {draft.items.length} / {totalPieces}</Text>
+              <Text style={styles.readoutText}>{draft.items.length} of {DECOR_SPOTS.length} spots decorated</Text>
               <Text numberOfLines={1} style={[styles.readoutText, setDone && styles.readoutDone]}>{setText}</Text>
               {previews.length ? (
                 <Text numberOfLines={1} style={styles.previewNote}>
@@ -539,13 +557,13 @@ export function NookDecorator({ nook, owned, stats, lighting, petId, petName, st
                 </Press>
                 <Press onPress={resetPositions} style={styles.menuRow}>
                   <ResetIcon color={ACCENT} size={18} />
-                  <Text style={styles.menuText}>Reset positions</Text>
+                  <Text style={styles.menuText}>Arrange neatly</Text>
                 </Press>
                 <Press onPress={clearNook} style={styles.menuRow}>
                   <TrashIcon />
                   <Text style={styles.menuText}>Clear the nook</Text>
                 </Press>
-                <Text style={styles.menuHint}>Tap a piece to add it. Hold a piece in the nook to move it.</Text>
+                <Text style={styles.menuHint}>Choose a piece and we&apos;ll place it for you. A new piece swaps into its spot. Hold a corner piece to switch sides.</Text>
               </Animated.View>
             </>
           ) : null}
@@ -565,6 +583,13 @@ const styles = StyleSheet.create({
   bottomFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 230 },
 
   topBar: { position: 'absolute', left: 14, right: 14, height: 42, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  presets: { position: 'absolute', left: 14, right: 14, flexDirection: 'row', gap: 6 },
+  preset: { flex: 1, minHeight: 36, paddingHorizontal: 8, borderRadius: 12, backgroundColor: CONTROL, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(242,233,216,0.12)' },
+  presetActive: { backgroundColor: ACCENT, borderColor: ACCENT },
+  presetText: { fontFamily: FONTS.bodySemi, fontSize: 12, color: INK },
+  presetTextActive: { color: BG },
+  spotChoices: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  spotChoice: { minWidth: 60, minHeight: 32, paddingHorizontal: 10, borderRadius: 9, backgroundColor: CONTROL, alignItems: 'center', justifyContent: 'center' },
   control: { height: 42, borderRadius: 12, backgroundColor: CONTROL, alignItems: 'center', justifyContent: 'center', ...shadow },
   menuButton: { width: 46 },
   closeButton: { width: 42 },
