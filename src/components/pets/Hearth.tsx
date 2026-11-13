@@ -1,18 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  Easing,
-  FadeInUp,
-  FadeOut,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, {
   Circle,
@@ -23,21 +11,18 @@ import Svg, {
   RadialGradient,
   Rect,
   Stop,
-  Text as SvgText,
 } from 'react-native-svg';
 
 import { FONTS } from '@/components/saint/theme';
 
-import { Fx, SoftGlow } from './Fx';
+import { Fx, PetMotion, SoftGlow } from './Fx';
 import { LyingPet, lyingFeetOffset, lyingHeight } from './LyingPets';
-import { Acting, PetParticles } from './petActing';
 import { PipStage } from './PipLamb';
 import { Pet, PetId } from './registry';
 
 // The group page's log cabin hearth (design/Group.dc.html). Every member's companion rests here, never a name.
 // The scene is drawn on a 342x320 artboard; pets are real pet components placed on top of it.
 
-const AG = Animated.createAnimatedComponent(G);
 const W = 342;
 const H = 320;
 const FEET = 0.92; // pets are drawn on a 240x260 artboard with a little empty space under the feet
@@ -69,39 +54,6 @@ const SPOTS: { cx: number; feet: number; w: number; lie?: 'sleep' | 'open' }[] =
 
 export const HEARTH_SEATS = SPOTS.length;
 
-function Flare({ on, children }: { on: boolean; children: React.ReactNode }) {
-  const s = useSharedValue(0);
-  useEffect(() => {
-    s.set(withTiming(on ? 1 : 0, { duration: 400 }));
-  }, [on, s]);
-  const animatedProps = useAnimatedProps(() => ({ scaleX: 1 + 0.28 * s.get(), scaleY: 1 + 0.45 * s.get() }));
-  return (
-    <AG animatedProps={animatedProps} originX={259} originY={244}>
-      {children}
-    </AG>
-  );
-}
-
-/** Hops once each time `trigger` changes (after `delay`), the way the design's pets hop when the group shares. */
-function HopView({ trigger, delay, style, children }: { trigger: number; delay: number; style: object; children: React.ReactNode }) {
-  const reduce = useReducedMotion();
-  const y = useSharedValue(0);
-  useEffect(() => {
-    if (!trigger || reduce) return;
-    y.set(
-      withDelay(
-        delay,
-        withSequence(
-          withTiming(-12, { duration: 280, easing: Easing.out(Easing.quad) }),
-          withTiming(0, { duration: 420, easing: Easing.bounce }),
-        ),
-      ),
-    );
-  }, [trigger, delay, reduce, y]);
-  const animated = useAnimatedStyle(() => ({ transform: [{ translateY: y.get() }] }));
-  return <Animated.View style={[style, animated]}>{children}</Animated.View>;
-}
-
 /* ------------------------------ the room ------------------------------ */
 
 const LOGS = [2, 30, 58, 86, 114, 142, 170, 198];
@@ -130,36 +82,19 @@ function Room() {
         <Circle key={cy} cx={2} cy={cy} r={11} fill="#B58A5A" stroke="#8A6440" strokeWidth={2} />
       ))}
 
-      {/* snowy window */}
+      {/* night window: moon and stars over dark green hills and pines, no snow */}
       <Rect x={22} y={34} width={104} height={98} rx={6} fill="#3A2414" />
       <Rect x={28} y={40} width={92} height={86} rx={3} fill="#1B2448" />
       <Circle cx={100} cy={58} r={10} fill="#F4E3B5" />
-      <Fx kind="twinkleSoft"><Circle cx={42} cy={52} r={1.2} fill="#F2E9D8" /></Fx>
-      <Fx kind="twinkleSoft" delay={800}><Circle cx={64} cy={66} r={1} fill="#F2E9D8" /></Fx>
-      <Fx kind="twinkleSoft" delay={1500}><Circle cx={84} cy={48} r={1} fill="#F2E9D8" /></Fx>
-      <Fx kind="shootStar" delay={2500}>
-        <Path d="M36 46 L46 51" stroke="#FFF6D8" strokeWidth={1.6} strokeLinecap="round" />
-        <Circle cx={46} cy={51} r={1.4} fill="#FFFFFF" />
-      </Fx>
-      <Path d="M28 116 C50 106 70 118 92 110 C104 106 112 112 120 108 L120 126 L28 126 Z" fill="#E8EEF7" />
-      <Path d="M40 112 L48 92 L56 112 Z M58 116 L68 88 L78 116 Z" fill="#20353A" />
-      {[
-        { cx: 38, d: 0 },
-        { cx: 58, d: 1200 },
-        { cx: 80, d: 2500 },
-        { cx: 104, d: 3700 },
-        { cx: 48, d: 2500 },
-      ].map((f, i) => (
-        <Fx key={i} kind="snowH" delay={f.d}>
-          <Circle cx={f.cx} cy={44} r={1.5} fill="#FFFFFF" />
-        </Fx>
-      ))}
+      <Circle cx={42} cy={52} r={1.2} fill="#F2E9D8" />
+      <Circle cx={64} cy={66} r={1} fill="#F2E9D8" />
+      <Circle cx={84} cy={48} r={1} fill="#F2E9D8" />
+      <Circle cx={52} cy={74} r={0.9} fill="#F2E9D8" />
+      <Path d="M28 112 C48 102 68 110 88 104 C102 100 112 106 120 103 L120 126 L28 126 Z" fill="#24402F" />
+      <Path d="M28 118 C50 112 72 120 94 115 C106 112 114 116 120 114 L120 126 L28 126 Z" fill="#1C3326" />
+      <Path d="M40 114 L48 94 L56 114 Z M58 118 L68 90 L78 118 Z" fill="#14261C" />
       <Path d="M74 40 V126 M28 83 H120" stroke="#3A2414" strokeWidth={4} />
       <Rect x={16} y={130} width={116} height={8} rx={2} fill="#8A6440" />
-      <Path d="M30 34 Q44 28 58 34 Q74 26 90 34 Q106 28 120 34" stroke="#2F6B4A" strokeWidth={5} fill="none" strokeLinecap="round" />
-      <Circle cx={44} cy={31} r={2.5} fill="#C9433A" />
-      <Circle cx={74} cy={30} r={2.5} fill="#C9433A" />
-      <Circle cx={104} cy={31} r={2.5} fill="#C9433A" />
 
       {/* stone chimney */}
       <Rect x={196} y={0} width={126} height={256} fill="#5E5852" />
@@ -205,19 +140,12 @@ function Room() {
   );
 }
 
-function Fire({ flare }: { flare: boolean }) {
+function Fire() {
   return (
     <>
-      <Flare on={flare}>
-        <Fx kind="fireH" ox={259} oy={244}>
-          <Path d="M259 244 C236 234 238 208 250 196 C250 210 256 212 258 204 C262 192 256 184 262 174 C272 188 284 204 280 224 C278 238 270 244 259 244 Z" fill="#E8873A" />
-          <Path d="M259 244 C246 238 246 222 254 212 C256 222 262 222 262 214 C268 222 274 232 270 240 C268 244 264 244 259 244 Z" fill="#F2C462" />
-          <Path d="M259 244 C253 240 254 232 258 226 C262 232 266 238 263 242 Z" fill="#FFF3C4" />
-        </Fx>
-      </Flare>
-      <Fx kind="sparkH" delay={0}><Circle cx={254} cy={200} r={1.6} fill="#FFE08A" /></Fx>
-      <Fx kind="sparkH" delay={800}><Circle cx={264} cy={196} r={1.4} fill="#FFE08A" /></Fx>
-      <Fx kind="sparkH" delay={1600}><Circle cx={258} cy={190} r={1.5} fill="#FFE08A" /></Fx>
+      <Path d="M259 244 C236 234 238 208 250 196 C250 210 256 212 258 204 C262 192 256 184 262 174 C272 188 284 204 280 224 C278 238 270 244 259 244 Z" fill="#E8873A" />
+      <Path d="M259 244 C246 238 246 222 254 212 C256 222 262 222 262 214 C268 222 274 232 270 240 C268 244 264 244 259 244 Z" fill="#F2C462" />
+      <Path d="M259 244 C253 240 254 232 258 226 C262 232 266 238 263 242 Z" fill="#FFF3C4" />
       <Rect x={186} y={146} width={146} height={12} rx={3} fill="#6B4A2A" />
       <Rect x={190} y={158} width={138} height={3} fill="#3E2816" />
       <Path d="M304 128 L304 146 M298 134 L310 134" stroke="#C9A24B" strokeWidth={3} strokeLinecap="round" />
@@ -367,7 +295,7 @@ type HearthProps = {
   /** Everyone's companions, you first. Extra members past the seats are not shown. */
   members: HearthMember[];
   decor: string[];
-  /** Change this number to make the fire flare, the pets hop and the toast appear (e.g. when someone shares a prayer). */
+  /** Change this number to show the toast for a moment (e.g. when someone shares a prayer). */
   flare?: number;
   /** Double-tapping the hearth calls this (used to open the decorate page). */
   onDoubleTap?: () => void;
@@ -407,7 +335,7 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
       style={[styles.frame, { width, height, borderRadius: 26 * Math.min(1, k + 0.2) }]}>
       <Svg width={width} height={height} viewBox={`0 0 ${W} ${H}`} style={StyleSheet.absoluteFill}>
         <Room />
-        <Fire flare={flaring} />
+        <Fire />
         <Floor />
         {HEARTH_DECOR.filter(d => decor.includes(d.id)).map(d => (
           <Decor key={d.id} id={d.id} />
@@ -420,10 +348,9 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
         const petH = spot.lie ? lyingHeight(size) : (size * 260) / 240;
         const feetIn = spot.lie ? lyingFeetOffset(size) : FEET * petH;
         return (
-          <HopView
+          <View
             key={i}
-            trigger={flare}
-            delay={i * 120}
+            pointerEvents="none"
             style={{
               position: 'absolute',
               left: spot.cx * k - size / 2,
@@ -431,17 +358,12 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
               width: size,
               height: petH,
             }}>
-            <View pointerEvents="none">
-              {spot.lie ? (
-                <LyingPet id={m.petId} stage={m.stage} size={size} eyes={spot.lie} />
-              ) : (
-                <Acting petId={m.petId} seat={i} size={size}>
-                  <Pet id={m.petId} stage={m.stage} size={size} />
-                  <PetParticles petId={m.petId} size={size} />
-                </Acting>
-              )}
-            </View>
-          </HopView>
+            {spot.lie ? (
+              <LyingPet id={m.petId} stage={m.stage} size={size} eyes={spot.lie} animated={false} />
+            ) : (
+              <Pet id={m.petId} stage={m.stage} size={size} animated={false} />
+            )}
+          </View>
         );
       })}
 
@@ -457,35 +379,19 @@ export function Hearth({ width, members, decor, flare = 0, onDoubleTap, toastTex
         <Fx kind="fglow">
           <Rect width={W} height={H} fill="url(#fireglow)" />
         </Fx>
-        {[
-          { x: 196, y: 214, d: 0 },
-          { x: 230, y: 190, d: 2200 },
-          { x: 160, y: 200, d: 4400 },
-          { x: 280, y: 222, d: 6600 },
-          { x: 120, y: 176, d: 3300 },
-        ].map(m => (
-          <Fx key={m.d} kind="dust" delay={m.d}>
-            <Circle cx={m.x} cy={m.y} r={1.3} fill="#FFE8B0" />
-          </Fx>
-        ))}
-        {seated.length > 1 ? (
-          <>
-            <Fx kind="zH" delay={0}><SvgText x={84} y={214} fontSize={9} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
-            <Fx kind="zH" delay={1200}><SvgText x={88} y={212} fontSize={11} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
-            <Fx kind="zH" delay={2400}><SvgText x={92} y={210} fontSize={13} fill="#B5DCC6" fontFamily={FONTS.display}>z</SvgText></Fx>
-          </>
-        ) : null}
       </Svg>
 
       {flaring ? (
-        <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(500)} style={styles.toastWrap} pointerEvents="none">
+        <View style={styles.toastWrap} pointerEvents="none">
           <Text style={styles.toast}>{toastText}</Text>
-        </Animated.View>
+        </View>
       ) : null}
     </View>
   );
 
-  return onDoubleTap ? <GestureDetector gesture={doubleTap}>{body}</GestureDetector> : body;
+  // The hearth is drawn still: no flickering fire, moving decor or wandering pets.
+  const still = <PetMotion.Provider value={false}>{body}</PetMotion.Provider>;
+  return onDoubleTap ? <GestureDetector gesture={doubleTap}>{still}</GestureDetector> : still;
 }
 
 const styles = StyleSheet.create({
