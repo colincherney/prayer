@@ -87,8 +87,8 @@ export default function SignUpScreen() {
               Always anonymous
             </Pill>
             <Text style={styles.title}>
-              Make some{'\n'}
-              <Text style={styles.titleItalic}>space</Text>.
+              Create your{'\n'}
+              <Text style={styles.titleItalic}>account</Text>.
             </Text>
             <View style={{ marginTop: 12 }}>
               <Squiggle color={THEME.accent} w={62} />
