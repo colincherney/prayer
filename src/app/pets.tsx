@@ -214,7 +214,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   eyebrow: { fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1.6, color: '#F7E3B5' },
   heroName: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 32, color: '#FFFFFF' },
   heroLevel: { fontFamily: FONTS.bodyBold, fontSize: 12, color: '#F7E3B5' },
-  heroStage: { fontFamily: FONTS.display, fontStyle: 'italic', fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  heroStage: { fontFamily: FONTS.displayItalic, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
   heroTrack: { height: 5, borderRadius: 3, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.25)', marginTop: 4 },
   heroFill: { height: '100%', backgroundColor: '#F2C462' },
   heroNote: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.85)' },

@@ -61,6 +61,8 @@ const TAB_BAR_SPACE = 92;
 const MEDALLION_TOP_GAP = 4;
 const ARCH_TOP = MEDALLION_TOP_GAP + MEDALLION_RISE;
 const PAGE_MARGIN = 24;
+/** Room for an Inter button label, its icon, and padding before the actions stack. */
+const ACTION_MIN_WIDTH = 156;
 /** Height of the title row: its top padding and the gear. */
 const HEADER_H = 52;
 const ARCH_MARGIN = 30;
@@ -221,10 +223,11 @@ function MeContent() {
 
   const [deleting, setDeleting] = useState(false);
   const { petId, name: petName, progress: petProgress } = usePetProgress();
-  const { width: screenW, height: screenH } = useWindowDimensions();
+  const { width: screenW, height: screenH, fontScale } = useWindowDimensions();
   const { trinkets, currentStreak } = useTrinkets();
   const keepsakes = useMemo(() => trinkets.filter(t => t.earned).map(t => t.id), [trinkets]);
   const pageW = Math.min(screenW, 500);
+  const actionSizing = { flexBasis: ACTION_MIN_WIDTH * fontScale };
   const frameW = pageW - ARCH_MARGIN * 2;
   const [measuredH, setViewportH] = useState(0);
   // Sized from the screen until it's measured, so the arch is right on the first frame instead of popping in.
@@ -314,15 +317,15 @@ function MeContent() {
       {decorating ? null : <PageAmbience name={themeName} />}
       <View style={styles.header}>
         <View style={styles.titleBlock}>
-          <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>
-            Prayer <Text style={styles.titleAccent}>Nook</Text>
+          <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>
+            Saint <Text style={styles.titleAccent}>Central</Text>
           </Text>
           <Squiggle color={theme.accent} w={140} waves={11} />
         </View>
         <View style={styles.headerMeta}>
           <View style={styles.streak}>
             <StreakFlame />
-            <Text numberOfLines={1} style={styles.metaText}>{currentStreak} day streak</Text>
+            <Text style={styles.metaText}>{currentStreak} day streak</Text>
           </View>
         </View>
         <NookButton onPress={() => setSettingsOpen(true)} accessibilityLabel="Settings and account. Always anonymous."
@@ -346,12 +349,12 @@ function MeContent() {
               <KeepsakeShelf trinkets={trinkets} onOpen={() => router.push('/trinkets')} />
               <View style={styles.actions}>
                 <NookButton onPress={() => setDecorating(true)} disabled={!ownedLoaded}
-                  accessibilityLabel="Decorate your Prayer Nook" style={[styles.action, styles.primaryAction]}>
+                  accessibilityLabel="Decorate your Prayer Nook" style={[styles.action, actionSizing, styles.primaryAction]}>
                   <SparkleIcon size={17} color={theme.accent} />
                   <Text style={styles.primaryActionText}>Make it yours</Text>
                 </NookButton>
                 <NookButton onPress={() => router.push('/customization')} accessibilityRole="link"
-                  accessibilityLabel="Open customizations" style={styles.action}>
+                  accessibilityLabel="Open customizations" style={[styles.action, actionSizing]}>
                   <Text style={styles.actionText}>Customizations</Text>
                 </NookButton>
               </View>
@@ -449,7 +452,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   scrollContent: { flexGrow: 1, alignItems: 'center', paddingBottom: TAB_BAR_SPACE },
   page: { flex: 1, alignSelf: 'center', paddingTop: ARCH_TOP },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingLeft: PAGE_MARGIN, paddingRight: 16 },
-  headerMeta: { flex: 1, gap: 1 },
+  headerMeta: { flex: 1, minWidth: 0, gap: 1 },
   titleBlock: { flexShrink: 1, gap: 1, overflow: 'hidden' },
   title: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 32, color: theme.ink },
   titleAccent: { color: theme.accent },
@@ -458,17 +461,17 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   gear: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft, borderWidth: 1, borderColor: theme.line },
   below: { flex: 1, justifyContent: 'center' },
   content: { paddingHorizontal: PAGE_MARGIN, paddingTop: 6 },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 12 },
-  action: { flex: 1, minHeight: 54, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
+  action: { flexGrow: 1, flexShrink: 1, minWidth: 0, minHeight: 54, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryAction: { backgroundColor: mixColors(theme.surface, theme.accent, 0.16) },
-  primaryActionText: { fontFamily: FONTS.bodySemi, fontSize: 16, color: theme.ink, flexShrink: 1 },
-  actionText: { fontFamily: FONTS.bodySemi, fontSize: 16, color: theme.ink, flexShrink: 1 },
+  primaryActionText: { fontFamily: FONTS.bodySemi, fontSize: 16, lineHeight: 22, textAlign: 'center', color: theme.ink, flexShrink: 1 },
+  actionText: { fontFamily: FONTS.bodySemi, fontSize: 16, lineHeight: 22, textAlign: 'center', color: theme.ink, flexShrink: 1 },
   // Settings sheet
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingTop: 10, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: theme.surface },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: 12 },
-  sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  sheetTitle: { fontFamily: FONTS.display, fontSize: 22, color: theme.ink },
+  sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 },
+  sheetTitle: { flex: 1, fontFamily: FONTS.display, fontSize: 22, lineHeight: 28, color: theme.ink },
   sheetClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft },
   sheetCloseText: { fontSize: 14, color: theme.ink },
   settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
