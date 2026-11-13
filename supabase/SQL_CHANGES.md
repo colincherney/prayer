@@ -492,8 +492,8 @@ Not SQL. Accounts with an email must send a one-time code (emailed with the "Mag
 function checks it against the signed-in user before deleting anything. Guests (no email) are unchanged. It also
 deletes the `public.users` row, which v6 skipped.
 
-**Revert:** redeploy `supabase/functions/delete-account/index.ts` from commit `31f349b`, and switch the app back to
-the old Delete account pop-up, since the new screen sends a code the old function ignores.
+**Revert:** redeploy `supabase/functions/delete-account/index.ts` from commit `31f349b`. The app's new screen still
+works with it; the old function just ignores the code.
 
 ---
 
