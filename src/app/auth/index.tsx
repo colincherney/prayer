@@ -36,7 +36,7 @@ export default function AuthWelcomeScreen() {
       setError(e);
       return;
     }
-    router.replace('/');
+    // RootStack opens the pending widget destination, or home for a normal launch.
   };
 
   return (

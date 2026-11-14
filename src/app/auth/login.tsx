@@ -50,7 +50,7 @@ export default function LoginScreen() {
     const { error: e, kind, signedIn } = await signInWithPassword(email.trim(), password);
     setBusy(false);
     if (signedIn) {
-      router.replace('/');
+      // RootStack handles the destination, including requests opened by a widget.
       return;
     }
     if (e || !kind) {

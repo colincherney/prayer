@@ -24,6 +24,9 @@ import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
 
+// Keep home beneath a cold-start widget link so Back and Return home work.
+export const unstable_settings = { anchor: '(tabs)' };
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Match the RN root view background to the splash so there's no white
 // frame exposed as the native splash fades out into the app.
@@ -36,15 +39,29 @@ function RootStack() {
   const fontsLoaded = useSaintFonts();
   const notificationResponse = Notifications.useLastNotificationResponse();
   const handledNotification = useRef<string | null>(null);
+  const pendingPrayerRequest = useRef(false);
 
-  const inAuth = segments[0] === 'auth';
+  const currentScreen = segments[0];
+  const inAuth = currentScreen === 'auth';
   // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
   const navSettled = !loading && !session === inAuth;
 
   useEffect(() => {
-    if (loading || navSettled) return;
-    router.replace(session ? '/' : '/auth');
-  }, [session, loading, navSettled, router]);
+    if (loading) return;
+    if (!session) {
+      // Remember the widget's destination while the user signs in or continues
+      // anonymously. Keep the request form behind the existing sign-in wall.
+      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = true;
+      if (!inAuth) router.replace('/auth');
+      return;
+    }
+    if (pendingPrayerRequest.current) {
+      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = false;
+      else router.replace('/prayerRequest');
+    } else if (inAuth) {
+      router.replace('/');
+    }
+  }, [session, loading, currentScreen, inAuth, router]);
 
   // Hide the native splash only once auth, fonts, and navigation are all
   // settled — so the splash transitions directly to a fully-rendered

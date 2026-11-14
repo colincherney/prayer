@@ -40,7 +40,7 @@ export function EmailCodeStep({
   email: string;
   kind: EmailCodeKind;
   onBack: () => void;
-  /** Runs after a correct code. Defaults to going home. */
+  /** Runs after a correct code. Sign-in navigation is handled by RootStack. */
   onVerified?: () => void | Promise<void>;
   /** Replaces the whole "We sent a code to …" line. */
   message?: string;
@@ -77,7 +77,7 @@ export function EmailCodeStep({
       return;
     }
     if (onVerified) await onVerified();
-    else router.replace('/');
+    else if (kind === 'email_change') router.replace('/');
   };
 
   const onResend = async () => {
