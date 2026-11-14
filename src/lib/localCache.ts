@@ -13,6 +13,8 @@ export const LOCAL_KEYS = {
   companionsMet: 'companions.met',
   cloudPending: 'cloud.pending',
   cloudOwner: 'cloud.owner',
+  groupsList: 'groups.list.v1',
+  groupPages: 'groups.pages.v1',
 } as const;
 
 type LocalKey = (typeof LOCAL_KEYS)[keyof typeof LOCAL_KEYS];

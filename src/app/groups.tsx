@@ -25,6 +25,7 @@ import {
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 
 type GroupRow = {
@@ -41,9 +42,13 @@ export default function GroupsScreen() {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [myGroups, setMyGroups] = useState<GroupRow[]>([]);
-  const [publicGroups, setPublicGroups] = useState<GroupRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Last time's list draws instantly; the fresh one replaces it when it arrives.
+  const [saved] = useState(() =>
+    readForUser<{ mine: GroupRow[]; pub: GroupRow[] }>(LOCAL_KEYS.groupsList, session?.user.id),
+  );
+  const [myGroups, setMyGroups] = useState<GroupRow[]>(saved?.mine ?? []);
+  const [publicGroups, setPublicGroups] = useState<GroupRow[]>(saved?.pub ?? []);
+  const [loading, setLoading] = useState(!saved);
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState<string | null>(null); // group id or 'code'
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +78,12 @@ export default function GroupsScreen() {
         .limit(50),
     ]);
 
+    // A failed request keeps whatever is on screen (the saved list) instead of blanking it.
+    if (mine.error || pub.error) {
+      setLoading(false);
+      return;
+    }
+
     type EmbeddedGroup = {
       id: string;
       name: string;
@@ -95,13 +106,11 @@ export default function GroupsScreen() {
       .map(toRow);
     const mineIds = new Set(mineRows.map(g => g.id));
 
+    const pubRows = ((pub.data ?? []) as unknown as EmbeddedGroup[]).map(toRow).filter(g => !mineIds.has(g.id));
     setMyGroups(mineRows);
-    setPublicGroups(
-      ((pub.data ?? []) as unknown as EmbeddedGroup[])
-        .map(toRow)
-        .filter(g => !mineIds.has(g.id)),
-    );
+    setPublicGroups(pubRows);
     setLoading(false);
+    writeForUser(LOCAL_KEYS.groupsList, me, { mine: mineRows, pub: pubRows });
   }, [session]);
 
   useFocusEffect(

@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { usePetProgress } from '@/lib/pet';
+import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 
 type GroupInfo = {
@@ -53,6 +54,22 @@ type GroupPrayer = {
   prayedByMe: boolean;
 };
 
+/** What a group page last showed, saved on the phone so reopening it draws instantly. */
+type SavedGroupPage = { group: GroupInfo; prayers: GroupPrayer[]; others: HearthMember[]; decor: string[]; at: number };
+type SavedGroupPages = Record<string, SavedGroupPage>;
+const SAVED_GROUPS_MAX = 12;
+
+function saveGroupPage(userId: string, id: string, page: Omit<SavedGroupPage, 'at'> | null) {
+  const all = { ...(readForUser<SavedGroupPages>(LOCAL_KEYS.groupPages, userId) ?? {}) };
+  if (page) all[id] = { ...page, at: Date.now() };
+  else delete all[id];
+  // Keep only the most recently opened groups.
+  const kept = Object.entries(all)
+    .sort((a, b) => b[1].at - a[1].at)
+    .slice(0, SAVED_GROUPS_MAX);
+  writeForUser(LOCAL_KEYS.groupPages, userId, Object.fromEntries(kept));
+}
+
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const fontsLoaded = useSaintFonts();
@@ -60,17 +77,22 @@ export default function GroupScreen() {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [group, setGroup] = useState<GroupInfo | null>(null);
-  const [prayers, setPrayers] = useState<GroupPrayer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [saved] = useState(() =>
+    id ? readForUser<SavedGroupPages>(LOCAL_KEYS.groupPages, session?.user.id)?.[id] : undefined,
+  );
+  const [group, setGroup] = useState<GroupInfo | null>(saved?.group ?? null);
+  const [prayers, setPrayers] = useState<GroupPrayer[]>(saved?.prayers ?? []);
+  const [loading, setLoading] = useState(!saved);
   const [error, setError] = useState<string | null>(null);
 
   // The hearth: everyone else's companions (no names), the group's decor, and the flare when someone shares.
   const { width: screenW } = useWindowDimensions();
   const { petId: myPetId, progress: myProgress } = usePetProgress();
-  const [others, setOthers] = useState<HearthMember[]>([]);
-  const [decor, setDecor] = useState<string[]>([]);
+  const [others, setOthers] = useState<HearthMember[]>(saved?.others ?? []);
+  const [decor, setDecor] = useState<string[]>(saved?.decor ?? []);
   const [flare, setFlare] = useState(0);
+  // When a page was last opened from here, so a fast double tap doesn't stack the same page twice.
+  const lastOpen = useRef(0);
 
   // Anonymous encouragement notes — one open composer at a time.
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -101,25 +123,30 @@ export default function GroupScreen() {
     ]);
 
     if (groupRes.error || !groupRes.data) {
+      // A network hiccup keeps the saved page on screen; a group that's gone (or private) clears it.
+      if (!groupRes.error) {
+        saveGroupPage(me, id, null);
+        setGroup(null);
+      }
       setError(groupRes.error?.message ?? 'This group is private or no longer exists.');
       setLoading(false);
       return;
     }
 
     const members = membersRes.data ?? [];
-    setOthers(
-      members
-        .filter(m => m.user_id !== me)
-        .map(m => ({
-          petId: isPetId(m.pet_id) ? m.pet_id : 'lamb',
-          stage: ([1, 2, 3].includes(m.pet_stage as number) ? m.pet_stage : 1) as HearthMember['stage'],
-        })),
-    );
+    const nextOthers: HearthMember[] = members
+      .filter(m => m.user_id !== me)
+      .map(m => ({
+        petId: isPetId(m.pet_id) ? m.pet_id : 'lamb',
+        stage: ([1, 2, 3].includes(m.pet_stage as number) ? m.pet_stage : 1) as HearthMember['stage'],
+      }));
+    setOthers(nextOthers);
     const savedDecor = (nookRes.data?.decor as unknown) ?? [];
-    setDecor(Array.isArray(savedDecor) ? savedDecor.filter((d): d is string => typeof d === 'string') : []);
+    const nextDecor = Array.isArray(savedDecor) ? savedDecor.filter((d): d is string => typeof d === 'string') : [];
+    setDecor(nextDecor);
     const myMembership = members.find(m => m.user_id === me);
 
-    setGroup({
+    const nextGroup: GroupInfo = {
       id: groupRes.data.id,
       name: groupRes.data.name,
       description: groupRes.data.description,
@@ -127,25 +154,28 @@ export default function GroupScreen() {
       invite_code: groupRes.data.invite_code,
       memberCount: members.length,
       myRole: (myMembership?.role as 'owner' | 'member' | undefined) ?? null,
-    });
+    };
+    setGroup(nextGroup);
 
-    setPrayers(
-      (prayersRes.data ?? []).map(p => {
-        const interactions =
-          (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
-        const prayed = interactions.filter(i => i.action === 'prayed');
-        return {
-          id: p.id as string,
-          text: (p.body as string) ?? '',
-          category: (p.category as string | null) ?? 'Other',
-          mine: p.user_id === me,
-          prayedCount: prayed.length,
-          prayedByMe: prayed.some(i => i.user_id === me),
-        };
-      }),
-    );
+    const nextPrayers: GroupPrayer[] = (prayersRes.data ?? []).map(p => {
+      const interactions =
+        (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
+      const prayed = interactions.filter(i => i.action === 'prayed');
+      return {
+        id: p.id as string,
+        text: (p.body as string) ?? '',
+        category: (p.category as string | null) ?? 'Other',
+        mine: p.user_id === me,
+        prayedCount: prayed.length,
+        prayedByMe: prayed.some(i => i.user_id === me),
+      };
+    });
+    setPrayers(nextPrayers);
     setError(null);
     setLoading(false);
+    if (!membersRes.error && !prayersRes.error) {
+      saveGroupPage(me, id, { group: nextGroup, prayers: nextPrayers, others: nextOthers, decor: nextDecor });
+    }
   }, [session, id]);
 
   useFocusEffect(
@@ -178,18 +208,23 @@ export default function GroupScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
+  const openOnce = (open: () => void) => {
+    const now = Date.now();
+    if (now - lastOpen.current < 1000) return;
+    lastOpen.current = now;
+    open();
+  };
+
   const openNook = () => {
-    if (group?.myRole) router.push({ pathname: '/groupNook', params: { id: group.id } });
+    if (group?.myRole) openOnce(() => router.push({ pathname: '/groupNook', params: { id: group.id } }));
   };
 
   const onShareToGroup = () => {
     if (!group) return;
-    // The fire flares and every companion hops, then the composer opens.
-    setFlare(f => f + 1);
-    setTimeout(
-      () => router.push({ pathname: '/prayerRequest', params: { groupId: group.id, groupName: group.name } }),
-      900,
-    );
+    openOnce(() => {
+      setFlare(f => f + 1);
+      router.push({ pathname: '/prayerRequest', params: { groupId: group.id, groupName: group.name } });
+    });
   };
 
   const onPray = async (prayer: GroupPrayer) => {
@@ -342,7 +377,7 @@ export default function GroupScreen() {
         <View style={styles.centerFill}>
           <ActivityIndicator color={THEME.accent} />
         </View>
-      ) : error || !group ? (
+      ) : !group ? (
         <View style={styles.centerFill}>
           <Text style={styles.emptyTitle}>Couldn&apos;t open this group</Text>
           <Text style={styles.emptyBody}>{error}</Text>
