@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from '@/components/saint/SafeArea';
+import { GroupPrayerNotifications } from '@/components/saint/GroupPrayerNotifications';
 
 import { Hearth, HearthMember, HEARTH_SEATS } from '@/components/pets/Hearth';
 import { isPetId } from '@/components/pets/registry';
@@ -401,6 +402,8 @@ export default function GroupScreen() {
               {group.myRole ? ' Double-tap the hearth to decorate it.' : ''}
               {hearthMembers.length >= HEARTH_SEATS ? ' (The first six fit by the fire.)' : ''}
             </Text>
+
+            {isMember && session ? <GroupPrayerNotifications userId={session.user.id} groupId={group.id} /> : null}
 
             {/* Invite code — every member can pass it along */}
             {group.myRole && group.invite_code ? (

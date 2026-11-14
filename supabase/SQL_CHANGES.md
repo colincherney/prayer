@@ -533,3 +533,23 @@ server-only configuration, allowing Apple sandbox receipts for TestFlight.
 Deployed subscription verification that requires the matching store, so Test Store
 receipts cannot grant production subscription access. RevenueCat notifications now
 target the App Store app in both sandbox and production environments.
+
+## Prayer notifications (2026-11-14)
+
+Applied `20261114072417_prayer_notifications.sql` and deployed `notify-prayer-activity` v2.
+Added self-only group notification preferences, a service-only group prayer outbox,
+reflection reminder preferences and atomic claim RPCs, and Expo receipt tracking.
+New approved group prayers queue alerts for other opted-in members. Leaving removes
+the membership's preferences and pending alerts. Reflection reminders are opt-in,
+use the user's local time, and require at least one approved posted prayer.
+
+The `notify_prayer_activity` cron runs every minute through the existing dispatcher.
+The function requires the runtime service credential or an exact match with the
+private scheduler's legacy service-role credential; gateway JWT verification stays on.
+A live dispatch returned HTTP 200 with no messages due. SQL regression tests passed
+in rolled-back transactions before and after deployment, with no fixtures left behind.
+All 64 Node tests pass and the Android production bundle exports successfully.
+See `docs/prayer-notifications.md` for behavior, verification, and existing web build limitations.
+
+To pause this feature without changing data, deactivate the `notify_prayer_activity`
+job in Supabase Cron. Existing daily and social-proof jobs remain separate.

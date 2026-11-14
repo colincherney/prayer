@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { supabase } from './supabase';
@@ -20,6 +21,9 @@ export type NotificationPrefs = {
   daily_reminder_enabled: boolean;
   daily_reminder_hour: number | null;
   daily_reminder_minute: number | null;
+  reflection_reminder_enabled: boolean;
+  reflection_reminder_interval_days: number;
+  reflection_reminder_hour: number;
   timezone: string | null;
 };
 
@@ -29,6 +33,9 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   daily_reminder_enabled: false,
   daily_reminder_hour: null,
   daily_reminder_minute: null,
+  reflection_reminder_enabled: false,
+  reflection_reminder_interval_days: 2,
+  reflection_reminder_hour: 19,
   timezone: null,
 };
 
@@ -44,7 +51,7 @@ async function ensureAndroidChannel() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('default', {
     name: 'Prayer notifications',
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#208AEF',
   });
@@ -91,7 +98,7 @@ export async function savePushToken(userId: string, token: string) {
     p_token: token,
     p_platform: platform,
   });
-  if (tErr) console.warn('register_push_token failed', tErr);
+  if (tErr) throw tErr;
 
   // Ensure a prefs row exists so cron jobs can read defaults; capture timezone.
   const tz = detectTimezone();
@@ -105,15 +112,16 @@ export async function savePushToken(userId: string, token: string) {
       },
       { onConflict: 'user_id', ignoreDuplicates: false },
     );
-  if (pErr) console.warn('prefs upsert failed', pErr);
+  if (pErr) throw pErr;
 }
 
 export async function loadPrefs(userId: string): Promise<NotificationPrefs> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('notification_preferences')
-    .select('comments_enabled, social_proof_enabled, daily_reminder_enabled, daily_reminder_hour, daily_reminder_minute, timezone')
+    .select('comments_enabled, social_proof_enabled, daily_reminder_enabled, daily_reminder_hour, daily_reminder_minute, reflection_reminder_enabled, reflection_reminder_interval_days, reflection_reminder_hour, timezone')
     .eq('user_id', userId)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return { ...DEFAULT_PREFS, timezone: detectTimezone() };
   return {
     comments_enabled: data.comments_enabled ?? true,
@@ -121,8 +129,52 @@ export async function loadPrefs(userId: string): Promise<NotificationPrefs> {
     daily_reminder_enabled: data.daily_reminder_enabled ?? false,
     daily_reminder_hour: data.daily_reminder_hour ?? null,
     daily_reminder_minute: data.daily_reminder_minute ?? null,
+    reflection_reminder_enabled: data.reflection_reminder_enabled ?? false,
+    reflection_reminder_interval_days: data.reflection_reminder_interval_days ?? 2,
+    reflection_reminder_hour: data.reflection_reminder_hour ?? 19,
     timezone: data.timezone ?? detectTimezone(),
   };
+}
+
+export type GroupNotificationPrefs = {
+  groupId: string;
+  name: string;
+  enabled: boolean;
+};
+
+export async function loadGroupNotificationPrefs(userId: string): Promise<GroupNotificationPrefs[]> {
+  const [memberships, preferences] = await Promise.all([
+    supabase.from('group_members').select('group_id, groups(name)').eq('user_id', userId),
+    supabase.from('group_notification_preferences').select('group_id, prayers_enabled').eq('user_id', userId),
+  ]);
+  if (memberships.error) throw memberships.error;
+  if (preferences.error) throw preferences.error;
+  const enabledByGroup = new Map((preferences.data ?? []).map(p => [p.group_id, p.prayers_enabled]));
+  return (memberships.data ?? []).flatMap(m => {
+    const group = m.groups as unknown as { name: string } | null;
+    return group ? [{ groupId: m.group_id as string, name: group.name, enabled: enabledByGroup.get(m.group_id) ?? true }] : [];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadGroupPrayerNotificationPref(userId: string, groupId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('group_notification_preferences')
+    .select('prayers_enabled').eq('user_id', userId).eq('group_id', groupId).maybeSingle();
+  if (error) throw error;
+  return data?.prayers_enabled ?? true;
+}
+
+export async function updateGroupPrayerNotificationPref(userId: string, groupId: string, enabled: boolean) {
+  const { error } = await supabase.from('group_notification_preferences').upsert({
+    user_id: userId, group_id: groupId, prayers_enabled: enabled, updated_at: new Date().toISOString(),
+  }, { onConflict: 'group_id,user_id' });
+  if (error) throw error;
+}
+
+export async function enablePushNotifications(userId: string): Promise<boolean> {
+  const token = await registerForPushNotifications();
+  if (!token) return false;
+  await savePushToken(userId, token);
+  return true;
 }
 
 export async function updatePrefs(userId: string, patch: Partial<NotificationPrefs>) {
