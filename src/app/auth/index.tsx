@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Pill, PrimaryButton, ScriptureTicker, Squiggle } from '@/components/saint/Common';
 import { HeroIllustration } from '@/components/saint/Hero';
@@ -41,7 +41,7 @@ export default function AuthWelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       <View style={{ marginTop: 8, marginBottom: 14 }}>
         <ScriptureTicker verses={VERSES.slice(0, 3)} speed={26} />
@@ -164,8 +164,7 @@ const styles = StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -177,8 +176,7 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   subtitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   illustration: {
@@ -228,8 +226,7 @@ const styles = StyleSheet.create({
     color: THEME.inkSoft,
   },
   skipFootnote: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12,
     lineHeight: 17,
     color: THEME.muted,

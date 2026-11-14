@@ -1,21 +1,33 @@
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StatusBar,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   View,
+  ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
+import { lyingFeetOffset } from '@/components/pets/LyingPets';
+import { ScreenPet } from '@/components/pets/ScreenPet';
 import {
   Pill,
   PrimaryButton,
@@ -35,10 +47,11 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { relativeTime } from '@/lib/time';
 
 type Phase = 'intent' | 'searching' | 'paired' | 'praying' | 'blessing';
 
-type Partner = { body: string };
+type Partner = { body: string; ageLabel: string };
 
 const ANONYMOUS_LABEL = 'An anonymous soul';
 
@@ -107,6 +120,7 @@ export default function PairingScreen() {
       }
       setPartner({
         body: p.body as string,
+        ageLabel: p.created_at ? `Shared ${relativeTime(p.created_at as string)}` : ANONYMOUS_LABEL,
       });
       setSubmitting(false);
       setPhase('paired');
@@ -189,7 +203,7 @@ const IntentPhase: React.FC<{
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -222,7 +236,7 @@ const IntentPhase: React.FC<{
             placeholder="One or two sentences. They'll see only this — never your name."
             placeholderTextColor={THEME.muted}
             multiline
-            maxLength={240}
+            maxLength={1000}
             style={styles.intentInput}
           />
           <View style={styles.intentFoot}>
@@ -230,24 +244,36 @@ const IntentPhase: React.FC<{
               <ShieldIcon size={11} color={THEME.muted} />
               <Text style={styles.intentFootText}>Not saved to your account</Text>
             </View>
-            <Text style={styles.intentFootText}>{intent.length}/240</Text>
+            <Text style={styles.intentFootText}>{intent.length}/1000</Text>
           </View>
         </View>
 
         {error ? <Text style={styles.intentError}>{error}</Text> : null}
-        <PrimaryButton
-          label={submitting ? '' : 'Find a prayer partner'}
-          rightIcon={
-            submitting ? (
-              <ActivityIndicator color={THEME.accentInk} />
-            ) : (
-              <ArrowIcon size={16} color={THEME.accentInk} />
-            )
-          }
-          disabled={!intent.trim() || !!submitting}
-          onPress={onNext}
-          style={{ marginTop: 24 }}
-        />
+        {/* Your companion dozes on the button, wakes when you start typing, and watches while a partner is found. */}
+        <View style={{ marginTop: 76 }}>
+          <PrimaryButton
+            label={submitting ? '' : 'Find a prayer partner'}
+            rightIcon={
+              submitting ? (
+                <ActivityIndicator color={THEME.accentInk} />
+              ) : (
+                <ArrowIcon size={16} color={THEME.accentInk} />
+              )
+            }
+            disabled={!intent.trim() || !!submitting}
+            onPress={onNext}
+          />
+          <View pointerEvents="box-none" style={{ position: 'absolute', right: 22, top: 4 - lyingFeetOffset(132) }}>
+            <ScreenPet
+              size={132}
+              pose="lie"
+              sleepy={!intent.trim() && !submitting}
+              watching={!!submitting}
+              zAt={{ x: 44, y: -8 }}
+              interactive
+            />
+          </View>
+        </View>
         <Text style={styles.endVerse}>
           &ldquo;Where two or three gather in my name, there am I.&rdquo; — Matthew 18:20
         </Text>
@@ -259,48 +285,39 @@ const IntentPhase: React.FC<{
 };
 
 /* -------------------- Phase 2: searching -------------------- */
+// One expanding ring; each starts 800ms after the previous so they stagger.
+const SearchRipple: React.FC<{ index: number; style: StyleProp<ViewStyle> }> = ({ index, style }) => {
+  const v = useSharedValue(0);
+
+  useEffect(() => {
+    v.set(
+      withDelay(
+        index * 800,
+        withRepeat(withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }), -1),
+      ),
+    );
+    return () => cancelAnimation(v);
+  }, [v, index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(v.get(), [0, 1], [0.6, 0]),
+    transform: [{ scale: interpolate(v.get(), [0, 1], [0.6, 1.4]) }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]} />;
+};
+
 const SearchingPhase: React.FC<{ progress: number }> = ({ progress }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const ripples = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
-
-  useEffect(() => {
-    const loops = ripples.map((v, i) => {
-      v.setValue(0);
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * 800),
-          Animated.timing(v, {
-            toValue: 1,
-            duration: 2400,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-    });
-    loops.forEach(l => l.start());
-    return () => loops.forEach(l => l.stop());
-  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.searchRoot}>
         <View style={styles.searchRippleWrap}>
-          {ripples.map((v, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.searchRipple,
-                {
-                  opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-                  transform: [
-                    { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.4] }) },
-                  ],
-                },
-              ]}
-            />
+          {[0, 1, 2].map(i => (
+            <SearchRipple key={i} index={i} style={styles.searchRipple} />
           ))}
           <View style={styles.searchCore}>
             <PrayingIcon size={36} color={THEME.cardDarkInk} />
@@ -330,7 +347,7 @@ const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => v
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
       <View style={{ paddingTop: 20, paddingHorizontal: 22, alignItems: 'center' }}>
         <Pill icon={<SparkleIcon size={11} color={THEME.pillInk} />}>Paired anonymously</Pill>
@@ -346,7 +363,7 @@ const PairedPhase: React.FC<{ intent: string; partner: Partner; onBegin: () => v
               <UserIcon size={20} color={THEME.muted} />
             </View>
             <View>
-              <Text style={styles.partnerLoc}>{ANONYMOUS_LABEL}</Text>
+              <Text style={styles.partnerLoc}>{partner.ageLabel}</Text>
               <Text style={styles.partnerLabel}>YOUR PARTNER</Text>
             </View>
           </View>
@@ -387,18 +404,19 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const breathe = useRef(new Animated.Value(0)).current;
+  const breathe = useSharedValue(0);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, { toValue: 1, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(breathe, { toValue: 0, duration: 4000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
+    breathe.set(
+      withRepeat(withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }), -1, true),
     );
-    loop.start();
-    return () => loop.stop();
-  }, []);
+    return () => cancelAnimation(breathe);
+  }, [breathe]);
+
+  const breatheStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(breathe.get(), [0, 1], [0.6, 1]),
+    transform: [{ scale: interpolate(breathe.get(), [0, 1], [0.85, 1.1]) }],
+  }));
 
   const mm = String(Math.floor(timer / 60));
   const ss = String(timer % 60).padStart(2, '0');
@@ -406,24 +424,16 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: THEME.cardDark }]} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.cardDark} />
+      <StatusBar barStyle="light-content" />
       <View style={styles.prayingRoot}>
         <Animated.View
-          style={[
-            styles.breathe,
-            {
-              opacity: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }),
-              transform: [
-                { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.1] }) },
-              ],
-            },
-          ]}
+          style={[styles.breathe, breatheStyle]}
         />
         <View style={styles.prayingTop}>
           <Pill bg="rgba(255,255,255,0.1)" fg={THEME.cardDarkInk} icon={<SparkleIcon size={11} color={THEME.cardDarkInk} />}>
             Praying together
           </Pill>
-          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{ANONYMOUS_LABEL}</Text>
+          <Text style={{ color: THEME.cardDarkInk, opacity: 0.7, fontSize: 12 }}>{partner.ageLabel}</Text>
         </View>
 
         <View style={styles.prayingMid}>
@@ -453,7 +463,7 @@ const BlessingPhase: React.FC<{ onAgain: () => void; onDone: () => void }> = ({ 
   const styles = useThemedStyles(makeStyles);
   return (
   <SafeAreaView style={styles.safe} edges={['top']}>
-    <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+    <StatusBar barStyle="dark-content" />
     <View style={styles.blessRoot}>
       <View style={styles.blessInner}>
         <View style={styles.blessIconWrap}>
@@ -538,8 +548,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     textAlign: 'center',
   },
   endVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12.5,
     color: THEME.muted,
     textAlign: 'center',
@@ -573,10 +582,9 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  searchTitleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.accent },
+  searchTitleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   searchBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.muted,
     textAlign: 'center',
@@ -605,8 +613,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.3,
   },
   pairedSubtitle: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.muted,
     marginBottom: 22,
@@ -658,8 +665,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   prayingTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   prayingMid: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   breatheText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: THEME.cardDarkInk,
     opacity: 0.75,
@@ -681,8 +687,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   timerFill: { height: '100%', backgroundColor: THEME.accent, borderRadius: 2 },
   partnerSnippet: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 16,
     lineHeight: 24,
     color: THEME.cardDarkInk,
@@ -721,7 +726,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 12,
     letterSpacing: -0.4,
   },
-  confirmTitleItalic: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', color: THEME.ink },
+  confirmTitleItalic: { fontFamily: FONTS.display, color: THEME.ink },
   blessBody: {
     fontFamily: FONTS.body,
     fontSize: 15,
@@ -732,8 +737,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 24,
   },
   blessVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: THEME.muted,
     textAlign: 'center',

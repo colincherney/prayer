@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { useAppearanceMode } from '@/components/saint/appearanceMode';
 import { DustMotes } from '@/components/saint/DustMotes';
@@ -14,9 +14,15 @@ import {
   SparkleIcon,
   StarIcon,
 } from '@/components/saint/Icons';
+import { HomePet } from '@/components/pets/HomePet';
+import { ChristmasScene } from '@/components/saint/ChristmasScene';
+import { MONTHLY_ROOMS, MonthlyRoomName } from '@/components/saint/monthlyRooms';
+import { MONTHLY_SCENES } from '@/components/saint/monthlyScenes';
+import { HalloweenScene } from '@/components/saint/HalloweenScene';
 import { LamplitScene } from '@/components/saint/LamplitScene';
 import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
+import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
 import {
   Pill,
@@ -29,9 +35,12 @@ import {
   Theme,
   useTheme,
   useThemedStyles,
+  CHRISTMAS_VERSES,
+  HALLOWEEN_VERSES,
+  THANKSGIVING_VERSES,
   VERSES,
 } from '@/components/saint/theme';
-import { usePrayerRoom } from '@/components/saint/prayerRoom';
+import { PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 export default function HomeScreen() {
@@ -52,7 +61,7 @@ function ThemeHomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       {/* Top scripture ticker */}
       <View style={{ marginTop: 8, marginBottom: 14 }}>
@@ -88,6 +97,7 @@ function ThemeHomeScreen() {
         <View style={styles.heroIllustration} pointerEvents="none">
           <HeroIllustration width={200} height={220} />
         </View>
+        <HomePet variant="theme" accent={THEME.accent} />
       </View>
 
       {/* Mid scripture ticker */}
@@ -196,8 +206,7 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     maxWidth: 220,
   },
   heroHope: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   heroIllustration: {
@@ -268,14 +277,12 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     marginTop: 8,
   },
   cardVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 10.5,
     marginTop: 8,
   },
   cardCite: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 10.5,
     color: THEME.muted,
     marginBottom: 6,
@@ -300,7 +307,20 @@ function RoomHomeScreen() {
         ? StarlitGardenScene
         : roomName === 'jungle'
           ? RainforestVigilScene
-          : LamplitScene;
+          : roomName === 'halloween'
+            ? HalloweenScene
+            : roomName === 'thanksgiving'
+              ? ThanksgivingScene
+              : roomName === 'christmas'
+                ? ChristmasScene
+                : roomName in MONTHLY_SCENES
+                  ? MONTHLY_SCENES[roomName as MonthlyRoomName]
+                  : LamplitScene;
+  // Seasonal and monthly rooms have their own verses, pill and tagline word.
+  const seasonal = seasonalCopy(roomName);
+  const topVerses = seasonal ? seasonal.top : VERSES.slice(0, 3);
+  const midVerses = seasonal ? seasonal.mid : VERSES.slice(1, 4);
+  const lowVerses = seasonal ? seasonal.low : VERSES.slice(2, 5);
 
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
@@ -308,12 +328,12 @@ function RoomHomeScreen() {
       <DustMotes count={26} />
 
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle={ROOM.statusBar} backgroundColor="transparent" translucent />
+        <StatusBar barStyle={ROOM.statusBar} />
 
         {/* Top scripture ticker */}
         <View style={{ marginTop: 8, marginBottom: 14 }}>
           <ScriptureTicker
-            verses={VERSES.slice(0, 3)}
+            verses={topVerses}
             speed={26}
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />
@@ -325,7 +345,7 @@ function RoomHomeScreen() {
             bg={ROOM.pillBg}
             fg={ROOM.pillInk}
             icon={<ShieldIcon size={11} color={ROOM.accent} />}>
-            Anonymous Prayer
+            {seasonal ? seasonal.pill : 'Anonymous Prayer'}
           </Pill>
           <View style={styles.sparkles}>
             <SparkleIcon size={10} color={ROOM.muted} />
@@ -352,18 +372,19 @@ function RoomHomeScreen() {
           <Text style={[styles.heroSubtitle, { color: ROOM.inkSoft }]}>
             Pray anonymously.{'\n'}
             Lift others. Find{' '}
-            <Text style={[styles.heroHope, { color: ROOM.accent }]}>hope</Text>.
+            <Text style={[styles.heroHope, { color: ROOM.accent }]}>{seasonal ? seasonal.word : 'hope'}</Text>.
           </Text>
           <View style={{ marginTop: 8 }}>
             <Squiggle color={ROOM.accent} w={36} opacity={0.5} />
           </View>
+          <HomePet variant={roomName} accent={ROOM.accent} />
         </View>
 
         {/* Mid scripture ticker — bracketed by hairline dividers like the
             mock's mid marquee. */}
         <View style={[styles.midTickerWrap, { borderColor: ROOM.divider }]}>
           <ScriptureTicker
-            verses={VERSES.slice(1, 4)}
+            verses={midVerses}
             speed={22}
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />
@@ -435,14 +456,35 @@ function RoomHomeScreen() {
         {/* Bottom scripture ticker */}
         <View style={{ marginTop: 14 }}>
           <ScriptureTicker
-            verses={VERSES.slice(2, 5)}
+            verses={lowVerses}
             speed={24}
-            theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
+            theme={{ ...EMPTY_THEME, muted: ROOM.lowMuted ?? ROOM.muted }}
           />
         </View>
       </SafeAreaView>
     </View>
   );
+}
+
+type Verse = { text: string; ref: string };
+type SeasonalCopy = { top: Verse[]; mid: Verse[]; low: Verse[]; pill: string; word: string };
+
+/** Three verses for the top ticker, two each for the middle and bottom. */
+const split = (v: Verse[]) => ({ top: v.slice(0, 3), mid: v.slice(3, 5), low: v.slice(5, 7) });
+
+/** The seasonal rooms' verses, the pill over the title, and the last word of "Find ___." */
+const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
+  halloween: { ...split(HALLOWEEN_VERSES), pill: "All Hallows' Eve", word: 'light' },
+  thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
+  christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
+};
+
+function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {
+  if (room in MONTHLY_ROOMS) {
+    const m = MONTHLY_ROOMS[room as MonthlyRoomName];
+    return { ...m.verses, pill: m.banner, word: m.word };
+  }
+  return SEASONAL_COPY[room];
 }
 
 // Stub theme passed to ScriptureTicker — only `muted` is read for color.
@@ -496,8 +538,7 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   heroHope: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
   },
   midTickerWrap: {
     marginTop: 14,
@@ -569,14 +610,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   cardVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 11,
     marginTop: 8,
   },
   cardCite: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 11,
     marginBottom: 6,
   },

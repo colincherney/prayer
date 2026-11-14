@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pet concepts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Nunito+Sans:wght@400;600;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#E8B04B}a:hover{color:#F5CD7A}
+.bob{animation:bob 3s ease-in-out infinite}
+.bob.d2{animation-delay:.5s}.bob.d3{animation-delay:1s}.bob.d4{animation-delay:1.5s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+@keyframes blink{0%,91%,100%{transform:scaleY(1)}94%{transform:scaleY(.1)}}
+.flicker{transform-box:fill-box;transform-origin:50% 100%;animation:flicker 1.6s ease-in-out infinite}
+@keyframes flicker{0%,100%{transform:scale(1,1) rotate(0)}30%{transform:scale(.96,1.05) rotate(-2deg)}60%{transform:scale(1.03,.97) rotate(2deg)}}
+@media (prefers-reduced-motion: reduce){.bob,.blink,.flicker{animation:none}}
+</style>
+</helmet>
+<div style="width: 1240px; height: 640px; box-sizing: border-box; padding: 56px; display: flex; flex-direction: column; gap: 36px; background: #12152A; color: #F3ECDF; font-family: 'Nunito Sans', sans-serif">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h1 style="margin: 0; font-family: Fraunces, serif; font-size: 44px; font-weight: 600">Prayer companions</h1>
+<p style="margin: 0; font-size: 18px; color: #B9B2C9">Each one grows when you post a prayer or pray for someone.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; flex-grow: 1">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 24px; background: #1C2038">
+<div style="height: 200px; display: flex; align-items: center; justify-content: center">
+<svg class="bob" viewBox="0 0 200 200" width="180" height="180" role="img" aria-label="Pip the lamb">
+<ellipse cx="100" cy="184" rx="52" ry="8" fill="#000" opacity="0.35"></ellipse>
+<rect x="72" y="140" width="11" height="38" rx="5.5" fill="#4A3F3A"></rect>
+<rect x="117" y="140" width="11" height="38" rx="5.5" fill="#4A3F3A"></rect>
+<g fill="#F7F2E8"><circle cx="66" cy="122" r="26"></circle><circle cx="100" cy="114" r="34"></circle><circle cx="134" cy="122" r="26"></circle><circle cx="82" cy="142" r="24"></circle><circle cx="118" cy="142" r="24"></circle></g>
+<ellipse cx="72" cy="80" rx="14" ry="7" fill="#E9D3BA" transform="rotate(-22 72 80)"></ellipse>
+<ellipse cx="128" cy="80" rx="14" ry="7" fill="#E9D3BA" transform="rotate(22 128 80)"></ellipse>
+<ellipse cx="100" cy="88" rx="25" ry="23" fill="#F1E2CC"></ellipse>
+<g fill="#F7F2E8"><circle cx="90" cy="66" r="9"></circle><circle cx="100" cy="62" r="10"></circle><circle cx="110" cy="66" r="9"></circle></g>
+<g class="blink"><circle cx="91" cy="88" r="3.6" fill="#2B2420"></circle><circle cx="109" cy="88" r="3.6" fill="#2B2420"></circle></g>
+<circle cx="85" cy="97" r="4" fill="#E8998A" opacity="0.6"></circle>
+<circle cx="115" cy="97" r="4" fill="#E8998A" opacity="0.6"></circle>
+<path d="M96 99 Q100 103 104 99" stroke="#2B2420" stroke-width="2" fill="none" stroke-linecap="round"></path>
+</svg>
+</div>
+<h2 style="margin: 0; font-family: Fraunces, serif; font-size: 26px; font-weight: 600">Pip the Lamb</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #CFC8DC">Lambkin → Little Lamb → Lamb of Light. Gains a halo at Level 3 and sparkles at Level 5.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 24px; background: #1C2038">
+<div style="height: 200px; display: flex; align-items: center; justify-content: center">
+<svg class="bob d2" viewBox="0 0 200 200" width="180" height="180" role="img" aria-label="Olive the dove">
+<ellipse cx="100" cy="184" rx="48" ry="7" fill="#000" opacity="0.35"></ellipse>
+<path d="M58 112 L18 96 L30 122 L18 146 L62 128 Z" fill="#E6E1D7"></path>
+<ellipse cx="100" cy="118" rx="50" ry="32" fill="#F7F5F0"></ellipse>
+<circle cx="140" cy="86" r="21" fill="#F7F5F0"></circle>
+<path d="M72 106 Q104 70 134 108 Q102 130 72 106 Z" fill="#E4DFD5"></path>
+<g class="blink"><circle cx="146" cy="83" r="3.4" fill="#2B2420"></circle></g>
+<circle cx="140" cy="94" r="3.5" fill="#E8998A" opacity="0.6"></circle>
+<path d="M159 86 L174 91 L159 96 Z" fill="#E8A24B"></path>
+<path d="M170 94 Q182 110 176 130" stroke="#6E8B4E" stroke-width="3" fill="none" stroke-linecap="round"></path>
+<ellipse cx="182" cy="106" rx="8" ry="4" fill="#8DAA62" transform="rotate(40 182 106)"></ellipse>
+<ellipse cx="170" cy="118" rx="8" ry="4" fill="#8DAA62" transform="rotate(-30 170 118)"></ellipse>
+<ellipse cx="183" cy="126" rx="8" ry="4" fill="#8DAA62" transform="rotate(30 183 126)"></ellipse>
+<path d="M92 148 L90 172 M110 148 L112 172" stroke="#E8A24B" stroke-width="4" stroke-linecap="round"></path>
+</svg>
+</div>
+<h2 style="margin: 0; font-family: Fraunces, serif; font-size: 26px; font-weight: 600">Olive the Dove</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #CFC8DC">Her olive branch grows a leaf each level, and her tail trails light from Level 5.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 24px; background: #1C2038">
+<div style="height: 200px; display: flex; align-items: center; justify-content: center">
+<svg class="bob d3" viewBox="0 0 200 200" width="180" height="180" role="img" aria-label="Judah the lion cub">
+<ellipse cx="100" cy="184" rx="50" ry="8" fill="#000" opacity="0.35"></ellipse>
+<ellipse cx="100" cy="158" rx="36" ry="22" fill="#E3A957"></ellipse>
+<ellipse cx="78" cy="176" rx="12" ry="7" fill="#EDB565"></ellipse>
+<ellipse cx="122" cy="176" rx="12" ry="7" fill="#EDB565"></ellipse>
+<g fill="#C77A35"><circle cx="100" cy="92" r="50"></circle><circle cx="58" cy="78" r="18"></circle><circle cx="142" cy="78" r="18"></circle><circle cx="62" cy="116" r="18"></circle><circle cx="138" cy="116" r="18"></circle><circle cx="100" cy="44" r="18"></circle><circle cx="100" cy="138" r="16"></circle></g>
+<circle cx="74" cy="64" r="11" fill="#EDB565"></circle>
+<circle cx="126" cy="64" r="11" fill="#EDB565"></circle>
+<circle cx="74" cy="64" r="5.5" fill="#D9955A"></circle>
+<circle cx="126" cy="64" r="5.5" fill="#D9955A"></circle>
+<circle cx="100" cy="94" r="34" fill="#EDB565"></circle>
+<ellipse cx="100" cy="108" rx="16" ry="12" fill="#F6D9A8"></ellipse>
+<g class="blink"><circle cx="88" cy="90" r="3.8" fill="#2B2420"></circle><circle cx="112" cy="90" r="3.8" fill="#2B2420"></circle></g>
+<path d="M94 102 L106 102 L100 109 Z" fill="#6B3F2A"></path>
+<path d="M100 109 Q95 115 91 112 M100 109 Q105 115 109 112" stroke="#6B3F2A" stroke-width="2" fill="none" stroke-linecap="round"></path>
+<circle cx="80" cy="102" r="4" fill="#E8998A" opacity="0.6"></circle>
+<circle cx="120" cy="102" r="4" fill="#E8998A" opacity="0.6"></circle>
+</svg>
+</div>
+<h2 style="margin: 0; font-family: Fraunces, serif; font-size: 26px; font-weight: 600">Judah the Lion Cub</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #CFC8DC">Starts with a fuzzy little mane that fills out and turns golden as he levels up.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 24px; background: #1C2038">
+<div style="height: 200px; display: flex; align-items: center; justify-content: center">
+<svg class="bob d4" viewBox="0 0 200 200" width="180" height="180" role="img" aria-label="Ember the vigil candle">
+<circle cx="100" cy="82" r="62" fill="#F2A93B" opacity="0.16"></circle>
+<ellipse cx="100" cy="184" rx="40" ry="7" fill="#000" opacity="0.35"></ellipse>
+<rect x="74" y="118" width="52" height="62" rx="8" fill="#F3EBDD"></rect>
+<path d="M74 128 Q74 118 84 118 L116 118 Q126 118 126 128 L126 134 Q120 134 120 142 Q114 142 114 134 L90 134 Q90 146 84 146 Q80 146 80 134 L74 134 Z" fill="#FFF8EC"></path>
+<rect x="98" y="108" width="4" height="12" rx="2" fill="#4A3F3A"></rect>
+<g class="flicker">
+<path d="M100 22 C132 62 130 100 100 112 C70 100 68 62 100 22 Z" fill="#F2A93B"></path>
+<path d="M100 48 C120 74 118 98 100 106 C82 98 80 74 100 48 Z" fill="#FFE08A"></path>
+</g>
+<g class="blink"><circle cx="93" cy="84" r="3.4" fill="#2B2420"></circle><circle cx="107" cy="84" r="3.4" fill="#2B2420"></circle></g>
+<path d="M96 93 Q100 97 104 93" stroke="#2B2420" stroke-width="2" fill="none" stroke-linecap="round"></path>
+</svg>
+</div>
+<h2 style="margin: 0; font-family: Fraunces, serif; font-size: 26px; font-weight: 600">Ember</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #CFC8DC">A vigil candle that burns taller and brighter with each level. A natural fit for the candlelit vigil.</p>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

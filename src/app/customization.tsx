@@ -11,15 +11,15 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { AppearanceMode, useAppearanceMode } from '@/components/saint/appearanceMode';
 import { BackIcon } from '@/components/saint/Icons';
 import {
   PRAYER_ROOM_LABELS,
-  PRAYER_ROOM_ORDER,
   PRAYER_ROOMS,
   PrayerRoomName,
+  useAvailableRooms,
   usePrayerRoom,
 } from '@/components/saint/prayerRoom';
 import {
@@ -384,6 +384,88 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room.startsWith('m2027')) {
+    // A monthly room: its sky, a glow in its accent, and the dark card color as a hill.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View style={{ position: 'absolute', right: 16, top: 10, width: 20, height: 20, borderRadius: 10, backgroundColor: palette.accent, opacity: 0.8 }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -18, height: 40, borderRadius: 40, backgroundColor: palette.accentSoft, opacity: 0.55 }} />
+      </View>
+    );
+  }
+  if (room === 'thanksgiving') {
+    // Give Thanks — golden sky, a low sun, brown fields, a hay bale.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#EEC08E' }}>
+        <View style={{ position: 'absolute', left: '50%', top: 20, marginLeft: -15, width: 30, height: 30, borderRadius: 15, backgroundColor: '#FBE3A6' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 36, borderRadius: 36, backgroundColor: '#A85F38' }} />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10, backgroundColor: '#6E3E24' }} />
+        <View style={{ position: 'absolute', right: 16, bottom: 12, width: 24, height: 10, borderRadius: 3, backgroundColor: '#D9B25A' }} />
+      </View>
+    );
+  }
+  if (room === 'christmas') {
+    // God With Us — navy sky, the star, snowy hill, a pine.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View style={{ position: 'absolute', right: 20, top: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#F7DFA0', opacity: 0.35 }} />
+        <View style={{ position: 'absolute', right: 27, top: 13, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF0C2' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -18, height: 40, borderRadius: 40, backgroundColor: '#C9D7EA' }} />
+        <View style={{ position: 'absolute', left: 14, bottom: 10, width: 0, height: 0, borderLeftWidth: 9, borderRightWidth: 9, borderBottomWidth: 20, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#1E3A3A' }} />
+      </View>
+    );
+  }
+  if (room === 'halloween') {
+    // All Hallows' Eve — plum sky, big pale moon, dark hill, a glowing pumpkin.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View
+          style={{
+            position: 'absolute',
+            right: 14,
+            top: 8,
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: '#f4e3b5',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: -20,
+            right: -20,
+            bottom: -18,
+            height: 40,
+            borderRadius: 40,
+            backgroundColor: '#2a1b3a',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 18,
+            bottom: 8,
+            width: 20,
+            height: 17,
+            borderRadius: 9,
+            backgroundColor: '#e07e34',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 24,
+            bottom: 13,
+            width: 8,
+            height: 3,
+            borderRadius: 2,
+            backgroundColor: '#ffe08a',
+          }}
+        />
+      </View>
+    );
+  }
   // lamp — dusky scene with a warm halo
   return (
     <View
@@ -436,12 +518,13 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
 
 const PrayerRoomPicker: React.FC = () => {
   const { name, setRoom } = usePrayerRoom();
+  const rooms = useAvailableRooms();
   const { setMode } = useAppearanceMode();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.roomRow}>
-      {PRAYER_ROOM_ORDER.map(key => {
+      {rooms.map(key => {
         const active = key === name;
         return (
           <Pressable
@@ -548,7 +631,7 @@ export default function CustomizationScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <Pressable onPress={() => router.back()} style={styles.iconBtnSurface}>
@@ -640,8 +723,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -781,7 +863,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderRadius: 2,
   },
   iconPendingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.04)',
     alignItems: 'center',
     justifyContent: 'center',

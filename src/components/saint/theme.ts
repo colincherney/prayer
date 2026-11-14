@@ -2,6 +2,8 @@
 // are alternates the user can pick from on the Me page.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { saveEntryToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import React, {
   createContext,
   useCallback,
@@ -47,6 +49,13 @@ export function relativeLuminance(hex: string): number {
   const g = parseInt(c.substring(2, 4), 16) / 255;
   const b = parseInt(c.substring(4, 6), 16) / 255;
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Blends two 6-digit hex colors: 0 gives `from`, 1 gives `to`. */
+export function mixColors(from: string, to: string, amount: number): string {
+  const channel = (hex: string, index: number) => parseInt(hex.replace('#', '').substring(index * 2, index * 2 + 2), 16);
+  const mixed = [0, 1, 2].map(index => Math.round(channel(from, index) + (channel(to, index) - channel(from, index)) * amount));
+  return `#${mixed.map(value => value.toString(16).padStart(2, '0')).join('')}`;
 }
 
 const CREAM: Theme = {
@@ -160,6 +169,7 @@ export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [name, setName] = useState<ThemeName>('cream');
 
+  const cloudVersion = useCloudVersion();
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(stored => {
@@ -170,12 +180,14 @@ export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })
       .catch(() => {});
-  }, []);
+    // Runs again when the account's copy arrives (a new phone), which may have a different look.
+  }, [cloudVersion]);
 
   const setTheme = useCallback((next: ThemeName) => {
     Object.assign(THEME, THEMES[next]);
     setName(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+    saveEntryToCloud('appearance', 'theme', next);
   }, []);
 
   const value = useMemo<ThemeCtx>(
@@ -243,15 +255,49 @@ export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
   return useMemo(() => factory(theme), [theme, factory]);
 }
 
+/** One Inter family throughout the app; each role uses its actual font weight. */
 export const FONTS = {
-  display: 'PlayfairDisplay_500Medium',
-  displaySemi: 'PlayfairDisplay_600SemiBold',
-  displayItalic: 'PlayfairDisplay_500Medium_Italic',
+  display: 'Inter_500Medium',
+  displaySemi: 'Inter_600SemiBold',
+  displayItalic: 'Inter_500Medium_Italic',
   body: 'Inter_400Regular',
   bodyMed: 'Inter_500Medium',
   bodySemi: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
-};
+} as const;
+
+/** Light-themed verses for the All Hallows' Eve room's scripture tickers. */
+export const HALLOWEEN_VERSES = [
+  { text: 'Your word is a lamp to my feet', ref: 'Psalm 119:105' },
+  { text: 'The light shines in the darkness', ref: 'John 1:5' },
+  { text: 'Let your light shine', ref: 'Matthew 5:16' },
+  { text: 'Even the darkness is not dark to You', ref: 'Psalm 139:12' },
+  { text: 'I am the light of the world', ref: 'John 8:12' },
+  { text: 'The Lord is my light and my salvation', ref: 'Psalm 27:1' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the Give Thanks room: three for the top ticker, two for the middle, two for the bottom. */
+export const THANKSGIVING_VERSES = [
+  { text: 'Give thanks to the Lord, for He is good', ref: 'Psalm 107:1' },
+  { text: 'In everything give thanks', ref: '1 Thessalonians 5:18' },
+  { text: 'Enter His gates with thanksgiving', ref: 'Psalm 100:4' },
+  { text: 'Every good and perfect gift is from above', ref: 'James 1:17' },
+  { text: 'Come before Him with thanksgiving', ref: 'Psalm 95:2' },
+  { text: 'This is the day the Lord has made', ref: 'Psalm 118:24' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the God With Us room, laid out the same way. */
+export const CHRISTMAS_VERSES = [
+  { text: 'For unto us a child is born', ref: 'Isaiah 9:6' },
+  { text: 'Glory to God in the highest', ref: 'Luke 2:14' },
+  { text: 'The people in darkness have seen a great light', ref: 'Isaiah 9:2' },
+  { text: 'They shall call His name Emmanuel', ref: 'Matthew 1:23' },
+  { text: 'The Word became flesh', ref: 'John 1:14' },
+  { text: 'Sing to the Lord a new song', ref: 'Psalm 98:1' },
+  { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
 
 export const VERSES = [
   { text: 'Pray without ceasing', ref: '1 Thessalonians 5:17' },

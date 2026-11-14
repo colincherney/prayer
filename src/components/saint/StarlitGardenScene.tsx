@@ -1,5 +1,15 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { useIsFocused } from 'expo-router';
+import React, { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, {
   Circle,
   Defs,
@@ -56,72 +66,50 @@ const LAMPPOSTS: Array<{ x: number; h: number; pulse: number }> = [
 // A small pulsing warm rectangle that sits inside each lamppost — gives the
 // scene a sense of life without the perf cost of animating every star.
 const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
-  const t = useRef(new Animated.Value(0)).current;
+  const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, {
-          toValue: 1,
-          duration: pulse * 1000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(t, {
-          toValue: 0,
-          duration: pulse * 1000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
+    if (!focused) return;
+    t.set(
+      withRepeat(
+        withTiming(1, { duration: pulse * 1000, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [t, pulse]);
-  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
+    return () => cancelAnimation(t);
+  }, [t, pulse, focused]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
+  }));
   return (
     <Animated.View
-      style={{
-        width: 10,
-        height: 10,
-        backgroundColor: '#f5b96a',
-        opacity,
-      }}
+      style={[{ width: 10, height: 10, backgroundColor: '#f5b96a' }, animatedStyle]}
     />
   );
 };
 
 // Pulsing chapel window — focal warm point on the distant hill.
 const ChapelWindowGlow: React.FC = () => {
-  const t = useRef(new Animated.Value(0)).current;
+  const t = useSharedValue(0);
+  const focused = useIsFocused();
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(t, {
-          toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
+    if (!focused) return;
+    t.set(
+      withRepeat(
+        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
     );
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
+    return () => cancelAnimation(t);
+  }, [t, focused]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(t.get(), [0, 1], [0.85, 1]),
+  }));
   return (
     <Animated.View
-      style={{
-        width: 6,
-        height: 10,
-        backgroundColor: '#f5b96a',
-        opacity,
-      }}
+      style={[{ width: 6, height: 10, backgroundColor: '#f5b96a' }, animatedStyle]}
     />
   );
 };

@@ -12,7 +12,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Pill, PrimaryButton, Squiggle } from '@/components/saint/Common';
 import {
@@ -23,7 +24,7 @@ import {
 } from '@/components/saint/Icons';
 import { FONTS, THEME } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
-import { useAuth } from '@/lib/auth';
+import { type EmailCodeKind, useAuth } from '@/lib/auth';
 
 type FieldKey = 'email' | 'pass' | null;
 
@@ -36,6 +37,7 @@ export default function LoginScreen() {
   const [focused, setFocused] = useState<FieldKey>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codeKind, setCodeKind] = useState<EmailCodeKind | null>(null);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
@@ -45,18 +47,26 @@ export default function LoginScreen() {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    const { error: e } = await signInWithPassword(email.trim(), password);
+    const { error: e, kind, signedIn } = await signInWithPassword(email.trim(), password);
     setBusy(false);
-    if (e) {
-      setError(e);
+    if (signedIn) {
+      router.replace('/');
       return;
     }
-    router.replace('/');
+    if (e || !kind) {
+      setError(e ?? 'Something went wrong. Please try again.');
+      return;
+    }
+    setCodeKind(kind);
   };
+
+  if (codeKind) {
+    return <EmailCodeStep email={email.trim()} kind={codeKind} onBack={() => setCodeKind(null)} />;
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -138,6 +148,13 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            <Pressable
+              onPress={() => router.push({ pathname: '/auth/forgot', params: { email: email.trim() } })}
+              hitSlop={8}
+              style={styles.forgotBtn}>
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </Pressable>
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         </ScrollView>
@@ -210,8 +227,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -257,6 +273,13 @@ const styles = StyleSheet.create({
     color: THEME.pillInk,
     textTransform: 'uppercase',
     paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: -4 },
+  forgot: {
+    fontFamily: FONTS.bodySemi,
+    fontSize: 13,
+    color: THEME.ink,
     paddingVertical: 4,
   },
   errorText: {

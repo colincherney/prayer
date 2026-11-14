@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useIsFocused } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  Animated,
-  Easing,
   GestureResponderEvent,
   Pressable,
   StyleProp,
@@ -10,19 +9,29 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { FONTS, THEME, Theme } from './theme';
 import { BackIcon } from './Icons';
 
 /* -------------------- Squiggle -------------------- */
-export const Squiggle: React.FC<{ color?: string; w?: number; opacity?: number }> = ({
+export const Squiggle: React.FC<{ color?: string; w?: number; opacity?: number; waves?: number }> = ({
   color = THEME.accent,
   w = 56,
   opacity = 1,
+  waves = 4,
 }) => (
-  <Svg width={w} height={10} viewBox="0 0 56 10" style={{ opacity }}>
+  <Svg width={w} height={10} viewBox={`0 0 ${waves * 12 + 8} 10`} style={{ opacity }}>
     <Path
-      d="M 2 5 Q 8 1, 14 5 T 26 5 T 38 5 T 50 5"
+      d={`M 2 5 Q 8 1, 14 5${Array.from({ length: waves - 1 }, (_, i) => ` T ${26 + i * 12} 5`).join('')}`}
       stroke={color}
       strokeWidth={1.6}
       fill="none"
@@ -103,36 +112,44 @@ export const ScriptureTicker: React.FC<{
   speed?: number; // pixels per second
 }> = ({ verses, theme = THEME, speed = 28 }) => {
   const text = verses.map(v => `${v.text}  •  ${v.ref}`).join('   •   ');
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useSharedValue(0);
   const [textWidth, setTextWidth] = useState(0);
+  const focused = useIsFocused();
 
   useEffect(() => {
-    if (textWidth <= 0) return;
-    translateX.setValue(0);
+    if (textWidth <= 0 || !focused) return;
     const duration = (textWidth / speed) * 1000;
-    Animated.loop(
-      Animated.timing(translateX, {
-        toValue: -textWidth,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, [textWidth, speed, translateX]);
+    const easing = Easing.linear;
+    // Carries on from where it paused when its screen lost focus.
+    const from = Math.max(translateX.get(), -textWidth);
+    translateX.set(
+      withSequence(
+        withTiming(-textWidth, { duration: duration * (1 + from / textWidth), easing }),
+        withRepeat(
+          withSequence(withTiming(0, { duration: 0 }), withTiming(-textWidth, { duration, easing })),
+          -1,
+        ),
+      ),
+    );
+    return () => cancelAnimation(translateX);
+  }, [textWidth, speed, translateX, focused]);
+
+  const tickerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.get() }],
+  }));
 
   return (
     <View style={{ width: '100%', overflow: 'hidden', height: 22, justifyContent: 'center' }}>
+      {/* Drawn once into an image the graphics chip slides, so the text doesn't re-render or shimmer as it moves. */}
       <Animated.View
-        style={{
-          flexDirection: 'row',
-          transform: [{ translateX }],
-        }}>
+        shouldRasterizeIOS
+        renderToHardwareTextureAndroid
+        style={[{ flexDirection: 'row' }, tickerStyle]}>
         <Text
           onLayout={e => setTextWidth(e.nativeEvent.layout.width)}
           numberOfLines={1}
           style={{
-            fontFamily: FONTS.displayItalic,
-            fontStyle: 'italic',
+            fontFamily: FONTS.display,
             fontSize: 13,
             color: theme.muted,
             letterSpacing: 0.3,
@@ -143,8 +160,7 @@ export const ScriptureTicker: React.FC<{
         <Text
           numberOfLines={1}
           style={{
-            fontFamily: FONTS.displayItalic,
-            fontStyle: 'italic',
+            fontFamily: FONTS.display,
             fontSize: 13,
             color: theme.muted,
             letterSpacing: 0.3,
@@ -155,8 +171,7 @@ export const ScriptureTicker: React.FC<{
         <Text
           numberOfLines={1}
           style={{
-            fontFamily: FONTS.displayItalic,
-            fontStyle: 'italic',
+            fontFamily: FONTS.display,
             fontSize: 13,
             color: theme.muted,
             letterSpacing: 0.3,
@@ -219,8 +234,7 @@ export const ScreenHeader: React.FC<{
     {subtitle ? (
       <Text
         style={{
-          fontFamily: FONTS.displayItalic,
-          fontStyle: 'italic',
+          fontFamily: FONTS.display,
           fontSize: 13,
           color: subtitleColor ?? theme.inkSoft,
         }}>

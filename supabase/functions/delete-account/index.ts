@@ -34,6 +34,27 @@ Deno.serve(async (req) => {
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData.user) return json({ error: 'unauthorized' }, 401);
   const userId = userData.user.id;
+  const email = userData.user.email;
+
+  // Accounts with an email must prove they still control it: the app emails a sign-in code and sends it here.
+  // Checked on the server, so a stolen session alone can't delete the account. Guests have no email to check.
+  if (email && !userData.user.is_anonymous) {
+    let code = '';
+    try {
+      const body = await req.json();
+      code = typeof body?.code === 'string' ? body.code.replace(/\D/g, '') : '';
+    } catch {
+      code = '';
+    }
+    if (!code) return json({ error: 'code_required' }, 403);
+    const checker = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: verified, error: codeErr } = await checker.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (codeErr || verified.user?.id !== userId) {
+      return json({ error: 'That code is wrong or has expired. Send a new one and try again.' }, 403);
+    }
+  }
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },

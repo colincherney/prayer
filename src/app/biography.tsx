@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -19,20 +20,13 @@ import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
   interpolate,
-  Extrapolate,
+  Extrapolation,
   SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import Svg, {
-  Circle,
-  Rect,
-  Path,
-  Defs,
-  LinearGradient,
-  Stop,
-  G,
-} from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets/JournalArt';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
@@ -138,33 +132,6 @@ function formatEntryDateLong(iso: string): string {
   const m = ['January','February','March','April','May','June',
     'July','August','September','October','November','December'];
   return `${m[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-// ── Book icon (themed) ────────────────────────────────────────────────────────
-function BookIcon({ accent, bg }: { accent: string; bg: string }) {
-  return (
-    <Svg width={52} height={62} viewBox="0 0 52 62">
-      <Defs>
-        <LinearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor={accent} stopOpacity={0.9} />
-          <Stop offset="100%" stopColor={accent} stopOpacity={0.6} />
-        </LinearGradient>
-      </Defs>
-      {/* Book shadow */}
-      <Rect x="6" y="8" width="40" height="52" rx="4" fill={accent} opacity={0.12} />
-      {/* Book cover */}
-      <Rect x="3" y="4" width="40" height="52" rx="4" fill="url(#cover)" />
-      {/* Spine */}
-      <Rect x="3" y="4" width="6" height="52" rx="3" fill={accent} opacity={0.4} />
-      {/* Pages edge */}
-      <Rect x="43" y="6" width="4" height="48" rx="1" fill={bg} opacity={0.55} />
-      {/* Cross */}
-      <Rect x="20" y="20" width="10" height="24" rx="2" fill={bg} opacity={0.85} />
-      <Rect x="14" y="27" width="22" height="10" rx="2" fill={bg} opacity={0.85} />
-      {/* Bookmark */}
-      <Path d="M32 54 L38 54 L38 62 L35 58 L32 62 Z" fill={bg} opacity={0.6} />
-    </Svg>
-  );
 }
 
 // ── Small components ──────────────────────────────────────────────────────────
@@ -288,12 +255,12 @@ function EntryDetail({
   const [verseLoading, setVerseLoading] = useState(false);
 
   const detailAnimStyle = useAnimatedStyle(() => ({
-    opacity: anim.value,
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [40, 0], Extrapolate.CLAMP) }],
+    opacity: anim.get(),
+    transform: [{ translateY: interpolate(anim.get(), [0, 1], [40, 0], Extrapolation.CLAMP) }],
   }));
 
   useEffect(() => {
-    anim.value = withTiming(visible ? 1 : 0, { duration: 280 });
+    anim.set(withTiming(visible ? 1 : 0, { duration: 280 }));
   }, [visible]);
 
   useEffect(() => {
@@ -312,7 +279,7 @@ function EntryDetail({
   const displayVerseText = fetchedVerseText ?? entry.verse?.text ?? '';
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, {
+    <Animated.View style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 10,
     }, detailAnimStyle]}>
@@ -438,16 +405,16 @@ function WheelItem({ item, index, scrollY, onPress }: {
 
   const animStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [center - band * 2, center - band, center, center + band, center + band * 2],
       [0.12, 0.4, 1, 0.4, 0.12],
-      Extrapolate.CLAMP,
+      Extrapolation.CLAMP,
     );
     const scale = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [center - band * 2, center - band, center, center + band, center + band * 2],
       [0.8, 0.9, 1, 0.9, 0.8],
-      Extrapolate.CLAMP,
+      Extrapolation.CLAMP,
     );
     return { opacity, transform: [{ scale }] };
   });
@@ -477,12 +444,12 @@ function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
   useEffect(() => {
     if (!isScrolling.current) {
       ref.current?.scrollTo({ y: selectedIdx * WHEEL_ITEM_H, animated: false });
-      scrollY.value = selectedIdx * WHEEL_ITEM_H;
+      scrollY.set(selectedIdx * WHEEL_ITEM_H);
     }
   }, [selectedIdx, items.length]);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
+    scrollY.set(event.contentOffset.y);
   });
 
   return (
@@ -513,7 +480,7 @@ function WheelColumn({ items, selectedIdx, onSelect, flex = 1 }: {
       </Animated.ScrollView>
 
       {/* Selection lines */}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { justifyContent: 'center' }]}>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
         <View style={{ height: WHEEL_ITEM_H, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: THEME.accent + '99' }} />
       </View>
       {/* Fade top */}
@@ -597,7 +564,7 @@ function VersePicker({ version, onConfirm, onClose }: {
     : '';
 
   return (
-    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: THEME.bg, zIndex: 30 }]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: THEME.bg, zIndex: 30 }]}>
       {/* Header */}
       <View style={[styles.vpHeader, { paddingTop: insets.top + 14, borderBottomColor: THEME.line }]}>
         <Pressable onPress={onClose} style={{ padding: 6 }}>
@@ -643,7 +610,7 @@ function VersePicker({ version, onConfirm, onClose }: {
         ) : previewText ? (
           <Text style={[styles.vpPreview, { color: THEME.ink }]}>"{previewText}"</Text>
         ) : (
-          <Text style={[styles.vpPreview, { color: THEME.muted, fontStyle: 'italic' }]}>
+          <Text style={[styles.vpPreview, { color: THEME.muted }]}>
             Scroll to a verse to preview it here.
           </Text>
         )}
@@ -673,11 +640,11 @@ function NewEntryComposer({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const composerAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [800, 0], Extrapolate.CLAMP) }],
+    transform: [{ translateY: interpolate(anim.get(), [0, 1], [800, 0], Extrapolation.CLAMP) }],
   }));
 
   useEffect(() => {
-    anim.value = withTiming(visible ? 1 : 0, { duration: 340 });
+    anim.set(withTiming(visible ? 1 : 0, { duration: 340 }));
     if (!visible) {
       Keyboard.dismiss();
       setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);
@@ -694,7 +661,7 @@ function NewEntryComposer({
   const canSave = body.trim().length > 0;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFillObject, {
+    <Animated.View style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 20,
     }, composerAnimStyle]}>
@@ -981,6 +948,7 @@ export default function BiographyScreen() {
   const { theme: THEME } = useTheme();
   const { session, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
   const [view, setView] = useState<'list' | 'detail' | 'new' | 'edit'>('list');
   const [openEntry, setOpenEntry] = useState<Entry | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -1110,7 +1078,7 @@ export default function BiographyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1141,9 +1109,11 @@ export default function BiographyScreen() {
             </Text>
             <BibleVersionPicker version={bibleVersion} onSelect={setBibleVersion} />
           </View>
-          <View style={styles.bookIconWrap}>
-            <BookIcon accent={THEME.accent} bg={THEME.bg} />
-          </View>
+        </View>
+
+        {/* The study: your companion keeps you company at the desk while you write. */}
+        <View style={{ paddingHorizontal: 22, marginTop: 14 }}>
+          <JournalDesk width={screenW - 44} accent={THEME.accent} entryCount={allEntries.length} />
         </View>
 
         {/* Write new entry prompt */}
@@ -1222,6 +1192,11 @@ export default function BiographyScreen() {
                 <EntryCard key={e.id} entry={e}
                   onOpen={entry => { setOpenEntry(entry); setView('detail'); }} />
               ))}
+              {filtered.length === 0 && !loading && allEntries.length === 0 && (
+                <View style={{ alignItems: 'center', marginTop: 18 }}>
+                  <JournalEmptyArt accent={THEME.accent} />
+                </View>
+              )}
               {filtered.length === 0 && !loading && (
                 <Text style={[styles.emptyState, { color: THEME.muted }]}>
                   {allEntries.length === 0
@@ -1234,8 +1209,11 @@ export default function BiographyScreen() {
             </>
           )}
 
-          <Text style={[styles.footer, { color: THEME.muted }]}>
-            ✥{'\n'}The beginning is in here somewhere.
+          <View style={{ alignItems: 'center', marginTop: 28 }}>
+            <JournalFlourish color={THEME.accent} />
+          </View>
+          <Text style={[styles.footer, { color: THEME.muted, marginTop: 6 }]}>
+            The beginning is in here somewhere.
           </Text>
         </View>
       </ScrollView>
@@ -1303,8 +1281,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   heroTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 48,
     lineHeight: 50,
     letterSpacing: -1.2,
@@ -1315,11 +1292,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     marginBottom: 2,
-  },
-  bookIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
   },
 
   // Bible version picker
@@ -1340,7 +1312,6 @@ const styles = StyleSheet.create({
   versionNote: {
     fontFamily: FONTS.body,
     fontSize: 10,
-    fontStyle: 'italic',
   },
 
   // Prompt card
@@ -1498,8 +1469,7 @@ const styles = StyleSheet.create({
   calEmptyMonth: {
     textAlign: 'center',
     paddingVertical: 20,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
   },
 
@@ -1604,7 +1574,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginBottom: 18,
   },
-  detailTitleDot: { fontFamily: FONTS.displayItalic, fontStyle: 'italic' },
+  detailTitleDot: { fontFamily: FONTS.display },
   detailBody: {
     fontFamily: FONTS.display,
     fontSize: 18,
@@ -1627,10 +1597,9 @@ const styles = StyleSheet.create({
   },
   detailVerseBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   detailVerseLabel: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 1.8 },
-  detailVersionBadge: { fontFamily: FONTS.body, fontSize: 10.5, fontStyle: 'italic' },
+  detailVersionBadge: { fontFamily: FONTS.body, fontSize: 10.5 },
   detailVerseText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 20,
     lineHeight: 29,
   },
@@ -1643,8 +1612,7 @@ const styles = StyleSheet.create({
   detailDivider: {
     textAlign: 'center',
     marginTop: 28,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
   },
 
@@ -1694,7 +1662,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   composerVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 13, marginBottom: 4 },
-  composerVersePreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 13, lineHeight: 18 },
+  composerVersePreview: { fontFamily: FONTS.display, fontSize: 13, lineHeight: 18 },
   composerVersePlaceholder: { flex: 1, fontFamily: FONTS.body, fontSize: 14 },
 
   // Verse picker
@@ -1724,11 +1692,10 @@ const styles = StyleSheet.create({
   },
   vpLabel: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1, textAlign: 'center' },
   vpRef: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: -0.3, marginBottom: 14 },
-  vpPreview: { fontFamily: FONTS.displayItalic, fontStyle: 'italic', fontSize: 18, lineHeight: 28 },
+  vpPreview: { fontFamily: FONTS.display, fontSize: 18, lineHeight: 28 },
   composerQuote: {
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
   },
 
@@ -1736,16 +1703,14 @@ const styles = StyleSheet.create({
   emptyState: {
     paddingVertical: 36,
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 22,
   },
   footer: {
     textAlign: 'center',
     paddingVertical: 24,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     lineHeight: 22,
   },

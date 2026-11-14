@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { BackIcon } from '@/components/saint/Icons';
 import {
@@ -143,7 +143,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <Pressable onPress={() => router.back()} style={styles.iconBtnSurface}>
@@ -338,8 +338,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {

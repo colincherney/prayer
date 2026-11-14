@@ -48,7 +48,7 @@ export function AnimatedSplashOverlay() {
       {iconChoice !== null && (
         <Image
           source={SPLASH_SOURCES[iconChoice]}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
         />
       )}
@@ -137,12 +137,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   backgroundSolidColor: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#208AEF',
     zIndex: 1000,
   },
   splashFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#208AEF',
     zIndex: 1000,
   },

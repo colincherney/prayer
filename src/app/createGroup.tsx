@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PrimaryButton, ScreenHeader, SectionLabel, Squiggle } from '@/components/saint/Common';
 import { GlobeIcon, LockIcon, UsersIcon } from '@/components/saint/Icons';
@@ -71,7 +71,7 @@ export default function CreateGroupScreen() {
   if (created) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.doneRoot}>
           <View style={styles.doneInner}>
             <View style={styles.doneIconWrap}>
@@ -117,7 +117,7 @@ export default function CreateGroupScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
@@ -275,8 +275,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.4,
   },
   doneTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   doneBody: {

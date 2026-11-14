@@ -1,5 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
+import { FONTS } from '@/components/saint/theme';
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -34,33 +35,35 @@ const styles = StyleSheet.create({
   small: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 500,
+    fontFamily: FONTS.bodyMed,
   },
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 700,
+    fontFamily: FONTS.bodyBold,
   },
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: 500,
+    fontFamily: FONTS.body,
   },
   title: {
     fontSize: 48,
-    fontWeight: 600,
+    fontFamily: FONTS.displaySemi,
     lineHeight: 52,
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
-    fontWeight: 600,
+    fontFamily: FONTS.displaySemi,
   },
   link: {
+    fontFamily: FONTS.bodyMed,
     lineHeight: 30,
     fontSize: 14,
   },
   linkPrimary: {
+    fontFamily: FONTS.bodyMed,
     lineHeight: 30,
     fontSize: 14,
     color: '#3c87f7',

@@ -1,10 +1,8 @@
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Dimensions,
-  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -16,9 +14,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { SafeAreaView } from '@/components/saint/SafeArea';
+import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { ScreenPet } from '@/components/pets/ScreenPet';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -31,16 +42,6 @@ type PrayerRequest = {
   prayedCount: number;
   text: string;
 };
-
-// Fisher-Yates. Returns a new array so callers never mutate query results.
-function shuffle<T>(items: T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 type NightPalette = {
   bg: string;
@@ -75,56 +76,63 @@ function nightPaletteFromTheme(THEME: Theme): NightPalette {
 const SCREEN = Dimensions.get('window');
 
 /* -------------------- Vigil background (radial glow) -------------------- */
-const VigilBackdrop: React.FC<{ night: NightPalette; glowIntensity: Animated.Value }> = ({
+const VigilBackdrop: React.FC<{ night: NightPalette; glowIntensity: SharedValue<number> }> = ({
   night,
   glowIntensity,
-}) => (
-  <View style={StyleSheet.absoluteFill} pointerEvents="none">
-    {/* base page color */}
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: night.bg }]} />
-    {/* warm radial glow that pulses with the flame */}
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowIntensity }]}>
-      <Svg width="100%" height="100%">
-        <Defs>
-          <RadialGradient id="glow" cx="50%" cy="32%" rx="70%" ry="55%" fx="50%" fy="32%">
-            <Stop offset="0%" stopColor={night.flameSoft} stopOpacity={0.4} />
-            <Stop offset="35%" stopColor={night.flameSoft} stopOpacity={0.25} />
-            <Stop offset="100%" stopColor={night.bg} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#glow)" />
-      </Svg>
-    </Animated.View>
-  </View>
-);
+}) => {
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glowIntensity.get() }));
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* base page color */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: night.bg }]} />
+      {/* warm radial glow that pulses with the flame */}
+      <Animated.View style={[StyleSheet.absoluteFill, glowStyle]}>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <RadialGradient id="glow" cx="50%" cy="32%" rx="70%" ry="55%" fx="50%" fy="32%">
+              <Stop offset="0%" stopColor={night.flameSoft} stopOpacity={0.4} />
+              <Stop offset="35%" stopColor={night.flameSoft} stopOpacity={0.25} />
+              <Stop offset="100%" stopColor={night.bg} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#glow)" />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+};
 
 /* -------------------- Candle -------------------- */
 const Candle: React.FC<{
   night: NightPalette;
   styles: Styles;
   lit: boolean;
-  flicker: Animated.Value;
-  lightUp: Animated.Value;
+  flicker: SharedValue<number>;
+  lightUp: SharedValue<number>;
 }> = ({ night, styles, lit, flicker, lightUp }) => {
-  // Flicker drives flame opacity (0.82 → 1) and scaleY (0.94 → 1.06)
-  const flameOpacity = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
-  const flameScale = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.06] });
-  const flameWidthScale = flicker.interpolate({ inputRange: [0, 1], outputRange: [1.05, 0.96] });
-  const haloOpacity = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.85] });
-
-  // lightUp drives the "ignite" reveal of the flame (0 → 1)
-  const igniteOpacity = lightUp;
-  const igniteScale = lightUp.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
+  // Flicker drives flame opacity (0.82 → 1) and scaleY (0.94 → 1.06);
+  // lightUp drives the "ignite" reveal of the flame (0 → 1).
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: lightUp.get() * interpolate(flicker.get(), [0, 1], [0.55, 0.85]),
+  }));
+  const flameStyle = useAnimatedStyle(() => {
+    const f = flicker.get();
+    const ignite = lightUp.get();
+    return {
+      opacity: ignite * interpolate(f, [0, 1], [0.82, 1]),
+      transform: [
+        { scaleY: interpolate(ignite, [0, 1], [0.4, 1]) * interpolate(f, [0, 1], [0.94, 1.06]) },
+        { scaleX: interpolate(f, [0, 1], [1.05, 0.96]) },
+      ],
+    };
+  });
 
   return (
     <View style={styles.candleStage}>
       {/* halo */}
       {lit && (
         <Animated.View
-          style={[
-            styles.halo,
-            { opacity: Animated.multiply(igniteOpacity, haloOpacity) },
-          ]}>
+          style={[styles.halo, haloStyle]}>
           <Svg width={220} height={220} viewBox="0 0 220 220">
             <Defs>
               <RadialGradient id="halo" cx="50%" cy="50%" rx="50%" ry="50%">
@@ -141,12 +149,7 @@ const Candle: React.FC<{
       {/* flame */}
       {lit && (
         <Animated.View
-          style={{
-            opacity: Animated.multiply(igniteOpacity, flameOpacity),
-            transform: [{ scaleY: Animated.multiply(igniteScale, flameScale) }, { scaleX: flameWidthScale }],
-            position: 'absolute',
-            top: 8,
-          }}>
+          style={[{ position: 'absolute', top: 8 }, flameStyle]}>
           <Svg width={36} height={56} viewBox="0 0 36 56">
             <Defs>
               <RadialGradient id="flame" cx="50%" cy="65%" rx="55%" ry="55%">
@@ -257,16 +260,18 @@ export default function PrayForOthersScreen() {
   const [noteError, setNoteError] = useState<string | null>(null);
 
   // Animations
-  const flicker = useRef(new Animated.Value(0.5)).current;
-  const lightUp = useRef(new Animated.Value(0)).current;
-  const cardFade = useRef(new Animated.Value(1)).current;
-  const cardLift = useRef(new Animated.Value(0)).current;
-  const glowIntensity = useRef(new Animated.Value(0.55)).current;
+  const flicker = useSharedValue(0.5);
+  const lightUp = useSharedValue(0);
+  const cardFade = useSharedValue(1);
+  const cardLift = useSharedValue(0);
+  const glowIntensity = useSharedValue(0.55);
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: cardFade.get(),
+    transform: [{ translateY: cardLift.get() }],
+  }));
 
   // Fetch the feed of approved prayers, excluding my own, any I've already
-  // prayed for, and any IDs already shown earlier this session. The recency
-  // order below only bounds which prayers form the pool — the 10 we actually
-  // show are drawn from it at random.
+  // prayed for, and any IDs already shown earlier this session.
   const loadFeed = useCallback(
     async (excludeIds: Set<string>) => {
       setLoadingFeed(true);
@@ -281,7 +286,11 @@ export default function PrayForOthersScreen() {
         .limit(200);
       if (me) query = query.neq('user_id', me);
 
+      const startedAt = Date.now();
       const { data, error } = await query;
+      if (__DEV__) {
+        console.log(`[explore] feed query ${Date.now() - startedAt}ms, ${data?.length ?? 0} prayers`);
+      }
       if (error) {
         setFeedError(error.message);
         setRequests([]);
@@ -289,7 +298,7 @@ export default function PrayForOthersScreen() {
         return;
       }
 
-      const candidates = (data ?? [])
+      const mapped = (data ?? [])
         .map(p => {
           const interactions =
             (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
@@ -305,11 +314,8 @@ export default function PrayForOthersScreen() {
           };
         })
         .filter(p => !p.alreadyPrayed && !excludeIds.has(p.id))
-        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest);
-
-      // Draw a random handful from the pool instead of the 10 most recent, so
-      // the same prayers don't lead the feed for everyone.
-      const mapped = shuffle(candidates).slice(0, 10);
+        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
+        .slice(0, 10);
 
       setRequests(mapped);
       setIndex(0);
@@ -352,90 +358,52 @@ export default function PrayForOthersScreen() {
 
   // Flicker loop — runs always, but only visible when flame is lit
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flicker, {
-          toValue: 1,
-          duration: 220,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(flicker, {
-          toValue: 0.35,
-          duration: 180,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(flicker, {
-          toValue: 0.85,
-          duration: 280,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(flicker, {
-          toValue: 0.5,
-          duration: 200,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
+    const easing = Easing.inOut(Easing.quad);
+    flicker.set(
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 220, easing }),
+          withTiming(0.35, { duration: 180, easing }),
+          withTiming(0.85, { duration: 280, easing }),
+          withTiming(0.5, { duration: 200, easing }),
+        ),
+        -1,
+      ),
     );
-    loop.start();
-    return () => loop.stop();
+    return () => cancelAnimation(flicker);
   }, [flicker]);
 
   // When the current request becomes lit/unlit, animate the ignite reveal + glow
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(lightUp, {
-        toValue: lit ? 1 : 0,
+    lightUp.set(
+      withTiming(lit ? 1 : 0, {
         duration: lit ? 750 : 250,
         easing: lit ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-        useNativeDriver: true,
       }),
-      Animated.timing(glowIntensity, {
-        toValue: lit ? 1 : 0.5,
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
+    );
+    glowIntensity.set(
+      withTiming(lit ? 1 : 0.5, { duration: 700, easing: Easing.out(Easing.cubic) }),
+    );
   }, [lit, lightUp, glowIntensity]);
 
+  // Second half of advance(): swap in the next card, then slide it up into place.
+  const showNextCard = (next: number) => {
+    setIndex(next);
+    setNoteOpen(false);
+    setNote('');
+    const easing = Easing.out(Easing.cubic);
+    cardLift.set(withSequence(withTiming(16, { duration: 0 }), withTiming(0, { duration: 360, easing })));
+    cardFade.set(withTiming(1, { duration: 360, easing }));
+  };
+
   const advance = (next: number) => {
-    Animated.parallel([
-      Animated.timing(cardFade, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
+    const easing = Easing.in(Easing.quad);
+    cardLift.set(withTiming(-16, { duration: 220, easing }));
+    cardFade.set(
+      withTiming(0, { duration: 220, easing }, () => {
+        scheduleOnRN(showNextCard, next);
       }),
-      Animated.timing(cardLift, {
-        toValue: -16,
-        duration: 220,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setIndex(next);
-      setNoteOpen(false);
-      setNote('');
-      cardLift.setValue(16);
-      Animated.parallel([
-        Animated.timing(cardFade, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardLift, {
-          toValue: 0,
-          duration: 360,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+    );
   };
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: NIGHT.bg }} />;
@@ -520,7 +488,7 @@ export default function PrayForOthersScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={NIGHT.bg} />
+      <StatusBar barStyle="light-content" />
       <VigilBackdrop night={NIGHT} glowIntensity={glowIntensity} />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
@@ -561,15 +529,18 @@ export default function PrayForOthersScreen() {
           <>
         {/* Body */}
         <Animated.View
-          style={[
-            styles.body,
-            { opacity: cardFade, transform: [{ translateY: cardLift }] },
-          ]}>
+          style={[styles.body, cardStyle]}>
           <ScrollView
             contentContainerStyle={styles.bodyScroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
+            <View>
+              <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
+              {/* Your companion keeps vigil beside the candle: warmed by the flame once it is lit, hopping when you light it or send encouragement. */}
+              <View pointerEvents="box-none" style={{ position: 'absolute', right: '50%', marginRight: 42, bottom: 10 }}>
+                <ScreenPet size={96} warm={lit} hop={(lit ? 1 : 0) + notesSent.size} scene="vigil" interactive />
+              </View>
+            </View>
 
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
@@ -625,12 +596,12 @@ export default function PrayForOthersScreen() {
                     placeholder="A short word of hope, anonymously…"
                     placeholderTextColor={NIGHT.muted}
                     multiline
-                    maxLength={140}
+                    maxLength={280}
                     style={styles.noteInput}
                     autoFocus
                   />
                   <View style={styles.noteFooter}>
-                    <Text style={styles.noteCounter}>{note.length}/140</Text>
+                    <Text style={styles.noteCounter}>{note.length}/280</Text>
                     <Pressable
                       onPress={onSendNote}
                       disabled={!note.trim() || noteSending}
@@ -857,8 +828,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     marginBottom: 10,
   },
   emptyBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     lineHeight: 21,
     color: NIGHT.inkSoft,
@@ -933,8 +903,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     borderColor: NIGHT.line,
   },
   litBannerText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: NIGHT.inkSoft,
   },
@@ -975,8 +944,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
   },
   noteInput: {
     minHeight: 56,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14,
     color: NIGHT.ink,
     textAlignVertical: 'top',
@@ -1011,8 +979,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     paddingVertical: 10,
   },
   noteSentText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12,
     color: NIGHT.inkSoft,
   },
@@ -1051,8 +1018,7 @@ const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
     paddingHorizontal: 8,
   },
   completeVerse: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 12.5,
     color: NIGHT.muted,
     textAlign: 'center',

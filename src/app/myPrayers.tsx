@@ -17,13 +17,13 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
+import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, {
   Circle,
   Defs,
@@ -577,7 +577,7 @@ export default function MyPrayersScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}>
@@ -1011,28 +1011,28 @@ const ReflectSheet: React.FC<{
       setNote('');
       setError(null);
       setMounted(true);
-      slide.value = SCREEN_HEIGHT;
-      fade.value = 0;
-      fade.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) });
-      slide.value = withTiming(0, {
+      slide.set(SCREEN_HEIGHT);
+      fade.set(0);
+      fade.set(withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) }));
+      slide.set(withTiming(0, {
         duration: 320,
         easing: Easing.bezier(0.22, 1, 0.36, 1),
-      });
+      }));
     } else if (mounted) {
-      fade.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.quad) });
-      slide.value = withTiming(
+      fade.set(withTiming(0, { duration: 160, easing: Easing.in(Easing.quad) }));
+      slide.set(withTiming(
         SCREEN_HEIGHT,
         { duration: 240, easing: Easing.in(Easing.cubic) },
         finished => {
-          if (finished) runOnJS(setMounted)(false);
+          if (finished) scheduleOnRN(setMounted, false);
         },
-      );
+      ));
     }
   }, [visible, mounted, slide, fade]);
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slide.value }],
+    transform: [{ translateY: slide.get() }],
   }));
 
   const canSubmit = note.trim().length > 0 && !busy;
@@ -1206,28 +1206,28 @@ const useSheetAnimation = (open: boolean) => {
   useEffect(() => {
     if (open) {
       setMounted(true);
-      slide.value = SCREEN_HEIGHT;
-      fade.value = 0;
-      fade.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
-      slide.value = withTiming(0, {
+      slide.set(SCREEN_HEIGHT);
+      fade.set(0);
+      fade.set(withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) }));
+      slide.set(withTiming(0, {
         duration: 380,
         easing: Easing.bezier(0.22, 1, 0.36, 1),
-      });
+      }));
     } else if (mounted) {
-      fade.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) });
-      slide.value = withTiming(
+      fade.set(withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }));
+      slide.set(withTiming(
         SCREEN_HEIGHT,
         { duration: 280, easing: Easing.in(Easing.cubic) },
         finished => {
-          if (finished) runOnJS(setMounted)(false);
+          if (finished) scheduleOnRN(setMounted, false);
         },
-      );
+      ));
     }
   }, [open, mounted, slide, fade]);
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: fade.get() }));
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slide.value }],
+    transform: [{ translateY: slide.get() }],
   }));
   return { mounted, backdropStyle, sheetStyle };
 };
@@ -1507,21 +1507,21 @@ const PulsingHalo: React.FC<{ color: string }> = ({ color }) => {
   const opacity = useSharedValue(0.55);
 
   useEffect(() => {
-    scale.value = withRepeat(
+    scale.set(withRepeat(
       withTiming(1.18, { duration: 2400, easing: Easing.out(Easing.cubic) }),
       -1,
       true,
-    );
-    opacity.value = withRepeat(
+    ));
+    opacity.set(withRepeat(
       withTiming(0.15, { duration: 2400, easing: Easing.in(Easing.cubic) }),
       -1,
       true,
-    );
+    ));
   }, [scale, opacity]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    transform: [{ scale: scale.get() }],
+    opacity: opacity.get(),
   }));
 
   return (
@@ -1801,8 +1801,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.ink,
   },
   titleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   subtitle: {
@@ -1821,8 +1820,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderColor: THEME.line,
   },
   emptyText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 16,
     lineHeight: 22,
     color: THEME.inkSoft,
@@ -1896,8 +1894,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   carryingFooterText: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     color: THEME.inkSoft,
   },
@@ -1988,8 +1985,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 8,
   },
   featuredPillBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 19,
     color: '#fff',
@@ -2021,8 +2017,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   reachCaption: {
     marginTop: 6,
     textAlign: 'center',
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.65)',
@@ -2050,8 +2045,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     marginBottom: 10,
   },
   noteCardBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 18,
     lineHeight: 24,
     color: THEME.ink,
@@ -2208,7 +2202,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
 
   /* Sheet (preserved) */
   sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheetWrap: {
@@ -2245,13 +2239,11 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: -0.4,
   },
   sheetTitleItalic: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     color: THEME.accent,
   },
   sheetPrayerEcho: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 13,
     color: THEME.muted,
     marginTop: 8,
@@ -2418,8 +2410,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   darkSheetFooter: {
     marginTop: 28,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.55)',
@@ -2442,8 +2433,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   bigStatLabel: {
     flex: 1,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.75)',
@@ -2478,8 +2468,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     letterSpacing: 0.4,
   },
   topPrayerBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 14.5,
     lineHeight: 19,
     color: '#fff',
@@ -2500,8 +2489,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   reachPoetic: {
     marginTop: 8,
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 17,
     lineHeight: 24,
     textAlign: 'center',
@@ -2516,8 +2504,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderRadius: 18,
   },
   reachNoteBody: {
-    fontFamily: FONTS.displayItalic,
-    fontStyle: 'italic',
+    fontFamily: FONTS.display,
     fontSize: 15,
     lineHeight: 21,
     color: '#fff',

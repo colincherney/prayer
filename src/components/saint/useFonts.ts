@@ -1,29 +1,15 @@
-import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_500Medium,
-  PlayfairDisplay_500Medium_Italic,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_400Regular_Italic,
-  useFonts as usePlayfairFonts,
-} from '@expo-google-fonts/playfair-display';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_500Medium_Italic } from '@expo-google-fonts/inter/500Medium_Italic';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { useFonts } from 'expo-font';
 
 export function useSaintFonts() {
-  const [loaded] = usePlayfairFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_500Medium,
-    PlayfairDisplay_500Medium_Italic,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_400Regular_Italic,
+  const [loaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
+    Inter_500Medium_Italic,
     Inter_600SemiBold,
     Inter_700Bold,
   });
