@@ -4,7 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { DecorSpotId, ITEM_META, ItemPlacement } from './nookData';
+import { DecorSpotId, ITEM_META, ItemPlacement, Offset } from './nookData';
 import { hasNookImage, NookImage } from './NookImages';
 import { ItemLayer, NOOK_H, NOOK_W } from './NookScene';
 
@@ -22,11 +22,16 @@ type Props = {
   editable: boolean;
   /** The piece's drawing (an `ItemArt`). */
   art: React.ReactNode;
+  /** Scene-wide effects already provide their own SVG canvas. */
+  sceneLayer?: React.ReactNode;
+  freeMove?: boolean;
+  selected?: boolean;
   tapLabel: string;
   /** Tapping a piece (without dragging) can do something: brighten the lantern, shake the plant, set the mobile swinging. */
   onTap?: () => void;
   /** Called once when a drag ends. */
   onMove?: (id: string, spot: DecorSpotId) => void;
+  onMoveFreely?: (id: string, position: Offset) => void;
 };
 
 const clamp = (v: number, lo: number, hi: number) => {
@@ -35,16 +40,16 @@ const clamp = (v: number, lo: number, hi: number) => {
 };
 
 /**
- * Pieces fit their decorating spot. Dragging to the other side snaps them into its matching spot.
+ * Snap mode fits a piece to a matching spot; free mode keeps the exact drop position.
  */
-export function NookItem({ id, placement, targets, scale, editable, art, tapLabel, onTap, onMove }: Props) {
+export function NookItem({ id, placement, targets, scale, editable, art, sceneLayer, freeMove, selected, tapLabel, onTap, onMove, onMoveFreely }: Props) {
   const meta = ITEM_META[id];
   const { hit } = meta;
   const reducedMotion = useReducedMotion();
   const fit = placement.scale;
   const frameWidth = hit.w * fit * scale;
   const frameHeight = hit.h * fit * scale;
-  const canMove = targets.length > 1;
+  const canMove = !!freeMove || targets.length > 1;
   const x = useSharedValue(placement.x);
   const y = useSharedValue(placement.y);
   const startX = useSharedValue(0);
@@ -58,6 +63,7 @@ export function NookItem({ id, placement, targets, scale, editable, art, tapLabe
   }, [placement.x, placement.y, reducedMotion, x, y]);
 
   const layerStyle = useAnimatedStyle(() => ({
+    zIndex: freeMove && (selected || lift.get() > 0) ? 20 : 0,
     transform: [
       { translateX: x.get() * scale },
       { translateY: y.get() * scale },
@@ -81,6 +87,10 @@ export function NookItem({ id, placement, targets, scale, editable, art, tapLabe
       y.set(clamp(startY.get() + e.translationY / scale, 0, NOOK_H - hit.h * fit));
     })
     .onEnd(() => {
+      if (freeMove) {
+        if (onMoveFreely) scheduleOnRN(onMoveFreely, id, { x: x.get(), y: y.get() });
+        return;
+      }
       let destination = targets[0];
       let distance = Number.POSITIVE_INFINITY;
       for (const target of targets) {
@@ -116,12 +126,13 @@ export function NookItem({ id, placement, targets, scale, editable, art, tapLabe
       {grounded ? <View pointerEvents="none" style={{ position: 'absolute', left: frameWidth * 0.1, bottom: -2 * scale, width: frameWidth * 0.8, height: 5 * scale, borderRadius: 50, backgroundColor: 'rgba(0,0,0,0.2)' }} /> : null}
       {hasNookImage(id) ? <NookImage id={id} style={{ width: frameWidth, height: frameHeight }} /> : (
         <View pointerEvents="none" style={{ position: 'absolute', left: -hit.x * scale * fit, top: -hit.y * scale * fit, width: NOOK_W * scale, height: NOOK_H * scale, transform: [{ scale: fit }], transformOrigin: '0px 0px', opacity: placement.spot === 'atmosphere' ? 0.25 : 1 }}>
-          <ItemLayer bleed={bleed}>{art}</ItemLayer>
+          {sceneLayer ?? <ItemLayer bleed={bleed}>{art}</ItemLayer>}
         </View>
       )}
+      {editable && freeMove && selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#F2C462', borderRadius: 6 }]} /> : null}
       {editable ? (
         <GestureDetector gesture={Gesture.Race(pan, tap)}>
-          <View accessibilityRole="button" accessibilityLabel={`${tapLabel}.${canMove ? ' Hold and drag to switch sides.' : ' Tap to select.'}`} style={StyleSheet.absoluteFill} />
+          <View accessibilityRole="button" accessibilityLabel={`${tapLabel}.${freeMove ? ' Hold and drag to move anywhere.' : canMove ? ' Hold and drag to switch sides.' : ' Tap to select.'}`} style={StyleSheet.absoluteFill} />
         </GestureDetector>
       ) : onTap ? (
         <Pressable accessibilityLabel={tapLabel} onPress={onTap} style={StyleSheet.absoluteFill} />
