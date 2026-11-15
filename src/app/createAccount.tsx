@@ -18,6 +18,7 @@ import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
+import { LegalLinks } from '@/components/saint/LegalLinks';
 import { passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
 
 const PERKS = [
@@ -162,6 +163,7 @@ export default function CreateAccountScreen() {
                 style={[styles.primary, !canSubmit && { opacity: 0.5 }]}>
                 {busy ? <ActivityIndicator color={THEME.accentInk} /> : <Text style={styles.primaryText}>Create my account</Text>}
               </Pressable>
+              <LegalLinks />
             </>
           )}
         </ScrollView>

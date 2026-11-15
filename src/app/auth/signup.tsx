@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
+import { LegalLinks } from '@/components/saint/LegalLinks';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Pill, PrimaryButton, Squiggle } from '@/components/saint/Common';
@@ -177,6 +178,7 @@ export default function SignUpScreen() {
               <Text style={styles.swapStrong}>Log in</Text>
             </Text>
           </Pressable>
+          <LegalLinks />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

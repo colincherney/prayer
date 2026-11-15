@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import { SafeAreaView } from '@/components/saint/SafeArea';
 import { Pill, PrimaryButton, ScriptureTicker, Squiggle } from '@/components/saint/Common';
 import { HeroIllustration } from '@/components/saint/Hero';
 import { ArrowIcon, ShieldIcon, SparkleIcon } from '@/components/saint/Icons';
+import { LegalLinks } from '@/components/saint/LegalLinks';
 import { FONTS, THEME, VERSES } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -43,93 +45,97 @@ export default function AuthWelcomeScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={{ marginTop: 8, marginBottom: 14 }}>
-        <ScriptureTicker verses={VERSES.slice(0, 3)} speed={26} />
-      </View>
-
-      <View style={styles.pillRow}>
-        <Pill icon={<ShieldIcon size={11} color={THEME.pillInk} />}>
-          Anonymous Prayer
-        </Pill>
-        <View style={styles.sparkles}>
-          <SparkleIcon size={11} color={THEME.muted} />
-          <SparkleIcon size={7} color={THEME.muted} />
-          <SparkleIcon size={9} color={THEME.muted} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={{ marginTop: 8, marginBottom: 14 }}>
+          <ScriptureTicker verses={VERSES.slice(0, 3)} speed={26} />
         </View>
-      </View>
 
-      <View style={styles.hero}>
-        <View style={styles.heroLeft}>
-          <Text style={styles.title}>
-            Saint{'\n'}
-            <Text style={styles.titleItalic}>Central</Text>
-          </Text>
-          <View style={{ marginTop: 14 }}>
-            <Squiggle color={THEME.accent} w={68} />
-          </View>
-          <Text style={styles.subtitle}>
-            Pray anonymously.{'\n'}
-            Lift others. Find <Text style={styles.subtitleItalic}>hope</Text>.
-          </Text>
-          <View style={{ marginTop: 10 }}>
-            <Squiggle color={THEME.accent} w={36} opacity={0.5} />
+        <View style={styles.pillRow}>
+          <Pill icon={<ShieldIcon size={11} color={THEME.pillInk} />}>
+            Anonymous Prayer
+          </Pill>
+          <View style={styles.sparkles}>
+            <SparkleIcon size={11} color={THEME.muted} />
+            <SparkleIcon size={7} color={THEME.muted} />
+            <SparkleIcon size={9} color={THEME.muted} />
           </View>
         </View>
-        <View style={styles.illustration} pointerEvents="none">
-          <HeroIllustration width={210} height={230} />
-        </View>
-      </View>
 
-      <View style={{ marginTop: 8, marginBottom: 12 }}>
-        <ScriptureTicker verses={VERSES.slice(2, 5)} speed={22} />
-      </View>
-
-      <View style={styles.actions}>
-        <PrimaryButton
-          label="Create an account"
-          bg={THEME.cardDark}
-          fg={THEME.cardDarkInk}
-          rightIcon={<ArrowIcon size={16} color={THEME.cardDarkInk} />}
-          onPress={() => router.push('/auth/signup')}
-          style={{ marginBottom: 10 }}
-        />
-        <PrimaryButton
-          label="Log in"
-          bg={THEME.surface}
-          fg={THEME.ink}
-          rightIcon={<ArrowIcon size={16} color={THEME.ink} />}
-          onPress={() => router.push('/auth/login')}
-          style={styles.outline}
-        />
-
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.divider} />
+        <View style={styles.hero}>
+          <View style={styles.heroLeft}>
+            <Text style={styles.title}>
+              Saint{'\n'}
+              <Text style={styles.titleItalic}>Central</Text>
+            </Text>
+            <View style={{ marginTop: 14 }}>
+              <Squiggle color={THEME.accent} w={68} />
+            </View>
+            <Text style={styles.subtitle}>
+              Pray anonymously.{'\n'}
+              Lift others. Find <Text style={styles.subtitleItalic}>hope</Text>.
+            </Text>
+            <View style={{ marginTop: 10 }}>
+              <Squiggle color={THEME.accent} w={36} opacity={0.5} />
+            </View>
+          </View>
+          <View style={styles.illustration} pointerEvents="none">
+            <HeroIllustration width={210} height={230} />
+          </View>
         </View>
 
-        <Pressable
-          onPress={busy ? undefined : onSkip}
-          style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.7 }]}>
-          {busy ? (
-            <ActivityIndicator color={THEME.inkSoft} />
-          ) : (
-            <Text style={styles.skipBtnText}>Continue without an account</Text>
-          )}
-        </Pressable>
-        <Text style={styles.skipFootnote}>
-          Pray and post anonymously — nothing will be saved to a recoverable
-          account.
-        </Text>
+        <View style={{ marginTop: 8, marginBottom: 12 }}>
+          <ScriptureTicker verses={VERSES.slice(2, 5)} speed={22} />
+        </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      </View>
+        <View style={styles.actions}>
+          <PrimaryButton
+            label="Create an account"
+            bg={THEME.cardDark}
+            fg={THEME.cardDarkInk}
+            rightIcon={<ArrowIcon size={16} color={THEME.cardDarkInk} />}
+            onPress={() => router.push('/auth/signup')}
+            style={{ marginBottom: 10 }}
+          />
+          <PrimaryButton
+            label="Log in"
+            bg={THEME.surface}
+            fg={THEME.ink}
+            rightIcon={<ArrowIcon size={16} color={THEME.ink} />}
+            onPress={() => router.push('/auth/login')}
+            style={styles.outline}
+          />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <Pressable
+            onPress={busy ? undefined : onSkip}
+            style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.7 }]}>
+            {busy ? (
+              <ActivityIndicator color={THEME.inkSoft} />
+            ) : (
+              <Text style={styles.skipBtnText}>Continue without an account</Text>
+            )}
+          </Pressable>
+          <Text style={styles.skipFootnote}>
+            Pray and post anonymously — nothing will be saved to a recoverable
+            account.
+          </Text>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <LegalLinks />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
+  content: { flexGrow: 1 },
   pillRow: {
     paddingHorizontal: 22,
     flexDirection: 'row',
