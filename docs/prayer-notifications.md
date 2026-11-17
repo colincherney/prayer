@@ -12,13 +12,64 @@ The reflection push reads **A moment to reflect** / **Take a quiet moment to ref
 
 - Migration: `supabase/migrations/20261114072417_prayer_notifications.sql` (matches the deployed migration history).
 - Edge function: `notify-prayer-activity`, JWT verification enabled, with an additional exact service credential check in the handler. It accepts the runtime service key or the private scheduler's saved legacy service JWT; a service-role claim on its own never grants access.
-- Schedule: `notify_prayer_activity`, every minute, through the existing server-only `notifications_dispatch` helper and existing notification credentials.
+- Schedule: `notify_prayer_activity`, every minute, through a private due-work check, then the existing server-only `notifications_dispatch` helper and existing notification credentials.
 - Private per-membership preferences: `group_notification_preferences`, with self-only RLS.
 - Group outbox: `group_prayer_notification_queue`, populated by an approval trigger. Claiming leases rows atomically for five minutes. Transient failures retry within a one-day window. No historical backfill.
 - Reflection claims stamp a local date atomically. Failed sends restore eligibility without overwriting a newer cadence change.
 - Expo batches contain at most 100 messages. Successful tickets are stored in `prayer_notification_receipts`, checked after 15 minutes, and removed after checking or 24 hours. Only `DeviceNotRegistered` causes device-token removal; credential errors preserve tokens.
 
 The outbox, receipts, and claim RPCs are service-only. Existing daily prayer reminders keep their existing schedule and settings.
+
+## Compute reduction (November 17, 2026)
+
+Applied `20261117173942_notification_compute_guards.sql`. The existing daily,
+prayer-activity and social-proof cron jobs keep their IDs, owners, enabled states
+and schedules. Each checks for due work in Postgres before starting its existing
+Edge Function. The daily check respects the user's exact local minute and last
+sent date; the prayer-activity check includes group leases, reflection cadences,
+same-day catch-up, receipt checks and queue housekeeping. The interaction job
+also skips its processor when no scheduled interactions are due.
+
+The original dispatcher, notification workers, claim functions and permissions
+are unchanged. Manual service-role dispatch remains available. The new helpers
+are private, run with the caller's privileges and are callable only by their
+owner, which is also the cron job's database user.
+
+At deployment there were two daily-reminder accounts with registered devices,
+no enabled reflection reminders and no queued group alerts or receipts. On a
+quiet day that permits about two daily worker starts instead of 2,880 scheduled
+daily/activity starts, plus starts for actual activity and follow-up receipts.
+This is a workload estimate, not a measured percentage reduction in CPU.
+
+Normal `VACUUM (ANALYZE)` ran on `net._http_response` and `cron.job_run_details`
+and is scheduled every six hours by `notification_log_maintenance`. It preserves
+all stored responses and run history, reuses dead space and refreshes statistics.
+It does not guarantee smaller files on disk; compaction or history retention is
+a separate change. No history retention/deletion was added.
+
+Verified: isolated PostgreSQL regression checks cover idle dispatch suppression,
+minute precision, invalid timezones, quarter-hour offsets, repeated DST hours,
+all three reflection cadences, group retries, receipts, housekeeping, job state
+and private helper permissions. All 67 Node tests passed, the existing live SQL
+notification tests passed in a rolled-back transaction, and the changed cron
+jobs completed successfully. The three live due checks took about 11 ms in one
+sample. Health advisors reported no current issues; existing security/performance
+advisories remain, including the table-bloat advisory.
+
+The first five guarded cron runs succeeded. Across the follow-up samples, both
+the original HTTP-dispatch counter and pg_net response-cleanup counter stayed
+unchanged while the minute checks continued running, confirming idle work was
+skipped. A longer monitoring window is still needed to quantify CPU savings.
+
+Run the new isolated regression file against an empty disposable Postgres 17
+database (it mocks cron/HTTP dispatch and rolls back everything):
+
+```powershell
+psql -v ON_ERROR_STOP=1 -d <empty-test-database> -f supabase/tests/notification_compute_guards.sql
+```
+
+To restore the previous behavior, run the rollback SQL recorded in
+`supabase/SQL_CHANGES.md`. No app update is required for either direction.
 
 Deployed to the connected project with the minute schedule active. A live dispatcher invocation returned HTTP 200 with `{"ok":true,"accepted":0}`; no real user notifications were needed for that check.
 
