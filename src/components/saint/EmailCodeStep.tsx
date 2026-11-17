@@ -13,10 +13,14 @@ import {
   View,
 } from 'react-native';
 
+import { AuthField } from '@/components/saint/AuthField';
+import { AuthButton } from '@/components/saint/AuthControls';
+import { AuthHeading, AuthMessage, AuthTextLink } from '@/components/saint/AuthScreen';
 import { PrimaryButton, Squiggle } from '@/components/saint/Common';
 import { ArrowIcon, BackIcon, CheckIcon, ShieldIcon } from '@/components/saint/Icons';
 import { SafeAreaView } from '@/components/saint/SafeArea';
-import { FONTS, THEME } from '@/components/saint/theme';
+import { authHaptic } from '@/components/saint/authHaptics';
+import { FONTS, THEME, useTheme } from '@/components/saint/theme';
 import { type EmailCodeKind, emailCooldown, REMEMBER_DAYS, useAuth } from '@/lib/auth';
 
 // Must match "Email OTP Length" in Supabase (Authentication → Sign In / Providers → Email). This project sends 8.
@@ -36,17 +40,20 @@ export function EmailCodeStep({
   onVerified,
   message,
   verify,
+  authScene = false,
 }: {
   email: string;
   kind: EmailCodeKind;
-  onBack: () => void;
+  onBack?: () => void;
   /** Runs after a correct code. Sign-in navigation is handled by RootStack. */
   onVerified?: () => void | Promise<void>;
   /** Replaces the whole "We sent a code to …" line. */
   message?: string;
   /** Checks the code some other way than the usual one for `email` and `kind`. */
   verify?: (code: string) => Promise<{ error: string | null }>;
+  authScene?: boolean;
 }) {
+  const { theme } = useTheme();
   const { verifyEmailCode, resendEmailCode } = useAuth();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,6 +79,7 @@ export function EmailCodeStep({
     setNote(null);
     const { error: e } = verify ? await verify(code) : await verifyEmailCode(email, code, kind, canRemember && remember);
     setBusy(false);
+    if (authScene) authHaptic(e ? 'error' : 'success');
     if (e) {
       setError(/expired|invalid/i.test(e) ? 'That code is wrong or has expired. Try again or send a new one.' : e);
       return;
@@ -85,6 +93,7 @@ export function EmailCodeStep({
     setError(null);
     setNote(null);
     const { error: e } = await resendEmailCode(email, kind);
+    if (authScene) authHaptic(e ? 'error' : 'success');
     if (e) {
       const left = emailCooldown(e);
       if (left !== null) setWait(left);
@@ -95,6 +104,62 @@ export function EmailCodeStep({
     setNote('A new code is on its way.');
     setWait(RESEND_WAIT_S);
   };
+
+  const instructions = kind === 'email'
+    ? 'Enter it to finish signing in.'
+    : kind === 'signup'
+      ? 'Enter it to confirm your account.'
+      : 'Enter it to finish creating your account. Everything you’ve built comes with you.';
+  const resendLabel = wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code';
+  const rememberOption = canRemember ? (
+    <Pressable
+      onPress={() => {
+        if (authScene) authHaptic('select');
+        setRemember(r => !r);
+      }}
+      style={[styles.rememberRow, authScene && { minHeight: 44 }]}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: remember }}>
+      <View style={[
+        styles.checkbox,
+        remember && styles.checkboxOn,
+        authScene && { borderColor: theme.inkSoft, backgroundColor: remember ? theme.ink : 'transparent' },
+      ]}>
+        {remember ? <CheckIcon size={12} color={authScene ? theme.bg : THEME.cardDarkInk} /> : null}
+      </View>
+      <Text style={[styles.rememberText, authScene && { color: theme.inkSoft }]}>
+        Remember this phone for {REMEMBER_DAYS} days
+      </Text>
+    </Pressable>
+  ) : null;
+
+  if (authScene) {
+    return (
+      <>
+        <AuthHeading title="Check your" accent="inbox.">
+          {message ?? <>We sent a code to <Text style={{ fontFamily: FONTS.bodySemi }}>{email}</Text>. {instructions}</>}
+        </AuthHeading>
+        <AuthField
+          label="Email verification code"
+          value={code}
+          onChangeText={t => setCode(t.replace(/\D/g, '').slice(0, MAX_CODE))}
+          onSubmitEditing={onSubmit}
+          placeholder={'0'.repeat(CODE_LENGTH)}
+          keyboardType="number-pad"
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
+          editable={!busy}
+          autoFocus
+          maxLength={MAX_CODE}
+        />
+        {error ? <AuthMessage error>{error}</AuthMessage> : null}
+        {note ? <AuthMessage>{note}</AuthMessage> : null}
+        {rememberOption}
+        <AuthButton label="Continue" busyLabel="Checking code…" busy={busy} disabled={!canSubmit} onPress={onSubmit} />
+        <AuthTextLink label={resendLabel} disabled={wait > 0 || busy} onPress={onResend} />
+      </>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -125,12 +190,7 @@ export function EmailCodeStep({
             <Text style={styles.subtitle}>
               {message ?? (
                 <>
-                  We sent a code to <Text style={styles.email}>{email}</Text>.{' '}
-                  {kind === 'email'
-                    ? 'Enter it to finish signing in.'
-                    : kind === 'signup'
-                      ? 'Enter it to confirm your account.'
-                      : 'Enter it to finish creating your account. Everything you’ve built comes with you.'}
+                  We sent a code to <Text style={styles.email}>{email}</Text>. {instructions}
                 </>
               )}
             </Text>
@@ -157,22 +217,11 @@ export function EmailCodeStep({
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             {note ? <Text style={styles.noteText}>{note}</Text> : null}
 
-            {canRemember ? (
-              <Pressable
-                onPress={() => setRemember(r => !r)}
-                style={styles.rememberRow}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: remember }}>
-                <View style={[styles.checkbox, remember && styles.checkboxOn]}>
-                  {remember ? <CheckIcon size={12} color={THEME.cardDarkInk} /> : null}
-                </View>
-                <Text style={styles.rememberText}>Remember this phone for {REMEMBER_DAYS} days</Text>
-              </Pressable>
-            ) : null}
+            {rememberOption}
 
             <Pressable onPress={onResend} disabled={wait > 0} hitSlop={8}>
               <Text style={[styles.resend, wait > 0 && { opacity: 0.5 }]}>
-                {wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}
+                {resendLabel}
               </Text>
             </Pressable>
           </View>
@@ -276,7 +325,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxOn: { backgroundColor: THEME.cardDark, borderColor: THEME.cardDark },
-  rememberText: { fontFamily: FONTS.body, fontSize: 13, color: THEME.inkSoft },
+  rememberText: { flex: 1, fontFamily: FONTS.body, fontSize: 13, color: THEME.inkSoft },
   resend: {
     fontFamily: FONTS.bodySemi,
     fontSize: 13,

@@ -30,7 +30,7 @@ export function LegalLinks() {
 }
 
 const makeStyles = (theme: Theme) => StyleSheet.create({
-  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 },
-  link: { minHeight: 44, paddingHorizontal: 8, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
+  links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 12, marginTop: 4 },
+  link: { minHeight: 44, paddingHorizontal: 4, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
   label: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 18, color: theme.inkSoft, textDecorationLine: 'underline' },
 });
