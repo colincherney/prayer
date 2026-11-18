@@ -22,11 +22,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-/**
- * A throwaway client used only to check a password during two-step sign-in.
- * It never saves its session, so a correct password alone doesn't sign anyone in;
- * the real session comes from the emailed code on the main client.
- */
+// Keep password checks and password recovery out of the app's persistent session.
 export const passwordCheckClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storageKey: 'password-check',

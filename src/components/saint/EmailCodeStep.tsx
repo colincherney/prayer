@@ -61,9 +61,8 @@ export function EmailCodeStep({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [wait, setWait] = useState(RESEND_WAIT_S);
-  // Signing in or confirming a new account can remember this phone; changing an email never does.
-  const canRemember = !verify && kind !== 'email_change';
-  const [remember, setRemember] = useState(true);
+  const canRemember = !verify && kind === 'email';
+  const [remember, setRemember] = useState(false);
 
   useEffect(() => {
     if (wait <= 0) return;

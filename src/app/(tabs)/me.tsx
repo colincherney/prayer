@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -8,6 +8,7 @@ import {
   StyleProp,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   useWindowDimensions,
   View,
@@ -38,6 +39,7 @@ import {
   ArrowIcon,
   BellIcon,
   PrayingIcon,
+  ShieldIcon,
   SparkleIcon,
   StarIcon,
   UserIcon,
@@ -168,7 +170,7 @@ function MeContent() {
   const { theme, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
-  const { session, isGuest, signOut } = useAuth();
+  const { session, isGuest, emailSignInCodes, setEmailSignInCodes, signOut } = useAuth();
   useEffect(() => afterLaunch(() => {
     void prefetchNookImages().catch(() => {});
   }), []);
@@ -252,6 +254,9 @@ function MeContent() {
   );
   const [decorating, setDecorating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSignInCodes, setSavingSignInCodes] = useState(false);
+  const [signInCodeError, setSignInCodeError] = useState<string | null>(null);
+  const signInCodeSaveInFlight = useRef(false);
   const reducedMotion = useReducedMotion();
   // Wait for what you own to load before removing cosmetics whose ownership has expired.
   useEffect(() => {
@@ -277,6 +282,22 @@ function MeContent() {
     setSettingsOpen(false);
     await signOut();
     router.replace('/auth');
+  };
+
+  const onToggleSignInCodes = async (enabled: boolean) => {
+    if (signInCodeSaveInFlight.current) return;
+    signInCodeSaveInFlight.current = true;
+    setSavingSignInCodes(true);
+    setSignInCodeError(null);
+    try {
+      const { error } = await setEmailSignInCodes(enabled);
+      setSignInCodeError(error);
+    } catch {
+      setSignInCodeError('Could not save this setting. Please try again.');
+    } finally {
+      signInCodeSaveInFlight.current = false;
+      setSavingSignInCodes(false);
+    }
   };
 
   // Deleting needs a code emailed to the account (checked by the delete-account function), so it has its own screen.
@@ -404,6 +425,25 @@ function MeContent() {
                   <Text style={styles.textLinkText}>Keep your little corner</Text>
                   <ArrowIcon size={14} color={theme.accent} />
                 </NookButton>
+              </View>
+            ) : null}
+            {!isGuest && session?.user.email ? (
+              <View style={styles.settingsRow}>
+                <ShieldIcon size={18} color={theme.inkSoft} />
+                <View style={styles.linkCopy}>
+                  <Text style={styles.rowTitle}>Email sign-in codes</Text>
+                  <Text style={styles.rowNote}>Ask for an email code after your password.</Text>
+                  {signInCodeError ? (
+                    <Text accessibilityRole="alert" style={[styles.rowNote, styles.deleteText]}>{signInCodeError}</Text>
+                  ) : null}
+                </View>
+                <Switch
+                  accessibilityLabel="Email sign-in codes"
+                  value={emailSignInCodes}
+                  disabled={savingSignInCodes}
+                  onValueChange={onToggleSignInCodes}
+                  trackColor={{ true: theme.accent }}
+                />
               </View>
             ) : null}
             <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
