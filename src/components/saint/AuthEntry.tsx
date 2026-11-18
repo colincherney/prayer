@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { BackHandler, Keyboard, StyleSheet, View } from 'react-native';
+import { BackHandler, Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { passwordProblem, PASSWORD_MIN, type EmailCodeKind, useAuth } from '@/lib/auth';
 
@@ -14,6 +15,9 @@ import { authHaptic } from './authHaptics';
 
 export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | null }) {
   const { signInAnonymously, signInWithPassword, signUpWithPassword } = useAuth();
+  const { width, height } = useWindowDimensions();
+  const { top, bottom } = useSafeAreaInsets();
+  const shortScreen = width < 900 && height - top - bottom < 610;
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,15 +89,17 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
   const passwordHint = password ? passwordIssue : `Use ${PASSWORD_MIN}+ characters, upper and lowercase letters, a number, and a symbol.`;
 
   return (
-    <AuthScreen step={step} onBack={mode ? goBack : undefined}>
+    <AuthScreen immersive step={step} onBack={mode ? goBack : undefined}>
       {codeKind ? (
         <EmailCodeStep authScene email={cleanEmail} kind={codeKind} />
       ) : mode === null ? (
         <>
-          <AuthHeading title="Welcome" centered>Pray anonymously and lift others up.</AuthHeading>
-          <View style={styles.actions}>
-            <AuthButton label="Create account" icon={UserIcon} onPress={() => chooseMode('signup')} disabled={busy} />
-            <AuthButton label="Log in" icon={LockIcon} secondary onPress={() => chooseMode('login')} disabled={busy} />
+          <AuthHeading title="A place to" accent="pray together." centered>
+            Share prayers anonymously and lift others up.
+          </AuthHeading>
+          <View style={[styles.actions, shortScreen && styles.actionsRow]}>
+            <AuthButton label="Create account" icon={UserIcon} compact={shortScreen} onPress={() => chooseMode('signup')} disabled={busy} />
+            <AuthButton label="Log in" icon={LockIcon} compact={shortScreen} secondary onPress={() => chooseMode('login')} disabled={busy} />
           </View>
           <AuthTextLink label={busy ? 'Opening Saint Central…' : 'Continue as guest'} onPress={onGuest} disabled={busy} />
           {error ? <AuthMessage error>{error}</AuthMessage> : null}
@@ -103,7 +109,9 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
       ) : (
         <>
           <AuthHeading title={newAccount ? 'Create your account' : 'Welcome back'}>
-            {newAccount ? 'Save your prayers, reflections, and companion.' : 'Pick up with your prayers and reflections.'}
+            {newAccount
+              ? (shortScreen ? 'Save your prayers and companion.' : 'Save your prayers, reflections, and companion.')
+              : 'Pick up with your prayers and reflections.'}
           </AuthHeading>
           <AuthModeSwitch active={mode} onSelect={chooseMode} disabled={busy} />
           <AuthCredentials
@@ -145,6 +153,7 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: 12, marginTop: 3 },
+  actions: { gap: 8, marginTop: 2 },
+  actionsRow: { flexDirection: 'row' },
   recovery: { marginTop: -9, marginBottom: -7 },
 });

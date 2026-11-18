@@ -4,22 +4,24 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { ArrowIcon } from './Icons';
+import { useAuthTheme } from './authAppearance';
 import { authHaptic } from './authHaptics';
-import { FONTS, mixColors, useTheme } from './theme';
+import { FONTS, mixColors } from './theme';
 
 const BUTTON_DEPTH = 6;
 const RELEASE_SPRING = { damping: 15, stiffness: 265, mass: 0.65, overshootClamping: true };
 
-export function AuthButton({ label, busyLabel, busy, disabled, secondary, icon: Icon, onPress }: {
+export function AuthButton({ label, busyLabel, busy, disabled, secondary, compact, icon: Icon, onPress }: {
   label: string;
   busyLabel?: string;
   busy?: boolean;
   disabled?: boolean;
   secondary?: boolean;
+  compact?: boolean;
   icon?: ComponentType<{ size?: number; color?: string }>;
   onPress: () => void;
 }) {
-  const { theme } = useTheme();
+  const theme = useAuthTheme();
   const reducedMotion = useReducedMotion();
   const press = useSharedValue(0);
   const unavailable = disabled && !busy;
@@ -46,13 +48,14 @@ export function AuthButton({ label, busyLabel, busy, disabled, secondary, icon: 
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || busy, busy }}
-      style={styles.button}>
+      style={[styles.button, compact && styles.compactButton]}>
       {lifted ? <View pointerEvents="none" style={[styles.edge, { backgroundColor: edge }]} /> : null}
       <Animated.View
         pointerEvents="none"
         testID="auth-button-face"
         style={[
           styles.face,
+          compact && styles.compactFace,
           faceStyle,
           {
             backgroundColor: unavailable ? theme.bgSoft : face,
@@ -62,14 +65,14 @@ export function AuthButton({ label, busyLabel, busy, disabled, secondary, icon: 
         {!unavailable ? (
           <LinearGradient colors={[top, face]} style={StyleSheet.absoluteFill} />
         ) : null}
-        {Icon ? (
+        {Icon && !compact ? (
           <View style={[styles.icon, { backgroundColor: secondary ? theme.bgSoft : '#AD6E3D22' }]}>
             <Icon size={19} color={ink} />
           </View>
         ) : null}
-        <Text style={[styles.buttonText, { color: ink }]}>{busy ? busyLabel ?? label : label}</Text>
+        <Text style={[styles.buttonText, compact && styles.compactButtonText, { color: ink }]}>{busy ? busyLabel ?? label : label}</Text>
         {busy ? <ActivityIndicator size="small" color={ink} /> : (
-          <Animated.View style={arrowStyle}><ArrowIcon size={18} color={ink} /></Animated.View>
+          !compact && <Animated.View style={arrowStyle}><ArrowIcon size={18} color={ink} /></Animated.View>
         )}
       </Animated.View>
     </Pressable>
@@ -83,7 +86,7 @@ export function AuthModeSwitch({ active, onSelect, disabled }: {
   onSelect: (mode: AuthMode) => void;
   disabled?: boolean;
 }) {
-  const { theme } = useTheme();
+  const theme = useAuthTheme();
   const reducedMotion = useReducedMotion();
   const target = active === 'login' ? 0 : 1;
   const position = useSharedValue(target);
@@ -128,6 +131,7 @@ export function AuthModeSwitch({ active, onSelect, disabled }: {
 
 const styles = StyleSheet.create({
   button: { borderRadius: 19, paddingBottom: BUTTON_DEPTH },
+  compactButton: { flex: 1, minWidth: 0 },
   edge: {
     position: 'absolute',
     left: 0,
@@ -149,7 +153,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   icon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  compactFace: { minHeight: 48, paddingHorizontal: 8, paddingVertical: 6 },
   buttonText: { flex: 1, fontFamily: FONTS.bodyBold, fontSize: 15, lineHeight: 21 },
+  compactButtonText: { textAlign: 'center' },
   track: { padding: 4, borderWidth: 1, borderRadius: 16 },
   segments: { flexDirection: 'row' },
   thumb: {

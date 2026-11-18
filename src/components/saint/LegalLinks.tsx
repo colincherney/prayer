@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ExternalLink } from '@/components/external-link';
-import { FONTS, Theme, useThemedStyles } from './theme';
+import { useAuthTheme } from './authAppearance';
+import { FONTS } from './theme';
 
 const LEGAL_LINKS = [
   { label: 'Terms of Use', href: 'https://saintcentral.app/terms' },
@@ -11,7 +12,7 @@ const LEGAL_LINKS = [
 ] as const;
 
 export function LegalLinks() {
-  const styles = useThemedStyles(makeStyles);
+  const theme = useAuthTheme();
 
   return (
     <View style={styles.links}>
@@ -21,7 +22,7 @@ export function LegalLinks() {
             accessibilityRole="link"
             accessibilityHint="Opens in your browser"
             style={({ pressed }) => [styles.link, pressed && { opacity: 0.6 }]}>
-            <Text style={styles.label}>{label}</Text>
+            <Text style={[styles.label, { color: theme.inkSoft }]}>{label}</Text>
           </Pressable>
         </ExternalLink>
       ))}
@@ -29,8 +30,8 @@ export function LegalLinks() {
   );
 }
 
-const makeStyles = (theme: Theme) => StyleSheet.create({
+const styles = StyleSheet.create({
   links: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 12, marginTop: 4 },
   link: { minHeight: 44, paddingHorizontal: 4, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 18, color: theme.inkSoft, textDecorationLine: 'underline' },
+  label: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 18, textDecorationLine: 'underline' },
 });

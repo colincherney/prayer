@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
@@ -23,6 +23,7 @@ import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
+const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
 
 // Keep home beneath a cold-start widget link so Back and Return home work.
 export const unstable_settings = { anchor: '(tabs)' };
@@ -37,7 +38,7 @@ function RootStack() {
   const segments = useSegments();
   const router = useRouter();
   const fontsLoaded = useSaintFonts();
-  const notificationResponse = Notifications.useLastNotificationResponse();
+  const notificationResponse = useNotificationResponse();
   const handledNotification = useRef<string | null>(null);
   const pendingPrayerRequest = useRef(false);
 

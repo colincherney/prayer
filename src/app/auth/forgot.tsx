@@ -87,7 +87,7 @@ export default function ForgotPasswordScreen() {
 
   if (step === 'done') {
     return (
-      <AuthScreen step="done" onBack={() => router.replace('/auth/login')}>
+      <AuthScreen immersive step="done" onBack={() => router.replace('/auth/login')}>
         <AuthHeading title="Password" accent="reset.">
           Log in with your new password to pick up where you left off.
         </AuthHeading>
@@ -99,7 +99,7 @@ export default function ForgotPasswordScreen() {
   const enteringEmail = step === 'email';
 
   return (
-    <AuthScreen step={step} onBack={() => (enteringEmail ? backFromAuth() : setStep('email'))}>
+    <AuthScreen immersive step={step} onBack={() => (enteringEmail ? backFromAuth() : setStep('email'))}>
       {enteringEmail ? (
         <>
           <AuthHeading title="Forgot your" accent="password?">

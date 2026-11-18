@@ -19,8 +19,9 @@ import { AuthHeading, AuthMessage, AuthTextLink } from '@/components/saint/AuthS
 import { PrimaryButton, Squiggle } from '@/components/saint/Common';
 import { ArrowIcon, BackIcon, CheckIcon, ShieldIcon } from '@/components/saint/Icons';
 import { SafeAreaView } from '@/components/saint/SafeArea';
+import { useAuthTheme } from '@/components/saint/authAppearance';
 import { authHaptic } from '@/components/saint/authHaptics';
-import { FONTS, THEME, useTheme } from '@/components/saint/theme';
+import { FONTS, THEME } from '@/components/saint/theme';
 import { type EmailCodeKind, emailCooldown, REMEMBER_DAYS, useAuth } from '@/lib/auth';
 
 // Must match "Email OTP Length" in Supabase (Authentication → Sign In / Providers → Email). This project sends 8.
@@ -53,7 +54,7 @@ export function EmailCodeStep({
   verify?: (code: string) => Promise<{ error: string | null }>;
   authScene?: boolean;
 }) {
-  const { theme } = useTheme();
+  const theme = useAuthTheme();
   const { verifyEmailCode, resendEmailCode } = useAuth();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);

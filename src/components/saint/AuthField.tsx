@@ -3,8 +3,9 @@ import type { ComponentRef, Ref } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 
+import { useAuthTheme } from './authAppearance';
 import { authHaptic } from './authHaptics';
-import { FONTS, mixColors, useTheme } from './theme';
+import { FONTS, mixColors } from './theme';
 
 type InputInstance = ComponentRef<typeof TextInput>;
 
@@ -15,7 +16,7 @@ export function AuthField({
   style,
   ...inputProps
 }: TextInputProps & { label: string; password?: boolean; inputRef?: Ref<InputInstance> }) {
-  const { theme } = useTheme();
+  const theme = useAuthTheme();
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const borderColor = focused ? theme.pillInk : mixColors(theme.surface, theme.ink, 0.24);
