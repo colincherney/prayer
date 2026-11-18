@@ -1,3 +1,5 @@
+import { findBibleReference } from './bibleReferences';
+
 // Every quest the guide can hand out, in four categories. "(A)" marks an advanced challenge and "(S)" a special one;
 // both are offered as the day's bonus challenge rather than as regular quests.
 // A quest's id is its category letter and its 1-based position here ("p:12"), which is what the database stores,
@@ -11,9 +13,10 @@ export type Quest = {
   category: QuestCategory;
   tier: QuestTier;
   text: string;
-  /** A Bible reference found in the quest, if any ("Psalm 23", "John 3:16–17"). */
-  ref?: string;
+  reading?: readonly string[];
 };
+
+type QuestSource = string | readonly [text: string, ...references: string[]];
 
 const PRAYER = [
   'Say a one-sentence morning prayer.',
@@ -368,7 +371,7 @@ const PRAYER = [
   '(S) Dedicate a full day to intentional prayer at regular intervals, including morning, midday, afternoon, and evening.',
 ];
 
-const SCRIPTURE = [
+const SCRIPTURE: QuestSource[] = [
   'Read one verse from a Gospel.',
   'Read one verse from Psalms.',
   'Read one proverb from Proverbs.',
@@ -478,12 +481,12 @@ const SCRIPTURE = [
   'Read one chapter from the Old Testament and summarize its message.',
   'Read one chapter from the New Testament and summarize its message.',
   '(A) Read the entire Sermon on the Mount, Matthew 5–7.',
-  '(A) Read the entire book of Philippians in one sitting.',
-  '(A) Read the entire book of James in one sitting.',
-  '(A) Read the entire book of Ruth in one sitting.',
+  ['(A) Read the entire book of Philippians in one sitting.', 'Philippians 1–4'],
+  ['(A) Read the entire book of James in one sitting.', 'James 1–5'],
+  ['(A) Read the entire book of Ruth in one sitting.', 'Ruth 1–4'],
   '(A) Memorize and recite five consecutive Bible verses.',
   '(A) Spend forty-five minutes studying a teaching of Jesus.',
-  '(S) Read the Passion narratives from all four Gospels.',
+  ['(S) Read the Passion narratives from all four Gospels.', 'Matthew 26–27', 'Mark 14–15', 'Luke 22–23', 'John 18–19'],
   '(S) Complete a two-hour personal Bible study with written reflections.',
   'Read Genesis 1:26–31 and reflect on human dignity.',
   'Read Genesis 2:15 and reflect on caring for creation.',
@@ -730,11 +733,11 @@ const SCRIPTURE = [
   '(A) Study the life of Joseph in Genesis and identify five important lessons.',
   '(A) Spend one hour studying how Jesus treated people who were excluded.',
   '(A) Compare three New Testament passages about Christian love and write a reflection.',
-  '(A) Read the first ten chapters of Acts and record five important developments.',
+  ['(A) Read the first ten chapters of Acts and record five important developments.', 'Acts 1–10'],
   '(A) Create a personal study guide explaining the fruit of the Spirit with Bible references.',
   '(A) Memorize ten short Bible verses and practice reciting them.',
   '(S) Complete a three-hour Scripture study exploring the life, teachings, and compassion of Jesus.',
-  '(S) Read the entire Gospel of Mark and write a reflection identifying ten lessons.',
+  ['(S) Read the entire Gospel of Mark and write a reflection identifying ten lessons.', 'Mark 1–16'],
 ];
 
 const SERVICE = [
@@ -1474,29 +1477,20 @@ const DAILY = [
   '(S) Complete a personal half-day retreat examining your habits, relationships, responsibilities, and spiritual goals in light of the teachings of Jesus.',
 ];
 
-const SOURCES: { category: QuestCategory; letter: string; list: string[] }[] = [
+const SOURCES: { category: QuestCategory; letter: string; list: QuestSource[] }[] = [
   { category: 'prayer', letter: 'p', list: PRAYER },
   { category: 'scripture', letter: 's', list: SCRIPTURE },
   { category: 'service', letter: 'l', list: SERVICE },
   { category: 'daily', letter: 'f', list: DAILY },
 ];
 
-// Bible books, longest names first so "Psalms" wins over "Psalm"; numbered books ("1 John") take an optional prefix.
-const BOOKS = [
-  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', 'Samuel', 'Kings',
-  'Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Psalm', 'Proverbs', 'Ecclesiastes', 'Isaiah',
-  'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum',
-  'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans',
-  'Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', 'Thessalonians', 'Timothy', 'Titus',
-  'Philemon', 'Hebrews', 'James', 'Peter', 'Jude', 'Revelation',
-].join('|');
-const REF = new RegExp(String.raw`\b(?:[123] )?(?:${BOOKS})\s\d+(?::\d+(?:[–-]\d+)?)?(?:[–-]\d+)?`);
-
-function parse(category: QuestCategory, letter: string, raw: string, i: number): Quest {
+function parse(category: QuestCategory, letter: string, source: QuestSource, i: number): Quest {
+  const [raw, ...references] = typeof source === 'string' ? [source] : source;
   const m = raw.match(/^\((A|S)\)\s*/);
   const text = m ? raw.slice(m[0].length) : raw;
-  const ref = text.match(REF)?.[0];
-  return { id: `${letter}:${i + 1}`, category, tier: (m?.[1] as QuestTier | undefined) ?? 'n', text, ref };
+  const ref = findBibleReference(text);
+  if (ref && !references.length) references.push(ref);
+  return { id: `${letter}:${i + 1}`, category, tier: (m?.[1] as QuestTier | undefined) ?? 'n', text, reading: references.length ? references : undefined };
 }
 
 export const QUESTS: Quest[] = SOURCES.flatMap(({ category, letter, list }) => list.map((raw, i) => parse(category, letter, raw, i)));

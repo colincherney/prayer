@@ -9,9 +9,11 @@ import { QuestScene } from '@/components/pets/QuestScene';
 import { RARITY_COLOR, TrinketArt } from '@/components/pets/Trinket';
 import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { petStageName } from '@/components/pets/registry';
+import { BiblePassageReader } from '@/components/saint/BiblePassageReader';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { findBibleReference } from '@/lib/bibleReferences';
 import { usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { QuestCategory } from '@/lib/questPool';
 import { CATEGORIES, CATEGORY_INFO, DailyQuest, MAX_REROLLS, QUEST_XP, QuestStatus, useQuests } from '@/lib/quests';
@@ -109,6 +111,7 @@ export default function QuestsScreen() {
   const [celebrate, setCelebrate] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [reading, setReading] = useState<readonly string[] | null>(null);
   const cheer = useRef(0);
 
   const xpW = useSharedValue(0);
@@ -185,6 +188,12 @@ export default function QuestsScreen() {
     setLine(ok ? 'Then take this road instead. Every path leads home.' : 'Let us keep to this road today.');
   };
 
+  const onRead = (quest: DailyQuest, status: QuestStatus) => {
+    if (!quest.reading || (status === 'new' && busy)) return;
+    if (status === 'new') void onQuest(quest, status);
+    setReading(quest.reading);
+  };
+
   const onReflect = async () => {
     if (busy || q.reflectedToday || q.journeySteps >= 5) return;
     setBusy('journey');
@@ -203,6 +212,7 @@ export default function QuestsScreen() {
   };
 
   const prompt = q.journey.prompts[Math.min(q.journeySteps, 4)];
+  const journeyRef = q.journeySteps < 5 ? findBibleReference(prompt) ?? q.journey.ref : q.journey.ref;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -275,6 +285,7 @@ export default function QuestsScreen() {
                 canSwap={(q.rerolls[quest.slot] ?? 0) < MAX_REROLLS}
                 keepsake={keepsakeFor(quest)}
                 onPress={onQuest}
+                onRead={onRead}
                 onSwap={onSwap}
               />
             ))}
@@ -290,6 +301,7 @@ export default function QuestsScreen() {
                   canSwap={(q.rerolls.bonus ?? 0) < MAX_REROLLS}
                   keepsake={keepsakeFor(bonus)}
                   onPress={onQuest}
+                  onRead={onRead}
                   onSwap={onSwap}
                   featured
                 />
@@ -354,6 +366,9 @@ export default function QuestsScreen() {
               Tonight: <Text style={styles.promptItalic}>{prompt}</Text>
             </Text>
           ) : null}
+          <Pressable onPress={() => setReading([journeyRef])} accessibilityRole="button" style={styles.readLink}>
+            <Text style={styles.readLinkText}>Read now</Text>
+          </Pressable>
           <View style={styles.journeyFoot}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
               <Svg width={16} height={16} viewBox="0 0 24 24">
@@ -389,6 +404,7 @@ export default function QuestsScreen() {
 
         <Text style={styles.footer}>&ldquo;Your word is a lamp to my feet and a light to my path.&rdquo; — Psalm 119:105</Text>
       </ScrollView>
+      {reading ? <BiblePassageReader references={reading} onClose={() => setReading(null)} /> : null}
     </SafeAreaView>
   );
 }
@@ -401,6 +417,7 @@ function QuestCard({
   busy,
   canSwap,
   onPress,
+  onRead,
   onSwap,
   featured,
   keepsake,
@@ -410,6 +427,7 @@ function QuestCard({
   busy: boolean;
   canSwap: boolean;
   onPress: (q: DailyQuest, s: QuestStatus) => void;
+  onRead: (q: DailyQuest, s: QuestStatus) => void;
   onSwap: (q: DailyQuest) => void;
   featured?: boolean;
   /** The keepsake this quest counts toward. */
@@ -419,6 +437,9 @@ function QuestCard({
   const styles = useThemedStyles(makeStyles);
   const info = CATEGORY_INFO[quest.category];
   const xp = QUEST_XP[quest.tier];
+  const startsReading = status === 'new' && Boolean(quest.reading);
+  const actionLabel = status === 'done' ? 'Done' : status === 'active' ? 'Complete' : startsReading ? 'Read now' : 'Accept';
+  const primaryAction = startsReading || status === 'active';
   return (
     <View
       style={[
@@ -433,7 +454,7 @@ function QuestCard({
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <Text style={[styles.cardTitle, status === 'done' && styles.strike]}>{quest.text}</Text>
         <Text style={styles.cardDesc}>{info.label}</Text>
-        {quest.ref ? <Text style={styles.cardRef}>{quest.ref}</Text> : null}
+        {quest.reading ? <Text style={styles.cardRef}>{quest.reading.join(' · ')}</Text> : null}
         {keepsake ? <Text style={styles.cardRef}>Counts toward {keepsake}</Text> : null}
         <View style={styles.cardFoot}>
           <View style={{ flexDirection: 'row', gap: 6, flexShrink: 1, flexWrap: 'wrap' }}>
@@ -445,23 +466,29 @@ function QuestCard({
             </View>
           </View>
           <Pressable
-            onPress={() => onPress(quest, status)}
+            onPress={() => startsReading ? onRead(quest, status) : onPress(quest, status)}
             disabled={status === 'done' || busy}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.btn,
-              status === 'new' ? styles.btnNew : status === 'active' ? styles.btnGo : styles.btnDone,
+              primaryAction ? styles.btnGo : status === 'new' ? styles.btnNew : styles.btnDone,
+              startsReading && styles.readButton,
               pressed && { transform: [{ scale: 0.95 }] },
             ]}>
             {busy ? (
               <ActivityIndicator size="small" color={THEME.accentInk} />
             ) : (
-              <Text style={[styles.btnText, status === 'new' ? styles.btnNewText : status === 'active' ? styles.btnGoText : styles.btnDoneText]}>
-                {status === 'new' ? 'Accept' : status === 'active' ? 'Complete' : 'Done'}
+              <Text style={[styles.btnText, primaryAction ? styles.btnGoText : status === 'new' ? styles.btnNewText : styles.btnDoneText]}>
+                {actionLabel}
               </Text>
             )}
           </Pressable>
         </View>
+        {quest.reading && !startsReading ? (
+          <Pressable onPress={() => onRead(quest, status)} accessibilityRole="button" style={styles.readLink}>
+            <Text style={styles.readLinkText}>Read now</Text>
+          </Pressable>
+        ) : null}
         {status === 'new' && canSwap ? (
           <Pressable onPress={() => onSwap(quest)} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
             <Text style={styles.swap}>Ask for another path</Text>
@@ -536,7 +563,7 @@ const makeStyles = (THEME: Theme) =>
     cardFoot: { marginTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
     xpChip: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 999, backgroundColor: THEME.accent + '22' },
     xpChipText: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 0.4, color: THEME.accent },
-    btn: { height: 36, minWidth: 84, paddingHorizontal: 14, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    btn: { minHeight: 36, minWidth: 84, paddingHorizontal: 14, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     btnNew: { borderWidth: 1, borderColor: THEME.inkSoft },
     btnGo: { backgroundColor: THEME.accent },
     btnDone: { backgroundColor: 'rgba(143,198,169,0.2)' },
@@ -544,6 +571,9 @@ const makeStyles = (THEME: Theme) =>
     btnNewText: { color: THEME.ink },
     btnGoText: { color: THEME.accentInk },
     btnDoneText: { color: '#4F9C7A' },
+    readButton: { minHeight: 44 },
+    readLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+    readLinkText: { fontFamily: FONTS.bodySemi, fontSize: 13, color: THEME.accent, textDecorationLine: 'underline' },
     swap: { marginTop: 6, fontFamily: FONTS.body, fontSize: 12, color: THEME.muted, textDecorationLine: 'underline' },
     journey: {
       marginTop: 14,
