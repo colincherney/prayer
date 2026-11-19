@@ -164,8 +164,12 @@ function ThemeHomeScreen() {
             icon={<SparkleIcon size={10} color={THEME.pillInk} />}
             bg={THEME.pillBg}
             fg={THEME.pillInk}
-            style={{ alignSelf: 'center' }}>
-            Paired anonymously
+            lines={2}
+            // The half-width card is narrower than the label: two lines ("PAIRED" over "ANONYMOUSLY"), and the pill
+            // reaches into the card's padding so "ANONYMOUSLY" fits on its line.
+            style={styles.pairedPill}
+            textStyle={styles.pairedPillText}>
+            {'Paired\nanonymously'}
           </Pill>
         </Pressable>
       </View>
@@ -227,6 +231,8 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  pairedPill: { alignSelf: 'center', marginHorizontal: -10, paddingHorizontal: 10 },
+  pairedPillText: { textAlign: 'left', lineHeight: 14 },
   card: {
     flex: 1,
     borderRadius: 22,
@@ -460,8 +466,10 @@ function RoomHomeScreen() {
               icon={<SparkleIcon size={10} color={ROOM.cardLightPillInk} />}
               bg={ROOM.cardLightPillBg}
               fg={ROOM.cardLightPillInk}
-              style={{ alignSelf: 'center' }}>
-              Paired anonymously
+              lines={2}
+              style={styles.pairedPill}
+              textStyle={styles.pairedPillText}>
+              {'Paired\nanonymously'}
             </Pill>
           </Pressable>
         </View>
@@ -568,6 +576,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  pairedPill: { alignSelf: 'center', marginHorizontal: -10, paddingHorizontal: 10 },
+  pairedPillText: { textAlign: 'left', lineHeight: 14 },
   card: {
     flex: 1,
     borderRadius: 26,
