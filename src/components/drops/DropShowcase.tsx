@@ -4,7 +4,13 @@ import { Modal, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, Vie
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Svg from 'react-native-svg';
+
 import { COLLECTION_SCENES } from '@/components/pets/collectionData';
+import { collectionDecor } from '@/components/pets/collectionDecor';
+import { COLLECTION_DECOR_ART } from '@/components/pets/collectionDecorArt';
+import { RARITY_COLOR, TrinketArt } from '@/components/pets/Trinket';
+import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { COMPANION_INFO } from '@/components/pets/companionInfo';
 import { NOOK_H, NOOK_W, NookScale, SceneBackdrop } from '@/components/pets/NookScene';
 import { getPet, Pet, PetId } from '@/components/pets/registry';
@@ -50,8 +56,26 @@ function copyFor(item: DropItem): { label: string; title: string; body: string; 
       : 'A new home screen to pray in. Pick it any time in Customize.';
     return { label: 'NEW HOME WALLPAPER', title: PRAYER_ROOM_LABELS[room], body, hue: '#1F2A44' };
   }
+  if (item.kind === 'trinket') {
+    const info = TRINKET_INFO[item.id as TrinketId];
+    return { label: 'NEW KEEPSAKE', title: info?.name ?? 'A new keepsake', body: `Earn it for your shelf: ${info?.goal ?? 'see Keepsakes'}.`, hue: RARITY_COLOR[info?.rarity ?? 'common'] };
+  }
+  if (item.kind === 'item') {
+    return { label: 'NEW NOOK DECORATION', title: collectionDecor(item.id)?.name ?? 'A new decoration', body: 'A new piece to make your prayer nook your own. Find it when you decorate your Nook.', hue: '#5A4A3A' };
+  }
   const scene = COLLECTION_SCENES.find(s => s.id === item.id);
   return { label: 'NEW NOOK SCENE', title: scene?.name ?? 'A new nook scene', body: 'A new backdrop for your prayer nook. Find it in your Nook.', hue: mixColors(scene?.bg ?? '#3A4860', '#0F1834', 0.55) };
+}
+
+/** A nook decoration on its own, from its 120x120 art tile. */
+function DecorArt({ id, size }: { id: string; size: number }) {
+  const Art = COLLECTION_DECOR_ART[id];
+  if (!Art) return null;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 120 120">
+      <Art />
+    </Svg>
+  );
 }
 
 function Art({ item, maxHeight }: { item: DropItem; maxHeight: number }) {
@@ -77,6 +101,20 @@ function Art({ item, maxHeight }: { item: DropItem; maxHeight: number }) {
     return (
       <View style={[styles.phone, { height: h, width: (h * 390) / 844 }]}>
         <RoomScene room={item.id as PrayerRoomName} />
+      </View>
+    );
+  }
+  if (item.kind === 'trinket') {
+    return (
+      <View style={styles.pedestal}>
+        <TrinketArt id={item.id as TrinketId} size={Math.min(220, maxHeight * 0.8)} />
+      </View>
+    );
+  }
+  if (item.kind === 'item') {
+    return (
+      <View style={styles.pedestal}>
+        <DecorArt id={item.id} size={Math.min(230, maxHeight * 0.8)} />
       </View>
     );
   }
@@ -151,6 +189,7 @@ const styles = StyleSheet.create({
   artArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   phone: { borderRadius: 26, overflow: 'hidden', borderWidth: 3, borderColor: 'rgba(251,244,230,0.85)', backgroundColor: '#0B1230' },
   nook: { borderRadius: 22, overflow: 'hidden' },
+  pedestal: { padding: 18, borderRadius: 999, backgroundColor: 'rgba(251,244,230,0.07)', alignItems: 'center', justifyContent: 'center' },
   stages: { flexDirection: 'row', gap: 14, marginTop: 10 },
   stage: { alignItems: 'center', width: 76 },
   stageName: { fontFamily: FONTS.body, fontSize: 11, color: SOFT, marginTop: 2 },

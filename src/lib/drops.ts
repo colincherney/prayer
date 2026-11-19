@@ -1,4 +1,5 @@
-// "What's new": the companions, home wallpapers and nook scenes that have just come out, shown once per account
+// "What's new": the companions, home wallpapers, nook scenes, keepsakes and nook decorations that have just come out
+// (keepsakes and decorations drop most weeks, so there's something new nearly every week), shown once per account
 // (src/components/drops/DropShowcase.tsx). Release times come from public.content_releases, the same rows that
 // unlock the content, so the showcase and the unlock always agree. The Long Winter's two pieces (Snowcap and its
 // wallpaper) come from the event's own start date.
@@ -9,24 +10,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { COLLECTION_SCENES } from '@/components/pets/collectionData';
+import { isCollectionDecor } from '@/components/pets/collectionDecor';
+import { TRINKET_INFO } from '@/components/pets/trinketArt';
 import { isPetId } from '@/components/pets/registry';
 import { PRAYER_ROOMS } from '@/components/saint/prayerRoom';
 import { RELEASE_SCHEDULE } from '@/lib/releases';
 import { supabase } from '@/lib/supabase';
 import { addDays, eventDayFor, realStart, WinterState } from '@/lib/winterEvent';
 
-export type DropKind = 'pet' | 'room' | 'scene';
+/** Companions, home wallpapers, nook scenes, and the weekly keepsakes ('trinket') and nook decorations ('item'). */
+export type DropKind = 'pet' | 'room' | 'scene' | 'trinket' | 'item';
 export type DropItem = { key: string; kind: DropKind; id: string; day: string };
 
 /** How long after a drop it still counts as new. Anything older is quietly skipped. */
 const WINDOW_DAYS = 10;
-const ORDER: Record<DropKind, number> = { pet: 0, room: 1, scene: 2 };
+const ORDER: Record<DropKind, number> = { pet: 0, room: 1, scene: 2, trinket: 3, item: 4 };
 const seenKey = (userId: string) => `drops.seen.${userId}`;
 
 function valid(kind: string, id: string): kind is DropKind {
   if (kind === 'pet') return isPetId(id);
   if (kind === 'room') return id in PRAYER_ROOMS;
   if (kind === 'scene') return COLLECTION_SCENES.some(s => s.id === id);
+  if (kind === 'trinket') return id in TRINKET_INFO;
+  if (kind === 'item') return isCollectionDecor(id);
   return false;
 }
 
