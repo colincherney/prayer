@@ -754,3 +754,17 @@ starting 2026-11-18, with `allow_test_dates` on and the `event:winterLord` windo
 prayed since Nov 18 was re-checked, so their prayers count straight away.
 
 **Before Dec 1, run `supabase/migrations/20261118_winter_launch_settings.sql` again** to leave testing mode.
+
+## Long Winter: testing over, real schedule (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_winter_launch_settings_final.sql`, through the connector.
+
+Checked afterwards:
+- The event runs 2026-12-01 to 2027-01-31, is active, and `allow_test_dates` is false.
+- The Winter look runs Dec 1 00:00 ET to Feb 1 00:00 ET.
+- Noel the Donkey, the God With Us wallpaper and Shepherds' Field release Dec 1 00:00 ET, and Noel can be claimed Dec 1 – Jan 7.
+- The `notify_winter_event` cron job is in place.
+
+**Left from testing (the user hasn't decided yet):** 11 `user_event_progress` rows (6 with Snowcap from test prayers since
+Nov 18), and the community counter at 5. To give everyone a clean start on Dec 1:
+`delete from public.user_event_progress where event_id = 'long-winter-2026'; update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';`

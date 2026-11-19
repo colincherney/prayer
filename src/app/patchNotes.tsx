@@ -75,6 +75,22 @@ export default function PatchNotesScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
   const thisWeek = mondayOf(today);
+  // The latest week gets its own card at the top; everything older goes into one tidy box per month below it.
+  const latest = weeks?.[0] ?? null;
+  const months = groupByMonth((weeks ?? []).slice(1).flatMap(w => w.items));
+
+  const itemRow = (item: DropItem) => {
+    const copy = copyFor(item);
+    return (
+      <View key={item.key} style={styles.row}>
+        <View style={styles.thumbWrap}><Thumb item={item} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.kind}>{copy.label.replace('NEW ', '')} · {shortDate(item.day)}</Text>
+          <Text numberOfLines={1} style={styles.name}>{copy.title}</Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -91,33 +107,76 @@ export default function PatchNotesScreen() {
 
       {weeks === null ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={theme.accent} />
-      ) : weeks.length === 0 ? (
+      ) : !latest ? (
         <Text style={styles.empty}>Nothing has dropped yet. Check back soon.</Text>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {weeks.map(({ weekOf, items }) => (
-            <View key={weekOf} style={styles.week}>
-              <View style={styles.weekHead}>
-                <Text style={styles.weekTitle}>{weekOf === thisWeek ? 'This week' : `Week of ${shortDate(weekOf)}`}</Text>
-                {weekOf === thisWeek ? <View style={styles.newPill}><Text style={styles.newPillText}>NEW</Text></View> : null}
-              </View>
-              {[...items].reverse().map(item => {
-                const copy = copyFor(item);
-                return (
-                  <View key={item.key} style={styles.row}>
-                    <View style={styles.thumbWrap}><Thumb item={item} /></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.kind}>{copy.label.replace('NEW ', '')} · {shortDate(item.day)}</Text>
-                      <Text numberOfLines={1} style={styles.name}>{copy.title}</Text>
-                    </View>
-                  </View>
-                );
-              })}
+          {/* The latest drop, open */}
+          <View style={[styles.week, styles.latest]}>
+            <View style={styles.weekHead}>
+              <Text style={styles.weekTitle}>{latest.weekOf === thisWeek ? 'This week' : `Week of ${shortDate(latest.weekOf)}`}</Text>
+              <View style={styles.newPill}><Text style={styles.newPillText}>{latest.weekOf === thisWeek ? 'NEW' : 'LATEST'}</Text></View>
             </View>
+            {[...latest.items].reverse().map(itemRow)}
+          </View>
+
+          {/* Everything older, one box per month, closed until tapped */}
+          {months.length ? <Text style={styles.sectionLabel}>EARLIER</Text> : null}
+          {months.map(month => (
+            <MonthBox key={month.key} title={month.title} items={month.items} styles={styles} renderItem={itemRow} />
           ))}
         </ScrollView>
       )}
     </SafeAreaView>
+  );
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** Drops grouped by calendar month, newest month first, each month's items newest first. */
+function groupByMonth(items: DropItem[]): { key: string; title: string; items: DropItem[] }[] {
+  const byMonth = new Map<string, DropItem[]>();
+  for (const item of items) {
+    const key = item.day.slice(0, 7);
+    byMonth.set(key, [...(byMonth.get(key) ?? []), item]);
+  }
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([key, list]) => ({
+      key,
+      title: `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`,
+      items: [...list].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0)),
+    }));
+}
+
+/** One month, closed: its name, how many things dropped, and a peek at a few of them. Tap to open. */
+function MonthBox({ title, items, styles, renderItem }: {
+  title: string;
+  items: DropItem[];
+  styles: ReturnType<typeof makeStyles>;
+  renderItem: (item: DropItem) => React.ReactNode;
+}) {
+  const { theme } = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.week}>
+      <Pressable onPress={() => setOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title}, ${items.length} new things`} style={styles.monthHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.weekTitle}>{title}</Text>
+          <Text style={styles.monthCount}>{items.length} new {items.length === 1 ? 'thing' : 'things'}</Text>
+        </View>
+        {!open ? (
+          <View style={styles.peek}>
+            {items.slice(0, 3).map(item => (
+              <View key={item.key} style={styles.peekThumb}><View style={styles.peekScale}><Thumb item={item} /></View></View>
+            ))}
+          </View>
+        ) : null}
+        <Text style={[styles.chevron, { color: theme.inkSoft }]}>{open ? '▴' : '▾'}</Text>
+      </Pressable>
+      {open ? items.map(renderItem) : null}
+    </View>
   );
 }
 
@@ -132,6 +191,14 @@ const makeStyles = (t: Theme) => StyleSheet.create({
   list: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 60, gap: 14 },
   week: { borderRadius: 20, padding: 14, backgroundColor: t.surface, borderWidth: 1, borderColor: t.line, gap: 10 },
   weekHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  latest: { borderColor: t.accent, borderWidth: 1.5 },
+  sectionLabel: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.6, color: t.inkSoft, marginTop: 8, marginLeft: 4 },
+  monthHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  monthCount: { fontFamily: FONTS.body, fontSize: 12.5, color: t.inkSoft, marginTop: 2 },
+  peek: { flexDirection: 'row' },
+  peekThumb: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', marginLeft: -8, backgroundColor: t.bgSoft, borderWidth: 2, borderColor: t.surface, alignItems: 'center', justifyContent: 'center' },
+  peekScale: { transform: [{ scale: 0.7 }] },
+  chevron: { fontSize: 14, marginLeft: 4 },
   weekTitle: { fontFamily: FONTS.displaySemi, fontSize: 17, color: t.ink },
   newPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: t.accent },
   newPillText: { fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1, color: t.accentInk },
