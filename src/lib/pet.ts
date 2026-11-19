@@ -63,6 +63,23 @@ function setKnownPet(next: { id: PetId; name: string }) {
   listeners.forEach(fn => fn());
 }
 
+// A different account (signed out, a guest, someone else logging in) never inherits the last one's companion: forget
+// the current pet, its levels and the claimed list, so the next load takes the new account's (from public.pet_state),
+// or the default companion for a brand-new account. Names and the rest are reset by syncCloudProgress.
+let authUserId: string | null | undefined;
+supabase.auth.onAuthStateChange((_event, next) => {
+  const nextId = next?.user.id ?? null;
+  if (authUserId !== undefined && nextId !== authUserId) {
+    knownXp = null;
+    lastTotal = null;
+    activePet = null;
+    knownPet = { id: DEFAULT_PET, name: getPet(DEFAULT_PET).name };
+    listeners.forEach(fn => fn());
+    AsyncStorage.multiRemove([PET_KEY, XP_CACHE_KEY, ...PETS.map(p => nameKey(p.id)), ...PETS.map(p => levelKey(p.id))]).catch(() => {});
+  }
+  authUserId = nextId;
+});
+
 function rememberXp(userId: string, xpByPet: Record<PetId, number>, claimed: PetId[]) {
   knownXp = { userId, xpByPet, claimed };
   listeners.forEach(fn => fn());
@@ -174,7 +191,9 @@ export function usePetChoice() {
   // account has already had it: then it's theirs for good.
   const available = useAvailablePets();
   const xpSnap = useSyncExternalStore(subscribe, () => knownXp);
-  if (!available.some(p => p.id === petId) && !(xpSnap?.claimed ?? []).includes(petId)) {
+  const { session } = useAuth();
+  const claimedHere = xpSnap && session && xpSnap.userId === session.user.id ? xpSnap.claimed ?? [] : [];
+  if (!available.some(p => p.id === petId) && !claimedHere.includes(petId)) {
     return { petId: DEFAULT_PET, name: getPet(DEFAULT_PET).name, setName, setPetId };
   }
   return { petId, name, setName, setPetId };

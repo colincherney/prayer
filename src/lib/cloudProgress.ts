@@ -6,7 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
-import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
+import { clearLocal, LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 
 export type CloudField = 'nook' | 'shelf_picks' | 'pet_names' | 'companions_met' | 'levels_seen' | 'quest_day' | 'appearance';
@@ -70,6 +70,12 @@ async function flush() {
   const { data } = await supabase.auth.getSession();
   const userId = data.session?.user.id;
   if (!userId) return;
+  // Changes made under another account (before a sign-out or switch) are never uploaded to this one.
+  const owner = readLocal<string>(LOCAL_KEYS.cloudOwner);
+  if (owner !== undefined && owner !== userId) {
+    await writeLocal(LOCAL_KEYS.cloudPending, {});
+    return;
+  }
   const { error } = await supabase
     .from('user_progress')
     .upsert({ user_id: userId, ...changes, updated_at: new Date().toISOString() });
@@ -103,6 +109,19 @@ async function localSnapshot(today: string, petIds: readonly string[]): Promise<
   };
 }
 
+/** Forgets this phone's copy of every synced field (see syncCloudProgress). */
+async function clearAccountLocals(today: string, petIds: readonly string[]) {
+  await Promise.all([clearLocal(LOCAL_KEYS.nook), clearLocal(LOCAL_KEYS.shelfPicks), clearLocal(LOCAL_KEYS.companionsMet), writeLocal(LOCAL_KEYS.cloudPending, {})]);
+  await AsyncStorage.multiRemove([
+    ...petIds.map(petNameKey),
+    ...petIds.map(levelKey),
+    ...Object.values(APPEARANCE_KEYS),
+    acceptedKey(today),
+    rerollKey(today),
+  ]);
+  bump();
+}
+
 async function applyLocally(row: Row, today: string) {
   if (row.nook) await writeLocal(LOCAL_KEYS.nook, row.nook);
   if (row.shelf_picks) await writeLocal(LOCAL_KEYS.shelfPicks, row.shelf_picks);
@@ -127,10 +146,16 @@ async function applyLocally(row: Row, today: string) {
  */
 export async function syncCloudProgress(userId: string, today: string, petIds: readonly string[]) {
   try {
+    const owner = readLocal<string>(LOCAL_KEYS.cloudOwner);
+    const switched = owner !== undefined && owner !== userId;
+    // flush() drops the last account's unsent changes rather than uploading them here
     await flush();
     const { data, error } = await supabase.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
     if (error) return;
-    const owner = readLocal<string>(LOCAL_KEYS.cloudOwner);
+    // A different account than this phone last had (a sign-out then a guest, or someone else logging in): start from
+    // a clean slate, so nothing of the last account's (pet names, companions met, nook, shelf, wallpaper, quests)
+    // carries over. Whatever this account has saved is loaded below.
+    if (switched) await clearAccountLocals(today, petIds);
     const fields: CloudField[] = ['nook', 'shelf_picks', 'pet_names', 'companions_met', 'levels_seen', 'quest_day', 'appearance'];
     const row = (data ?? {}) as Row;
     known = Object.fromEntries(fields.map(f => [f, row[f] ?? null]));

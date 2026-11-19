@@ -11,6 +11,7 @@ import { Pet, PetId, PETS, isPetId } from '@/components/pets/registry';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { useClaimNotes } from '@/lib/claimNotes';
 import { metDates, petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
 
@@ -27,7 +28,7 @@ const LONG_VERSE_LIFT = 10;
 /** Roughly how wide one character of the verse is, to tell when it wraps. */
 const VERSE_CHAR_W = 8.3;
 const EVO = 74;
-const GROUP_BADGE = { core: 'CORE', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
+const GROUP_BADGE = { core: 'CORE', legendary: 'LEGENDARY', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
 
 function Chevron({ left, color }: { left?: boolean; color: string }) {
   return (
@@ -101,6 +102,7 @@ export default function CompanionScreen() {
   const claimed = owned.has(id);
   const vaulted = !claimed && !isClaimable(`pet:${id}`);
   const returns = vaulted ? nextWindow(`pet:${id}`) : null;
+  const claimNote = useClaimNotes(owned)(id);
   // The verse card's text area is the screen less the page and card padding.
   const verseWraps = info.verse.text.length + 2 > (screenW - 44 - 32) / VERSE_CHAR_W;
   const heroH = HERO_H - (verseWraps ? LONG_VERSE_LIFT : 0);
@@ -163,6 +165,12 @@ export default function CompanionScreen() {
             </View>
           </View>
           <Text style={styles.species}>{def.species.toUpperCase()}</Text>
+          {claimNote ? (
+            <View style={styles.claimNote} accessibilityRole="text">
+              <Text style={styles.claimNoteTitle}>{claimNote.short.toUpperCase()}</Text>
+              <Text style={styles.claimNoteBody}>{claimNote.long}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.tabs} accessibilityRole="tablist">
             {TABS.map(t => (
@@ -262,6 +270,9 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   badges: { flexDirection: 'row', gap: 6 },
   badge: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: theme.line, fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1.2, color: theme.inkSoft },
   badgeGold: { borderColor: '#C9A24B', color: '#E8C27A' },
+  claimNote: { marginTop: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#C9A24B', backgroundColor: 'rgba(201,162,75,0.10)', gap: 3 },
+  claimNoteTitle: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.2, color: '#C9A24B' },
+  claimNoteBody: { fontFamily: FONTS.body, fontSize: 13, lineHeight: 18, color: theme.inkSoft },
   species: { marginTop: 4, fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 2, color: theme.muted },
   tabs: { flexDirection: 'row', marginTop: 18, marginBottom: 18, padding: 4, borderRadius: 16, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.line },
   tab: { flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

@@ -97,6 +97,8 @@ const cacheKey = (id: EventId) => (id === WINTER_EVENT_ID ? 'winter.state' : `ev
 type Entry = { current: WinterState | null; lastFetch: number; inFlight: Promise<WinterState | null> | null };
 const entries = new Map<EventId, Entry>(EVENT_IDS.map(id => [id, { current: null, lastFetch: 0, inFlight: null }]));
 const entry = (id: EventId) => entries.get(id)!;
+/** Bumped when the account changes (clearWinter), so a request started for the last account is thrown away. */
+let generation = 0;
 
 type Snapshot = { states: Record<EventId, WinterState | null>; devToday: string | null };
 const listeners = new Set<() => void>();
@@ -139,6 +141,7 @@ export function refreshEvent(id: EventId, force = false): Promise<WinterState | 
   const en = entry(id);
   if (!force && en.current && Date.now() - en.lastFetch < COMMUNITY_TTL) return Promise.resolve(en.current);
   if (en.inFlight) return en.inFlight;
+  const gen = generation;
   en.inFlight = (async () => {
     try {
       const { data, error } = await supabase.rpc('winter_event_state', {
@@ -146,6 +149,8 @@ export function refreshEvent(id: EventId, force = false): Promise<WinterState | 
         p_tz: deviceTimeZone() ?? null,
         p_today: __DEV__ ? devToday : null,
       });
+      // Started for the account before a sign-out or switch: not this account's.
+      if (gen !== generation) return en.current;
       if (error || !data?.found) return en.current;
       en.current = { event: data.event, progress: data.progress ?? null, community: data.community };
       en.lastFetch = Date.now();
@@ -155,7 +160,8 @@ export function refreshEvent(id: EventId, force = false): Promise<WinterState | 
     } catch {
       return en.current;
     } finally {
-      en.inFlight = null;
+      // after a clear, a newer request may be the one in flight now: leave it
+      if (gen === generation) en.inFlight = null;
     }
   })();
   return en.inFlight;
@@ -171,10 +177,12 @@ export function refreshWinter(force = false): Promise<WinterState | null> {
 
 /** Forget the cached copies (sign-out). */
 export function clearWinter() {
+  generation += 1;
   for (const id of EVENT_IDS) {
     const en = entry(id);
     en.current = null;
     en.lastFetch = 0;
+    en.inFlight = null;
     AsyncStorage.removeItem(cacheKey(id)).catch(() => {});
   }
   emit();

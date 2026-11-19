@@ -123,6 +123,8 @@ type ReleasesCtx = {
   isClaimable: (id: string) => boolean;
   /** When it can next be claimed, if it's in the vault and a window is coming. */
   nextWindow: (id: string) => Date | null;
+  /** When the claim window that's open right now closes (it leaves for the vault then), or null if none is open. */
+  claimCloses: (id: string) => Date | null;
   /** Whether a timed event (`event:<id>`) is on right now. Unlike isClaimable, false when it has no window. */
   isEventOn: (id: string) => boolean;
   /** Whether a timed event (`event:<id>`) has started at some point, even if it has ended since. */
@@ -143,6 +145,7 @@ const ReleasesContext = createContext<ReleasesCtx>({
   isAvailable: id => !(id in BUNDLED),
   isClaimable: () => true,
   nextWindow: () => null,
+  claimCloses: () => null,
   isEventOn: () => false,
   hasOpened: () => false,
   isDev: false,
@@ -165,7 +168,11 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // only the signed-in account's own rows come back
       supabase.from('account_unlocks').select('unlock'),
     ]);
-    if (!own.error) {
+    // Signed out, nobody has unlocks (a signed-out phone can't read the table at all, so an error must not keep the
+    // last account's).
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) setUnlocks(prev => (prev.dev || prev.allPets ? { allPets: false, dev: false } : prev));
+    else if (!own.error) {
       const has = (u: string) => !!own.data?.some(row => row.unlock === u);
       const dev = has('dev');
       setUnlocks(prev => (prev.dev === dev && prev.allPets === has('all_pets') ? prev : { allPets: has('all_pets'), dev }));
@@ -197,8 +204,18 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (state === 'active') refresh();
     });
     // And on sign-in or sign-out, since what an account has unlocked is per account.
-    const auth = supabase.auth.onAuthStateChange(event => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') refresh();
+    let userId: string | null | undefined;
+    const auth = supabase.auth.onAuthStateChange((event, next) => {
+      const nextId = next?.user.id ?? null;
+      if (nextId !== userId) {
+        // Another account: drop the last one's unlocks at once, then load this one's (outside the callback, where
+        // Supabase calls can stall).
+        if (userId !== undefined) setUnlocks({ allPets: false, dev: false });
+        userId = nextId;
+        setTimeout(() => refresh(), 0);
+      } else if (event === 'SIGNED_IN') {
+        setTimeout(() => refresh(), 0);
+      }
     });
     return () => {
       sub.remove();
@@ -236,9 +253,14 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const next = (windows[id] ?? []).map(([open]) => Date.parse(open)).filter(t => t > now).sort((a, b) => a - b)[0];
         return next ? new Date(next) : null;
       };
+      const claimCloses = (id: string) => {
+        const now = Date.now();
+        const open = (windows[id] ?? []).find(([o, c]) => Date.parse(o) <= now && now < Date.parse(c));
+        return open ? new Date(open[1]) : null;
+      };
       const isEventOn = (id: string) => inWindow(windows[id]);
       const hasOpened = (id: string) => dev || (windows[id] ?? []).some(([open]) => Date.parse(open) <= Date.now());
-      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, isEventOn, hasOpened, isDev: dev,
+      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, claimCloses, isEventOn, hasOpened, isDev: dev,
         isOutForEveryone: (id: string) => (released ?? bundledNow()).has(id) };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tick rebuilds the checks when a window opens or closes

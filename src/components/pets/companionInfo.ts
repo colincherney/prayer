@@ -1,7 +1,7 @@
 // The Companion Dex's details for each companion: where it lives, what it loves, its verse, and the colour of its
 // page. Kept apart from the registry so the art files stay about art.
 
-import type { PetId } from './registry';
+import { getPet, type PetId } from './registry';
 
 export type CompanionInfo = {
   habitat: string;
@@ -36,19 +36,22 @@ export const COMPANION_INFO: Record<PetId, CompanionInfo> = {
   pig: { habitat: 'Blossom farms', loves: 'Full hearts', verse: { text: 'My cup overflows.', ref: 'Psalm 23:5' }, hue: '#8A4A6A' },
 };
 
-export type CompanionGroup = 'core' | 'seasonal' | 'monthly';
+export type CompanionGroup = 'core' | 'legendary' | 'seasonal' | 'monthly';
 
-const SEASONAL: PetId[] = ['pumpkin', 'turkey', 'donkey', 'frostLord', 'vesper'];
+const SEASONAL: PetId[] = ['pumpkin', 'turkey', 'donkey'];
 const CORE: PetId[] = ['lamb', 'dove', 'lion', 'ember', 'dragon'];
 
+/** Legendary companions are event exclusives: only earned in their event (every `eventLine` pet, e.g. Snowcap, Vesper). */
 export function companionGroup(id: PetId): CompanionGroup {
   if (CORE.includes(id)) return 'core';
+  if (getPet(id).eventLine) return 'legendary';
   if (SEASONAL.includes(id)) return 'seasonal';
   return 'monthly';
 }
 
 export const GROUP_LABELS: Record<CompanionGroup, string> = {
   core: 'Core companions',
+  legendary: 'Legendary · Event exclusive',
   seasonal: 'Seasonal',
   monthly: 'Upcoming monthly releases',
 };

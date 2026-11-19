@@ -13,16 +13,18 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
 import { SKINS } from '@/components/winter/winterUi';
+import { sectionClaimNote, useClaimNotes } from '@/lib/claimNotes';
 import { longDate, PAL_EVENTS, phaseFor, realStart, useEvents, usePalStages } from '@/lib/winterEvent';
 
 type Filter = 'all' | CompanionGroup;
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'core', label: 'Core' },
+  { id: 'legendary', label: 'Legendary' },
   { id: 'seasonal', label: 'Seasonal' },
   { id: 'monthly', label: 'Monthly' },
 ];
-const GROUPS: CompanionGroup[] = ['core', 'seasonal', 'monthly'];
+const GROUPS: CompanionGroup[] = ['core', 'legendary', 'seasonal', 'monthly'];
 const CARD_ART = 92;
 const PAGE_PAD = 20;
 const GRID_GAP = 10;
@@ -39,9 +41,11 @@ function SearchGlyph({ color }: { color: string }) {
 }
 
 /** One companion's card in the grid: met, not met yet (a silhouette), or not out yet. */
-const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulted, current, width, arrives }: {
+const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulted, current, width, arrives, claimNote }: {
   /** For an event companion that isn't out yet: the day it arrives. */
   arrives?: string;
+  /** Seasonal or legendary and not yours yet: until when it can be claimed ("Claim by Jan 6"). */
+  claimNote?: string;
   /** Not claimed and outside its season: it can't be met until it comes back. */
   vaulted: boolean;
   /** Exactly a third of the row, so three always fit. */
@@ -62,7 +66,7 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
       disabled={!released}
       onPress={() => router.push({ pathname: '/companion/[id]', params: { id: def.id } })}
       accessibilityRole="button"
-      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming ${def.season ?? 'soon'}` : vaulted ? `${def.name}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet`}
+      accessibilityLabel={!released ? `Companion ${dexNumber(def.id)}, coming ${def.season ?? 'soon'}` : vaulted ? `${def.name}, in the vault until its season` : met ? `${def.name}, level ${level}${current ? ', walking with you' : ''}` : `Companion ${dexNumber(def.id)}, not met yet${claimNote ? `, ${claimNote}` : ''}`}
       style={({ pressed }) => [styles.card, { width }, current && styles.cardCurrent, pressed && { opacity: 0.85 }]}>
       <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       <View style={styles.cardTop}>
@@ -81,8 +85,8 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
       <View style={[styles.cardArt, !met && (vaulted ? styles.vaulted : styles.silhouette)]}>
         {released ? <Pet id={def.id} stage={met ? stage : 1} size={CARD_ART} animated={false} /> : null}
       </View>
-      <Text numberOfLines={1} style={[styles.cardName, !released && styles.cardComing]}>
-        {!released ? (def.eventLine && arrives ? `Arrives ${arrives}` : def.season ? `Coming ${def.season}` : 'Coming soon') : met || vaulted ? (def.eventLine ? def.stages[stage - 1] : def.name) : '???'}
+      <Text numberOfLines={1} style={[styles.cardName, !released && styles.cardComing, released && !met && !vaulted && claimNote ? styles.cardClaim : null]}>
+        {released && !met && !vaulted && claimNote ? claimNote : !released ? (def.eventLine && arrives ? `Arrives ${arrives}` : def.season ? `Coming ${def.season}` : 'Coming soon') : met || vaulted ? (def.eventLine ? def.stages[stage - 1] : def.name) : '???'}
       </Text>
       {current ? <View style={styles.ribbon}><Text style={styles.ribbonText}>WITH YOU</Text></View> : null}
     </Pressable>
@@ -99,6 +103,7 @@ export default function PrayerPalsScreen() {
   // met once the first stage arrives, in the vault once it ends for anyone who never met them.
   const { states, today, liveId } = useEvents();
   const palStages = usePalStages();
+  const claimNoteFor = useClaimNotes(owned);
   const palEvent = (id: PetId) => {
     const ev = PAL_EVENTS[id] ? states[PAL_EVENTS[id]] : null;
     return { phase: ev ? phaseFor(ev.event, today) : null, arrives: ev ? longDate(realStart(ev.event)) : 'soon' };
@@ -110,6 +115,8 @@ export default function PrayerPalsScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState<string | null>(null);
   const { width: screenW } = useWindowDimensions();
+  // The smallest phones (under 360 wide) get a tighter filter bar so all five labels fit.
+  const narrow = screenW < 360;
   const cardW = Math.floor((Math.min(screenW, 500) - PAGE_PAD * 2 - GRID_GAP * 2) / 3);
 
   const released = (def: PetDef) => {
@@ -204,12 +211,17 @@ export default function PrayerPalsScreen() {
                 <Text accessibilityRole="header" style={styles.sectionTitle}>{GROUP_LABELS[group]}</Text>
                 <Text style={styles.sectionCount}>{groupMet} / {all.length}</Text>
               </View>
+              {(() => {
+                const note = sectionClaimNote(group, claimNoteFor, all.map(def => def.id));
+                return note ? <Text style={styles.sectionNote}>{note}</Text> : null;
+              })()}
               <View style={styles.sectionTrack}><View style={[styles.sectionFill, { width: `${(groupMet / all.length) * 100}%` }]} /></View>
               <View style={styles.grid}>
                 {pets.map(def => {
                   const own = petProgressFromXp(xpByPet[def.id] ?? 0);
                   return (
                     <DexCard key={def.id} def={def} level={own.level} arrives={def.eventLine ? palEvent(def.id).arrives : undefined}
+                      claimNote={claimNoteFor(def.id)?.short}
                       stage={def.eventLine ? (Math.min(3, Math.max(1, palStages[def.id] ?? 0)) as 1 | 2 | 3) : own.stage}
                       met={met(def.id)} released={released(def)} vaulted={!met(def.id) && (def.eventLine ? palEvent(def.id).phase === 'grace' || palEvent(def.id).phase === 'ended' : !isClaimable(`pet:${def.id}`))} current={def.id === petId} width={cardW} />
                   );
@@ -220,11 +232,11 @@ export default function PrayerPalsScreen() {
         })}
       </ScrollView>
 
-      <View style={styles.filters} accessibilityRole="tablist">
+      <View style={[styles.filters, narrow && styles.filtersNarrow]} accessibilityRole="tablist">
         {FILTERS.map(f => (
           <Pressable key={f.id} onPress={() => setFilter(f.id)} accessibilityRole="tab" accessibilityState={{ selected: filter === f.id }}
-            style={[styles.filter, filter === f.id && styles.filterOn]}>
-            <Text style={[styles.filterText, filter === f.id && styles.filterTextOn]}>{f.label.toUpperCase()}</Text>
+            style={[styles.filter, narrow && styles.filterNarrow, filter === f.id && styles.filterOn]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.filterText, narrow && styles.filterTextNarrow, filter === f.id && styles.filterTextOn]}>{f.label.toUpperCase()}</Text>
           </Pressable>
         ))}
       </View>
@@ -261,6 +273,8 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: { fontFamily: FONTS.display, fontSize: 19, color: theme.ink },
   sectionCount: { fontFamily: FONTS.bodySemi, fontSize: 12, color: theme.muted },
+  sectionNote: { fontFamily: FONTS.bodySemi, fontSize: 12, color: theme.accent, marginTop: 2 },
+  cardClaim: { fontFamily: FONTS.bodyBold, fontSize: 11, color: theme.accent },
   sectionTrack: { height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: theme.line, marginTop: 8 },
   sectionFill: { height: '100%', backgroundColor: theme.accent },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, marginTop: 14 },
@@ -277,9 +291,13 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   cardComing: { fontSize: 11, color: theme.muted },
   ribbon: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingVertical: 3, backgroundColor: theme.accent },
   ribbonText: { textAlign: 'center', fontFamily: FONTS.bodyBold, fontSize: 9, letterSpacing: 1.2, color: '#2A1A0C' },
-  filters: { position: 'absolute', left: 20, right: 20, bottom: 28, flexDirection: 'row', padding: 5, borderRadius: 999, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface },
-  filter: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  // Five tabs: each is as wide as its label (LEGENDARY needs more room than ALL), sharing what's left over.
+  filters: { position: 'absolute', left: 14, right: 14, bottom: 28, flexDirection: 'row', padding: 4, borderRadius: 999, borderWidth: 1, borderColor: theme.line, backgroundColor: theme.surface },
+  filter: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', height: 40, paddingHorizontal: 8, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   filterOn: { backgroundColor: theme.accent },
-  filterText: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.2, color: theme.inkSoft },
+  filterText: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 0.6, color: theme.inkSoft },
   filterTextOn: { color: '#2A1A0C' },
+  filtersNarrow: { left: 10, right: 10 },
+  filterNarrow: { paddingHorizontal: 4 },
+  filterTextNarrow: { fontSize: 10, letterSpacing: 0.2 },
 });

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { initializePurchases, purchasesAvailable, signOutOfPurchases } from './purchases';
+import { clearWinter, refreshAllEvents } from './winterEvent';
 import { passwordCheckClient, supabase } from './supabase';
 
 /** Which emailed code is being entered: sign-in, a new sign-up, or a guest adding an email to their account. */
@@ -142,13 +143,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [purchasingUserId]);
 
   useEffect(() => {
+    let userId: string | null | undefined;
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+      userId ??= data.session?.user.id ?? null;
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      // Another account now (signed out, a guest, someone else logging in): the last account's event progress (its
+      // companions, its stages) must not carry over. Then load the new account's, outside this callback (Supabase
+      // calls made inside it can stall).
+      const nextId = next?.user.id ?? null;
+      if (userId !== undefined && nextId !== userId) {
+        clearWinter();
+        if (nextId) setTimeout(() => refreshAllEvents(true).catch(() => {}), 0);
+      }
+      userId = nextId;
     });
 
     return () => {

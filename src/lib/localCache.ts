@@ -43,6 +43,12 @@ export function writeLocal(key: LocalKey, value: unknown): Promise<void> {
   return AsyncStorage.setItem(key, JSON.stringify(value));
 }
 
+/** Forgets a saved value entirely (reads come back undefined, as on a fresh install). */
+export function clearLocal(key: LocalKey): Promise<void> {
+  memory.delete(key);
+  return AsyncStorage.removeItem(key);
+}
+
 /** Saved data that belongs to one account. Before the session has loaded there's no user to check it against yet. */
 export function readForUser<T>(key: LocalKey, userId?: string): T | undefined {
   const saved = readLocal<{ userId: string; data: T }>(key);
