@@ -46,31 +46,70 @@ async function releaseTimes(previewDay: string | null): Promise<[string, string]
   return Object.entries(RELEASE_SCHEDULE).filter(([, at]) => previewDay || Date.parse(at) <= now);
 }
 
-/** The drops from the last WINDOW_DAYS days (up to `today`) that this account hasn't seen yet, in showing order. */
-export async function loadNewDrops(userId: string, today: string, winter: WinterState | null, previewDay: string | null): Promise<DropItem[]> {
-  const from = addDays(today, -WINDOW_DAYS);
+/** Everything that has dropped up to `today` (and after `from`, if given), oldest first. */
+async function dropsUpTo(today: string, winter: WinterState | null, previewDay: string | null, from?: string): Promise<DropItem[]> {
   const items: DropItem[] = [];
   for (const [key, at] of await releaseTimes(previewDay)) {
     const [kind, id] = key.split(':');
     if (!kind || !id || !valid(kind, id)) continue;
     // Drops are scheduled at midnight US Eastern, so that's the calendar their day is on.
     const day = eventDayFor(new Date(at), 'America/New_York');
-    if (day <= today && day > from) items.push({ key, kind, id, day });
+    if (day <= today && (!from || day > from)) items.push({ key, kind, id, day });
   }
   if (winter?.event.is_active) {
     const day = realStart(winter.event);
-    if (day <= today && day > from) {
+    if (day <= today && (!from || day > from)) {
       items.push({ key: 'pet:frostLord', kind: 'pet', id: 'frostLord', day });
       items.push({ key: 'room:winter', kind: 'room', id: 'winter', day });
     }
   }
+  return items.sort((a, b) => (a.day === b.day ? ORDER[a.kind] - ORDER[b.kind] : a.day < b.day ? -1 : 1));
+}
+
+/** The full history for the Patch notes page: every drop up to `today`, newest week first, grouped by week (Mon-Sun). */
+export async function loadDropHistory(today: string, winter: WinterState | null, previewDay: string | null): Promise<{ weekOf: string; items: DropItem[] }[]> {
+  const items = await dropsUpTo(today, winter, previewDay);
+  const weeks = new Map<string, DropItem[]>();
+  for (const item of items) {
+    const weekOf = mondayOf(item.day);
+    weeks.set(weekOf, [...(weeks.get(weekOf) ?? []), item]);
+  }
+  return [...weeks.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([weekOf, list]) => ({ weekOf, items: list }));
+}
+
+/** The Monday of the week `day` is in ('YYYY-MM-DD'). */
+export function mondayOf(day: string): string {
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay(); // 0 Sunday … 6 Saturday
+  return addDays(day, -((weekday + 6) % 7));
+}
+
+const PATCH_NOTES_KEY = 'patchNotes.seenDay';
+
+/** The newest drop day this phone has seen on the Patch notes page, so the settings row can say "new". */
+export async function patchNotesSeenDay(): Promise<string | null> {
+  return AsyncStorage.getItem(PATCH_NOTES_KEY).catch(() => null);
+}
+
+export async function markPatchNotesSeen(day: string): Promise<void> {
+  await AsyncStorage.setItem(PATCH_NOTES_KEY, day).catch(() => {});
+}
+
+/** The newest drop day up to `today`, or null. */
+export async function latestDropDay(today: string, winter: WinterState | null, previewDay: string | null): Promise<string | null> {
+  const items = await dropsUpTo(today, winter, previewDay, addDays(today, -60));
+  return items.length ? items[items.length - 1].day : null;
+}
+
+/** The drops from the last WINDOW_DAYS days (up to `today`) that this account hasn't seen yet, in showing order. */
+export async function loadNewDrops(userId: string, today: string, winter: WinterState | null, previewDay: string | null): Promise<DropItem[]> {
+  const items = await dropsUpTo(today, winter, previewDay, addDays(today, -WINDOW_DAYS));
   let seen: string[] = [];
   try {
     seen = JSON.parse((await AsyncStorage.getItem(seenKey(userId))) ?? '[]') as string[];
   } catch {}
-  return items
-    .filter(item => !seen.includes(item.key))
-    .sort((a, b) => (a.day === b.day ? ORDER[a.kind] - ORDER[b.kind] : a.day < b.day ? -1 : 1));
+  return items.filter(item => !seen.includes(item.key));
 }
 
 /** Records drops as shown, so they never show again for this account on this phone. */

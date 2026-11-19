@@ -196,7 +196,7 @@ export default function PrayerPalsScreen() {
                   return (
                     <DexCard key={def.id} def={def} level={own.level} arrives={def.eventLine ? frostArrives : undefined}
                       stage={def.eventLine ? (Math.min(3, Math.max(1, frostStage)) as 1 | 2 | 3) : own.stage}
-                      met={met(def.id)} released={released(def)} vaulted={!met(def.id) && !isClaimable(`pet:${def.id}`)} current={def.id === petId} width={cardW} />
+                      met={met(def.id)} released={released(def)} vaulted={!met(def.id) && (def.eventLine ? winterPhase === 'grace' || winterPhase === 'ended' : !isClaimable(`pet:${def.id}`))} current={def.id === petId} width={cardW} />
                   );
                 })}
               </View>

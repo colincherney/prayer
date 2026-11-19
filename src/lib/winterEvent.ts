@@ -225,8 +225,12 @@ export function useWinterEvent(options: { poll?: boolean } = {}) {
   const state = snap.state;
   const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
   const phase = state ? phaseFor(state.event, today) : null;
-  /** Shown at all: the kill switch is on and it hasn't finished its claim week, or there's something to look back on. */
-  const visible = !!state && state.event.is_active && (phase === 'live' || phase === 'grace' || (phase === 'ended' && !!state.progress?.stage_unlocked));
+  /**
+   * Shown at all (the banner, the Pray page pill, the Prayer Pals row): only while the event is running and switched
+   * on. From Feb 1 the Long Winter is in the vault: nothing about it appears or pops up any more, and whoever earned the
+   * Frost Lord and the keepsakes keeps them.
+   */
+  const visible = !!state && state.event.is_active && phase === 'live';
   return { state, today, phase, visible, devToday: snap.devToday, refresh };
 }
 

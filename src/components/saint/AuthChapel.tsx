@@ -7,7 +7,7 @@ import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { AuthChapelCanvas } from './AuthChapelCanvas';
 import { CHAPEL_CAMERA_ASPECT, DEFAULT_CHAPEL_ORBIT, dragChapelOrbit } from './authChapelOrbit';
-import { FONTS } from './theme';
+import { FONTS, useTheme } from './theme';
 
 // Both transparent stills come from the default orbit and the first frame of the scene.
 const CHAPEL_POSTER = Platform.OS === 'web'
@@ -16,6 +16,7 @@ const CHAPEL_POSTER = Platform.OS === 'web'
 const CHAPEL_POSTER_ASPECT = 1440 / 600;
 
 export function AuthChapel({ height }: { height: number }) {
+  const { theme } = useTheme();
   const [width, setWidth] = useState(0);
   const [ready, setReady] = useState(false);
   const [foreground, setForeground] = useState(AppState.currentState !== 'background');
@@ -69,7 +70,7 @@ export function AuthChapel({ height }: { height: number }) {
             },
           ]}
         />
-        <Text style={[styles.hint, { opacity: interactive ? 1 : 0 }]}>Drag to look around</Text>
+        <Text style={[styles.hint, { color: theme.inkSoft, opacity: interactive ? 1 : 0 }]}>Drag to look around</Text>
       </View>
       <GestureDetector gesture={pan} touchAction="none">
         <View collapsable={false} style={StyleSheet.absoluteFill} />

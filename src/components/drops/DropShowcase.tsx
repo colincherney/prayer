@@ -40,7 +40,7 @@ function RoomScene({ room }: { room: PrayerRoomName }) {
   return null;
 }
 
-function copyFor(item: DropItem): { label: string; title: string; body: string; hue: string } {
+export function copyFor(item: DropItem): { label: string; title: string; body: string; hue: string } {
   if (item.kind === 'pet') {
     const pet = getPet(item.id as PetId);
     const hue = COMPANION_INFO[pet.id].hue;
@@ -68,7 +68,7 @@ function copyFor(item: DropItem): { label: string; title: string; body: string; 
 }
 
 /** A nook decoration on its own, from its 120x120 art tile. */
-function DecorArt({ id, size }: { id: string; size: number }) {
+export function DecorArt({ id, size }: { id: string; size: number }) {
   const Art = COLLECTION_DECOR_ART[id];
   if (!Art) return null;
   return (

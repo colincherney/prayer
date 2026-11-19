@@ -54,7 +54,8 @@ function Gate({ userId }: { userId: string }) {
 
   const pending = progress && progress.stage_unlocked > progress.stage_seen ? progress.stage_unlocked : 0;
   const introFirst = live && cachedSeen === false && !seenOnAccount && !introClosed;
-  const showMoment = on && !showIntro && !introFirst && !othersBusy && pending > momentDone && (onHome || segments[0] === 'winter');
+  // Celebrations only while the event runs: from Feb 1 nothing about the Long Winter pops up.
+  const showMoment = live && !showIntro && !introFirst && !othersBusy && pending > momentDone && (onHome || segments[0] === 'winter');
 
   useEffect(() => {
     setOverlayBusy('winter', showIntro || showMoment);

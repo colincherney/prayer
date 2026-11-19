@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,7 +22,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthChapel } from './AuthChapel';
 import { BackIcon, ShieldIcon, SparkleIcon } from './Icons';
 import { SafeAreaView } from './SafeArea';
-import { AUTH_SCENE_THEME, AuthAppearance, useAuthTheme } from './authAppearance';
+import { PageAmbience } from './PageAmbience';
+import { AuthAppearance, AuthImmersive, useAuthTheme } from './authAppearance';
 import { authHaptic } from './authHaptics';
 import { FONTS, mixColors, useTheme, type Theme } from './theme';
 import { useSaintFonts } from './useFonts';
@@ -100,8 +101,8 @@ export function AuthScreen({ children, onBack, step, immersive = false }: {
 }) {
   const { width, height } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
-  const { theme: appTheme } = useTheme();
-  const theme = immersive ? AUTH_SCENE_THEME : appTheme;
+  // The sign-in screens wear the person's theme or prayer room, like every other page.
+  const { theme, name: themeName } = useTheme();
   const ready = useSaintFonts();
   const reducedMotion = useReducedMotion();
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -133,14 +134,18 @@ export function AuthScreen({ children, onBack, step, immersive = false }: {
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
       {immersive ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={['#0B1220', '#18263E', '#0B1220']}
-          locations={[0, 0.35, 0.83]}
-          start={{ x: 0.03, y: 0 }}
-          end={{ x: wide ? 1 : 0.4, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+        <>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[theme.bg, mixColors(theme.bg, theme.bgSoft, 0.85), theme.bg]}
+            locations={[0, 0.35, 0.83]}
+            start={{ x: 0.03, y: 0 }}
+            end={{ x: wide ? 1 : 0.4, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* the same drifting touches as the rest of the app (falling snow in the Long Winter, and so on) */}
+          <PageAmbience name={themeName} />
+        </>
       ) : (
         <OliveLeafBackdrop theme={theme} wide={width >= 720} />
       )}
@@ -179,7 +184,7 @@ export function AuthScreen({ children, onBack, step, immersive = false }: {
                 )}
                 <View style={styles.wordmark}>
                   {immersive ? (
-                    <View aria-hidden style={styles.wordmarkIcon}>
+                    <View aria-hidden style={[styles.wordmarkIcon, { borderColor: theme.line, backgroundColor: theme.surface }]}>
                       <SparkleIcon size={15} color={theme.accent} />
                     </View>
                   ) : null}
@@ -187,16 +192,18 @@ export function AuthScreen({ children, onBack, step, immersive = false }: {
                 </View>
               </View>
               {!wide ? chapel : null}
+              <AuthImmersive.Provider value={immersive}>
               <AuthAppearance.Provider value={immersive ? theme : null}>
                 <Animated.View
                   key={step}
                   entering={step && !reducedMotion ? ENTER_STEP : undefined}
                   onLayout={mobileWelcome ? event => setWelcomeBodyHeight(Math.ceil(event.nativeEvent.layout.height)) : undefined}
-                  style={[styles.content, immersive && styles.chapelContent, compact && styles.compactContent, shortForm && styles.shortFormContent, wide && styles.panel]}>
-                  {wide ? <LinearGradient pointerEvents="none" colors={['#172235', theme.cardDark]} style={styles.panelGradient} /> : null}
+                  style={[styles.content, immersive && styles.chapelContent, compact && styles.compactContent, shortForm && styles.shortFormContent, wide && [styles.panel, { borderColor: theme.line }]]}>
+                  {wide ? <LinearGradient pointerEvents="none" colors={[theme.surface, theme.bgSoft]} style={styles.panelGradient} /> : null}
                   {children}
                 </Animated.View>
               </AuthAppearance.Provider>
+              </AuthImmersive.Provider>
             </View>
           </View>
         </ScrollView>
@@ -212,7 +219,7 @@ export function AuthHeading({ title, accent, centered, children }: {
   children?: ReactNode;
 }) {
   const theme = useAuthTheme();
-  const immersive = theme === AUTH_SCENE_THEME;
+  const immersive = useContext(AuthImmersive);
   const { width, height } = useWindowDimensions();
   const compact = immersive && width < 900;
   const narrowForm = compact && !centered && width < 360;
@@ -311,7 +318,7 @@ const styles = StyleSheet.create({
   chapelMasthead: { minHeight: 58, marginBottom: 4 },
   compactMasthead: { minHeight: 44, marginBottom: 0 },
   wordmark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  wordmarkIcon: { width: 32, height: 32, borderWidth: 1, borderColor: '#E7C59852', borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#263047' },
+  wordmarkIcon: { width: 32, height: 32, borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   brandText: { fontFamily: FONTS.bodyBold, fontSize: 12, letterSpacing: 1.25, textAlign: 'center', textTransform: 'uppercase' },
   backButton: {
     position: 'absolute',
@@ -327,7 +334,7 @@ const styles = StyleSheet.create({
   chapelContent: { marginTop: 8, gap: 12 },
   compactContent: { marginTop: COMPACT_CONTENT_MARGIN, gap: 8 },
   shortFormContent: { gap: 5 },
-  panel: { padding: 32, borderRadius: 28, borderWidth: 1, borderColor: AUTH_SCENE_THEME.line, boxShadow: '0 24px 70px #04091399' },
+  panel: { padding: 32, borderRadius: 28, borderWidth: 1, boxShadow: '0 24px 70px #04091340' },
   panelGradient: { ...StyleSheet.absoluteFill, borderRadius: 27 },
   heading: { gap: 7, marginBottom: 4 },
   narrowFormHeading: { gap: 5, marginBottom: 0 },

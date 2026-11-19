@@ -84,7 +84,7 @@ export default function WinterScreen() {
               <Text style={styles.backText}>‹</Text>
             </Pressable>
             <Text numberOfLines={1} style={styles.caption}>{caption}</Text>
-            {phase !== 'before' ? (
+            {phase === 'live' ? (
               <Pressable onPress={() => setReplay(true)} accessibilityRole="button" accessibilityLabel="Play the Face the Winter Lord clip" style={styles.clipPill}>
                 <Text style={styles.clipText}>▶ Play clip</Text>
               </Pressable>
@@ -119,7 +119,8 @@ export default function WinterScreen() {
               );
             })}
           </View>
-          {phase === 'ended' ? (
+          {/* From Feb 1 the event is in the vault: only a look back at how your winter went, nothing left to do or play. */}
+          {phase === 'ended' || phase === 'grace' ? (
             <Summary state={state} />
           ) : (
             <>

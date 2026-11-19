@@ -292,9 +292,10 @@ const SCHEDULED_ROOMS: PrayerRoomName[] = ['thanksgiving', 'christmas', ...MONTH
 
 /** The rooms that can be picked right now: everything except seasonal rooms whose date hasn't come. */
 export function useAvailableRooms(): PrayerRoomName[] {
-  const { isReleased, hasOpened } = useReleases();
-  // The Long Winter (the ice bear's wallpaper) can be picked once the Winter Lord event has begun, and kept after it ends.
-  const winterOut = hasOpened(WINTER_LORD_EVENT);
+  const { isReleased, isEventOn } = useReleases();
+  // The Long Winter (the ice bear's wallpaper) can be picked only while the Winter Lord event is on. Afterwards it's in
+  // the vault, and anyone who had picked it goes back to the seasonal wallpaper.
+  const winterOut = isEventOn(WINTER_LORD_EVENT);
   return PRAYER_ROOM_ORDER.filter(r => (r === 'winter' ? winterOut : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`)));
 }
 
