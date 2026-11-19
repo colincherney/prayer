@@ -31,12 +31,13 @@ export const COMPANION_INFO: Record<PetId, CompanionInfo> = {
   monkey: { habitat: 'Peach orchards', loves: 'Sweet surprises', verse: { text: 'Taste and see that the Lord is good.', ref: 'Psalm 34:8' }, hue: '#8A4A5A' },
   rooster: { habitat: 'The morning fence', loves: 'First light', verse: { text: 'His mercies are new every morning.', ref: 'Lamentations 3:23' }, hue: '#8A3A1E' },
   dog: { habitat: 'By your side', loves: 'Faithful friends', verse: { text: 'A friend loves at all times.', ref: 'Proverbs 17:17' }, hue: '#2E4A8A' },
+  frostLord: { habitat: 'Under the aurora', loves: 'Snowy vigils', verse: { text: 'He giveth snow like wool: he scattereth the hoarfrost like ashes.', ref: 'Psalm 147:16' }, hue: '#22306A' },
   pig: { habitat: 'Blossom farms', loves: 'Full hearts', verse: { text: 'My cup overflows.', ref: 'Psalm 23:5' }, hue: '#8A4A6A' },
 };
 
 export type CompanionGroup = 'core' | 'seasonal' | 'monthly';
 
-const SEASONAL: PetId[] = ['pumpkin', 'turkey', 'donkey'];
+const SEASONAL: PetId[] = ['pumpkin', 'turkey', 'donkey', 'frostLord'];
 const CORE: PetId[] = ['lamb', 'dove', 'lion', 'ember', 'dragon'];
 
 export function companionGroup(id: PetId): CompanionGroup {

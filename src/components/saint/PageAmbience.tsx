@@ -75,6 +75,12 @@ const AMBIENCE: Record<PrayerRoomName | ThemeName, Layer[]> = {
     layer('star', 'twinkle', ['#F2C462'], 6, [7, 11], [4, 7], 0.85),
   ],
 
+  winter: [ // The Long Winter: snow under the aurora, with gold starlight.
+    layer('flake', 'fall', ['#FFFFFF', '#DCEBFA'], 10, [8, 13], [12, 18], 0.8),
+    layer('glow', 'wander', ['#5FE3C0'], 3, [5, 8], [10, 15], 0.45),
+    layer('star', 'twinkle', ['#E9C46A'], 4, [7, 11], [4, 7], 0.85),
+  ],
+
   // Monthly rooms, 2027
   m2027jan: [ // New year, new mercies: fresh snow and clear winter light.
     layer('flake', 'fall', ['#FFFFFF', '#8EC9F0'], 12, [8, 12], [13, 20], 0.75),

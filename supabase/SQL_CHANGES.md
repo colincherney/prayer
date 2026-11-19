@@ -601,3 +601,148 @@ select cron.unschedule('notification_log_maintenance');
 drop function private.dispatch_notifications_if_due(text);
 drop function private.notification_work_due(text, timestamptz);
 ```
+
+## The Long Winter event (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_long_winter_event.sql`. Applied to the live project on 2026-11-18 through
+the Supabase connector. Checked with `supabase/tests/long_winter_event.test.sql`: 29 checks passed, all inside one
+rolled-back block. Afterwards the counter was 0 and no test accounts or progress rows were left.
+
+**What it adds:**
+
+- **`public.events`:** one row, `long-winter-2026`. Its `config` jsonb holds the chapters, evolutions, Advent wreath,
+  weeks, weekly keepsakes, community goal and the 10 challenges. Anyone can read it; nobody can write it from the app.
+  `is_active` is the kill switch.
+- **`public.user_event_progress`:** each person's progress. Users read only their own row, and nobody writes it from
+  the app.
+- **`public.community_counters`:** the `winter_lights` count. It's read only through `winter_event_state`.
+- **Private functions:** `private.evaluate_event(user, event, today)` works out progress from `prayer_interactions`
+  ('prayed' rows; each one is a Vigil candle) and `pair_intents`, by local day in the person's timezone.
+  `private.grant_community_reward(event)` and `private.safe_tz(text)` support it.
+- **Triggers:** `event_activity_on_prayer` on `prayer_interactions` and `event_activity_on_pair` on `pair_intents`
+  update progress and the community count as rows are saved. Any failure is logged as a warning and never blocks the
+  prayer.
+- **App RPCs:** `winter_event_state`, `claim_event_reward`, `mark_event_seen` and `set_event_notifications`. They're
+  for signed-in users only.
+- **Rewards:** claimed keepsakes go into `public.user_trinkets`. The community reward is a `scene:aurora` grant in
+  `public.user_cosmetics` (source `grant`).
+- **The Frost Lord companion:** `frostLord` is added to the pet-id checks on `group_members`, `pet_xp` and
+  `pet_state`. `switch_pet()` accepts it, but only for someone who has received Snowcap.
+- **Event reminders:** cron job `notify_winter_event` runs at `7 * * * *` and calls
+  `private.dispatch_winter_event_if_due()`. That function calls the `notify-winter-event` Edge Function only when an
+  opted-in person is at 9am local time and hasn't been notified today.
+- **The Winter Lord look:** a `public.content_windows` row, `event:winterLord`.
+
+**Not deployed yet:** the `notify-winter-event` Edge Function (`supabase/functions/notify-winter-event/index.ts`).
+Deploy it by hand. Until then the cron job's calls fail harmlessly, and only when someone has opted in.
+
+**Community target:** in the 30 days before Nov 18, 2026 there were 921 candles from 13 people, about 1,900 over the
+event. The target is set to 2,000 instead of the spec's 1,000,000. Change it with:
+`update public.events set config = jsonb_set(config, '{community_goal,target}', '5000') where id = 'long-winter-2026';`
+
+**TESTING SETTINGS ARE ON.** The event and the Winter Lord look start 2026-11-18, and `allow_test_dates` is on so the
+dev-only date picker works. Before launch, run:
+
+```sql
+update public.events
+   set starts_on = '2026-12-01', config = jsonb_set(config, '{allow_test_dates}', 'false')
+ where id = 'long-winter-2026';
+update public.content_windows
+   set opens_at = '2026-12-01 00:00'::timestamp at time zone 'America/New_York'
+ where id = 'event:winterLord';
+-- Optional: clear testers' progress and the counter so everyone starts fresh on Dec 1.
+-- delete from public.user_event_progress where event_id = 'long-winter-2026';
+-- update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';
+```
+
+**Kill switch:** `update public.events set is_active = false where id = 'long-winter-2026';`
+
+**Revert:** this deletes all event progress. Granted keepsakes and the Aurora scene stay with their owners. Put the old
+`switch_pet()` and pet checks back only if nobody has the Frost Lord as their pet.
+
+```sql
+select cron.unschedule('notify_winter_event');
+drop trigger if exists event_activity_on_prayer on public.prayer_interactions;
+drop trigger if exists event_activity_on_pair on public.pair_intents;
+drop function if exists public.winter_event_state(text, text, date);
+drop function if exists public.claim_event_reward(text, text, date);
+drop function if exists public.mark_event_seen(text, text, int);
+drop function if exists public.set_event_notifications(text, boolean);
+drop function if exists private.dispatch_winter_event_if_due();
+drop function if exists private.on_event_activity();
+drop function if exists private.evaluate_event(uuid, text, date);
+drop function if exists private.grant_community_reward(text);
+drop function if exists private.safe_tz(text);
+drop table if exists public.community_counters;
+drop table if exists public.user_event_progress;
+drop table if exists public.events;
+delete from public.content_windows where id = 'event:winterLord';
+-- then re-run switch_pet and the three pet-id checks from 20261107_server_side_xp_and_nook.sql / 20261030_content_releases.sql
+```
+
+## Long Winter challenges any day (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_challenges_anytime.sql`, through the Supabase connector on
+2026-11-18. Checked with the updated `supabase/tests/long_winter_event.test.sql`: 28 checks passed, all rolled back.
+
+**What:** all 10 challenges can now be done on any day of the event. Four of them used to be tied to dates:
+
+- Advent Wreath (3 days in each Advent week) → **Four Candles**: pray 3 days in any 4 different weeks.
+- Christmas Prayer (Dec 24 or 25) → **Silent Night**: pray after 9pm on 3 nights.
+- Twelve Days (6 of Dec 25 – Jan 5) → **Twelve Days**: pray for 12 different people.
+- Candlemas (any day Jan 24–31) → **Candlemas**: light a candle before 9am on 3 mornings.
+
+The other six are unchanged. `private.evaluate_event()` gains three rule types for these: `weeks`, `hours` and
+`people`; the old `days_in_range` and `wreath` types still work. The weekly keepsakes, the Advent wreath on the
+event screen, and the Frost Mage's Dec 25 date are unchanged.
+
+**Revert:** re-run the `insert into public.events … on conflict` and the `private.evaluate_event` sections of
+`20261118_long_winter_event.sql`. Progress is recomputed on the next prayer or app open.
+
+## Long Winter rewards on completion, no dates (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_rewards_on_completion.sql`, through the Supabase connector on
+2026-11-18. Checked with the updated `supabase/tests/long_winter_event.test.sql`: 26 checks passed, all rolled back.
+
+**What:** nothing in the Long Winter is tied to a date any more, and finishing all 10 challenges gives the whole reward
+straight away, with nothing to claim.
+
+- The Frost Mage arrives as soon as 4 challenges are done. It no longer waits for Dec 25.
+- The five winter keepsakes are no longer one per week (`config.weekly_rewards` is removed). All five come with
+  finishing all 10 challenges (`config.completion_rewards`), straight into `public.user_trinkets`.
+- The Frost Lord arrives the moment the 10th challenge is done (stage 3, and `rewards_claimed` records `frost_lord`
+  plus the keepsakes). `claim_event_reward` is still there but the app no longer uses it.
+
+**Revert:** run the `private.evaluate_event` section of `20261118_winter_challenges_anytime.sql`, then:
+`update public.events set config = (config - 'completion_rewards') || jsonb_build_object('weekly_rewards', '[{"week":1,"keepsake":"adventWreath"},{"week":4,"keepsake":"christmasStar"},{"week":5,"keepsake":"winterSnowGlobe"},{"week":6,"keepsake":"threeKingsCrown"},{"week":9,"keepsake":"candlemasCandles"}]'::jsonb) where id = 'long-winter-2026';`
+plus `jsonb_set(config, '{evolutions,1,unlock,not_before}', '"2026-12-25"')`. Keepsakes and Frost Lords already
+given are kept.
+
+## Long Winter reminders follow progress (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_notifications_progress.sql`, through the Supabase connector on
+2026-11-18.
+
+**What:** a new column, `public.user_event_progress.notified` (text[], default `'{}'`). The `notify-winter-event` Edge
+Function records each reminder it sends there (`start`, `mage`, `lord`, `halfway`, `last-<date>`), so each goes out at
+most once. The reminders follow each person's progress instead of holiday dates: the start, the morning after the
+Frost Mage, the morning after all 10 challenges, halfway (Jan 1), and the last three days. They're opt-in, at 9am
+local time, at most one a day.
+
+**Not deployed yet:** the updated Edge Function (`supabase/functions/notify-winter-event/index.ts`). Deploy it by hand.
+
+**Revert:** `alter table public.user_event_progress drop column if exists notified;` (redeploy the older Edge
+Function first, or it will fail to save).
+
+## Long Winter launch settings applied, reminders deployed (2026-11-18)
+
+- **Testing mode is OFF.** `supabase/migrations/20261118_winter_launch_settings.sql` is applied through the connector.
+  The event starts 2026-12-01, `allow_test_dates` is false, and the `event:winterLord` window opens Dec 1 at midnight
+  US Eastern. Checked afterwards: the event runs 2026-12-01 to 2027-01-31 and is active; the look runs 2026-12-01 to
+  2027-02-01 05:00Z.
+- **Edge Function `notify-winter-event` is deployed** (version 1, active, verify_jwt on), with the progress-based
+  reminders.
+- **Left from testing:** 3 rows in `user_event_progress`, one with Snowcap unlocked. A stage never goes down, so that
+  tester keeps Snowcap. To start everyone fresh on Dec 1:
+  `delete from public.user_event_progress where event_id = 'long-winter-2026';`
+- **To test again:** set `starts_on` back to today and `allow_test_dates` to true, the reverse of the update above.

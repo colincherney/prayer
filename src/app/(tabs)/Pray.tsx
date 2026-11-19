@@ -32,6 +32,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
 import { useQuests } from '@/lib/quests';
+import { useWinterEvent } from '@/lib/winterEvent';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -314,6 +315,7 @@ export default function PrayLauncherScreen() {
   const { theme: THEME, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { progress, name, setName, petId, leveledUp } = usePetProgress();
+  const { visible: winterVisible } = useWinterEvent();
   const quests = useQuests();
   const questsDone = quests.quests.filter(x => x.slot !== 'bonus' && quests.statusOf(x) === 'done').length;
   const [hero, setHero] = useState<Size | null>(null);
@@ -613,6 +615,19 @@ export default function PrayLauncherScreen() {
             <Text style={styles.questBadgeText}>Quests</Text>
             <Text style={styles.questBadgeCount}>{questsDone}/4</Text>
           </Pressable>
+          {/* The Long Winter is always reachable from here, even after its home banner is put away for the day. */}
+          {winterVisible ? (
+            <Pressable
+              onPress={() => router.push('/winter')}
+              accessibilityRole="button"
+              accessibilityLabel="The Long Winter event"
+              style={({ pressed }) => [styles.winterBadge, pressed && { transform: [{ scale: 0.95 }] }]}>
+              <Svg width={16} height={16} viewBox="0 0 24 24">
+                <Path d="M12 2v20 M3.3 7l17.4 10 M20.7 7L3.3 17 M12 2l-2.5 2.5 M12 2l2.5 2.5 M12 22l-2.5-2.5 M12 22l2.5-2.5" stroke="#BFE6FF" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+              </Svg>
+              <Text style={styles.winterBadgeText}>The Long Winter</Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={{ flex: 1 }} onLayout={onActions}>
           {gridNode}
@@ -671,6 +686,21 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     borderColor: THEME.line,
   },
   questBadgeText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.ink },
+  winterBadge: {
+    position: 'absolute',
+    left: 16,
+    top: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#18285A',
+    borderWidth: 1,
+    borderColor: 'rgba(95,227,192,0.45)',
+  },
+  winterBadgeText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: '#FBF4E6' },
   questBadgeCount: { fontFamily: FONTS.bodySemi, fontSize: 11.5, color: THEME.accent },
   nameBlock: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

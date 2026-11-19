@@ -7,5 +7,6 @@ export function notificationDestination(data: Record<string, unknown> = {}) {
     return '/myPrayers' as const;
   }
   if (data.type === 'daily_reminder') return '/' as const;
+  if (data.type === 'winter_event') return '/winter' as const;
   return null;
 }

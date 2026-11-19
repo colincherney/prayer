@@ -24,6 +24,8 @@ import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
+import { WinterLordScene } from '@/components/saint/WinterLordScene';
+import { WinterBanner } from '@/components/winter/winterUi';
 import {
   Pill,
   RoundIcon,
@@ -39,6 +41,7 @@ import {
   HALLOWEEN_VERSES,
   THANKSGIVING_VERSES,
   VERSES,
+  WINTER_VERSES,
 } from '@/components/saint/theme';
 import { PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -313,7 +316,9 @@ function RoomHomeScreen() {
               ? ThanksgivingScene
               : roomName === 'christmas'
                 ? ChristmasScene
-                : roomName in MONTHLY_SCENES
+                : roomName === 'winter'
+                  ? WinterLordScene
+                  : roomName in MONTHLY_SCENES
                   ? MONTHLY_SCENES[roomName as MonthlyRoomName]
                   : LamplitScene;
   // Seasonal and monthly rooms have their own verses, pill and tagline word.
@@ -325,7 +330,8 @@ function RoomHomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
       <SceneComponent />
-      <DustMotes count={26} />
+      {/* The winter scene has its own falling snow, so it skips the warm dust (less to animate). */}
+      {roomName === 'winter' ? null : <DustMotes count={26} />}
 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar barStyle={ROOM.statusBar} />
@@ -389,6 +395,9 @@ function RoomHomeScreen() {
             theme={{ ...EMPTY_THEME, muted: ROOM.muted }}
           />
         </View>
+
+        {/* The Long Winter: only while the event is on (and switched on in the database), dismissible for the day. */}
+        <WinterBanner style={{ marginHorizontal: 22, marginTop: 12 }} />
 
         {/* Two cards */}
         <View style={styles.cardsRow}>
@@ -477,6 +486,7 @@ const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
   halloween: { ...split(HALLOWEEN_VERSES), pill: "All Hallows' Eve", word: 'light' },
   thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
   christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
+  winter: { ...split(WINTER_VERSES), pill: 'The Long Winter', word: 'light' },
 };
 
 function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {

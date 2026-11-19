@@ -404,6 +404,18 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'winter') {
+    // The Long Winter — navy sky, an aurora band, a snowcapped peak, snowy hill.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View style={{ position: 'absolute', left: -10, right: -10, top: 12, height: 14, borderRadius: 14, backgroundColor: '#5FE3C0', opacity: 0.28, transform: [{ rotate: '-6deg' }] }} />
+        <View style={{ position: 'absolute', right: 30, bottom: 14, width: 0, height: 0, borderLeftWidth: 22, borderRightWidth: 22, borderBottomWidth: 30, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#2E4880' }} />
+        <View style={{ position: 'absolute', right: 45, bottom: 34, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#C9D9F0' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -18, height: 40, borderRadius: 40, backgroundColor: '#B7CBE6' }} />
+        <View style={{ position: 'absolute', left: 18, top: 8, width: 4, height: 4, borderRadius: 2, backgroundColor: '#E9C46A' }} />
+      </View>
+    );
+  }
   if (room === 'christmas') {
     // God With Us — navy sky, the star, snowy hill, a pine.
     return (

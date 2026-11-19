@@ -72,14 +72,17 @@
               "displayName": "Share a prayer request",
               "description": "Share what's on your heart with Saint Central.",
               "ios": {
-                "supportedFamilies": ["systemSmall"],
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
                 "initialLayout": "src/widgets/SharePrayerRequest.tsx"
               },
               "android": null
             }
           ]
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

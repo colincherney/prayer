@@ -53,6 +53,7 @@ export const LOOKS: Record<LookPetId, Look> = {
   monkey: { fur: '#8A5A3C', light: '#F0CFA8', dark: '#6E4630', ears: 'round', snout: 'nose', tail: 'curl', bed: ['#B5476E', '#F2A7C0'], sounds: ['Ooh!', 'Ooh-ooh!', 'Wisdom!'], mote: '#F2A7C0', movesLike: 'dove' },
   rooster: { fur: '#F7F5F0', light: '#E6E1D7', dark: '#C9433A', ears: 'comb', snout: 'beak', tail: 'fan', bed: ['#C9433A', '#F2934A'], sounds: ['Cheep!', 'Cock-a-doodle!', 'Rise and pray!'], mote: '#F2934A', movesLike: 'dove' },
   dog: { fur: '#E3B57A', light: '#F3E2C8', dark: '#8A5A3C', ears: 'floppy', snout: 'nose', tail: 'wag', bed: ['#2F4B8A', '#6E9BEA'], sounds: ['Yip!', 'Woof!', 'Faithful friend!'], mote: '#6E9BEA', movesLike: 'lamb' },
+  frostLord: { fur: '#F4F2EC', light: '#E2DED6', dark: '#22306A', ears: 'round', snout: 'nose', tail: 'puff', bed: ['#22306A', '#9FDDF8'], sounds: ['Snowflake!', 'He giveth snow like wool!', 'The Word melts the frost!'], mote: '#BFE6FF', movesLike: 'lion', belly: '#FFFFFF' },
   pig: { fur: '#E89A9E', light: '#F5C2C4', dark: '#C97F84', ears: 'pointy', snout: 'pig', tail: 'curl', bed: ['#B5476E', '#F08CA6'], sounds: ['Oink!', 'Oink oink!', 'Abundant joy!'], mote: '#F08CA6', movesLike: 'pumpkin' },
 };
 

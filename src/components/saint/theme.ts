@@ -255,15 +255,18 @@ export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
   return useMemo(() => factory(theme), [theme, factory]);
 }
 
-/** One Inter family throughout the app; each role uses its actual font weight. */
+/**
+ * One font family throughout the app; each role uses its actual font weight. The names point at Inter most of the
+ * year and at Playfair Display (set upright, no italics) during the Winter Lord event; see useFonts.ts.
+ */
 export const FONTS = {
-  display: 'Inter_500Medium',
-  displaySemi: 'Inter_600SemiBold',
-  displayItalic: 'Inter_500Medium_Italic',
-  body: 'Inter_400Regular',
-  bodyMed: 'Inter_500Medium',
-  bodySemi: 'Inter_600SemiBold',
-  bodyBold: 'Inter_700Bold',
+  display: 'Saint_500',
+  displaySemi: 'Saint_600',
+  displayItalic: 'Saint_500Italic',
+  body: 'Saint_400',
+  bodyMed: 'Saint_500',
+  bodySemi: 'Saint_600',
+  bodyBold: 'Saint_700',
 } as const;
 
 /** Light-themed verses for the All Hallows' Eve room's scripture tickers. */
@@ -297,6 +300,17 @@ export const CHRISTMAS_VERSES = [
   { text: 'The Word became flesh', ref: 'John 1:14' },
   { text: 'Sing to the Lord a new song', ref: 'Psalm 98:1' },
   { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the Long Winter room (KJV, from the "Face the Winter Lord" clip and the season), laid out the same way. */
+export const WINTER_VERSES = [
+  { text: 'He giveth snow like wool', ref: 'Psalm 147:16' },
+  { text: 'He sendeth out his word, and melteth them', ref: 'Psalm 147:18' },
+  { text: 'Wash me, and I shall be whiter than snow', ref: 'Psalm 51:7' },
+  { text: 'The people that walked in darkness have seen a great light', ref: 'Isaiah 9:2' },
+  { text: 'A light to lighten the Gentiles', ref: 'Luke 2:32' },
+  { text: 'Hast thou entered into the treasures of the snow?', ref: 'Job 38:22' },
+  { text: 'Where two or three are gathered, there am I', ref: 'Matthew 18:20' },
 ];
 
 export const VERSES = [

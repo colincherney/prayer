@@ -17,6 +17,7 @@ import React, {
 import { useReleases } from '@/lib/releases';
 
 import { MONTHLY_ROOM_NAMES, MONTHLY_ROOMS, MonthlyRoomName } from './monthlyRooms';
+import { setWinterLookOff, useWinterLordActive, WINTER_LORD_EVENT } from './winterLord';
 
 export type PrayerRoomName =
   | 'lamp'
@@ -26,6 +27,7 @@ export type PrayerRoomName =
   | 'halloween'
   | 'thanksgiving'
   | 'christmas'
+  | 'winter'
   | MonthlyRoomName;
 
 const monthly = <T,>(pick: (name: MonthlyRoomName) => T) =>
@@ -224,6 +226,31 @@ const CHRISTMAS: PrayerRoomPalette = {
   lowMuted: 'rgba(31,38,51,0.55)',
 };
 
+// The Long Winter — the Winter Lord's arctic night: navy sky, aurora teal, gold accent and cream text, from the
+// winter-lord design pack. The snowy foreground is pale, so the bottom ticker goes dark.
+const WINTER: PrayerRoomPalette = {
+  bg: '#0F1834',
+  bgSoft: '#18285A',
+  surface: '#1A2550',
+  ink: '#FBF4E6',
+  inkSoft: 'rgba(251,244,230,0.84)',
+  muted: 'rgba(251,244,230,0.58)',
+  divider: 'rgba(251,244,230,0.18)',
+  accent: '#E9C46A',
+  accentSoft: '#5FE3C0',
+  pillBg: 'rgba(95,227,192,0.14)',
+  pillInk: '#FBF4E6',
+  cardDark: 'rgba(16,24,42,0.92)',
+  cardDarkInk: '#FBF4E6',
+  cardLight: 'rgba(251,244,230,0.96)',
+  cardLightInk: '#0F1834',
+  cardLightInkSoft: 'rgba(15,24,52,0.72)',
+  cardLightPillBg: 'rgba(233,196,106,0.22)',
+  cardLightPillInk: '#8A6A1E',
+  statusBar: 'light-content',
+  lowMuted: 'rgba(15,24,52,0.6)',
+};
+
 export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
@@ -232,6 +259,7 @@ export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   halloween: HALLOWEEN,
   thanksgiving: THANKSGIVING,
   christmas: CHRISTMAS,
+  winter: WINTER,
   ...monthly(n => MONTHLY_ROOMS[n].palette),
 };
 
@@ -243,6 +271,7 @@ export const PRAYER_ROOM_ORDER: PrayerRoomName[] = [
   'halloween',
   'thanksgiving',
   'christmas',
+  'winter',
   ...MONTHLY_ROOM_NAMES,
 ];
 
@@ -254,6 +283,7 @@ export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   halloween: "All Hallows' Eve",
   thanksgiving: 'Give Thanks',
   christmas: 'God With Us',
+  winter: 'The Long Winter',
   ...monthly(n => MONTHLY_ROOMS[n].label),
 };
 
@@ -262,8 +292,10 @@ const SCHEDULED_ROOMS: PrayerRoomName[] = ['thanksgiving', 'christmas', ...MONTH
 
 /** The rooms that can be picked right now: everything except seasonal rooms whose date hasn't come. */
 export function useAvailableRooms(): PrayerRoomName[] {
-  const { isReleased } = useReleases();
-  return PRAYER_ROOM_ORDER.filter(r => !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`));
+  const { isReleased, hasOpened } = useReleases();
+  // The Long Winter (the ice bear's wallpaper) can be picked once the Winter Lord event has begun, and kept after it ends.
+  const winterOut = hasOpened(WINTER_LORD_EVENT);
+  return PRAYER_ROOM_ORDER.filter(r => (r === 'winter' ? winterOut : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`)));
 }
 
 const STORAGE_KEY = 'saint.prayerRoom';
@@ -314,13 +346,21 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [cloudVersion]);
 
   const setRoom = useCallback((next: PrayerRoomName) => {
+    // During the Long Winter, picking another wallpaper switches the winter look off; picking it switches it back on.
+    setWinterLookOff(next !== 'winter');
     setChosen(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
     saveEntryToCloud('appearance', 'room', next);
   }, []);
 
   // A room that isn't out (e.g. its date was moved later) falls back to the seasonal default.
-  const name = chosen && available.includes(chosen) ? chosen : seasonal;
+  const winterLord = useWinterLordActive();
+  // During the Winter Lord event everyone gets the Long Winter room; their own pick returns afterwards.
+  const name: PrayerRoomName = winterLord
+    ? 'winter'
+    : chosen && available.includes(chosen)
+      ? chosen
+      : seasonal;
 
   const value = useMemo<PrayerRoomCtx>(
     () => ({ name, palette: PRAYER_ROOMS[name], setRoom }),

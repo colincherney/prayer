@@ -70,6 +70,9 @@ const BUNDLED: Record<string, string> = {
   ...COLLECTION_RELEASES,
 };
 
+/** The built-in copy of the release schedule (ids to UTC times), for previewing future drops in dev builds. */
+export const RELEASE_SCHEDULE: Readonly<Record<string, string>> = BUNDLED;
+
 /**
  * When seasonal content can be claimed (public.content_windows). Outside every window it's in the vault: whoever
  * claimed it keeps it, but nobody new can. Same schedule as the database, for a phone that has never reached it.
@@ -79,7 +82,20 @@ const BUNDLED_WINDOWS: Record<string, [string, string][]> = {
   'pet:pumpkin': [['2026-01-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-10-01T04:00:00Z', '2027-11-01T04:00:00Z']],
   'pet:turkey': [['2026-11-14T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-11-14T05:00:00Z', '2027-12-01T05:00:00Z']],
   'pet:donkey': [['2026-12-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-12-01T05:00:00Z', '2028-01-01T05:00:00Z']],
+  // The Winter Lord look: midnight US Eastern Dec 1, 2026 through the end of Jan 31, 2027.
+  'event:winterLord': [['2026-12-01T05:00:00Z', '2027-02-01T05:00:00Z']],
 };
+
+const inWindow = (list: [string, string][] | undefined, now = Date.now()) =>
+  !!list && list.some(([open, close]) => Date.parse(open) <= now && now < Date.parse(close));
+
+/**
+ * Whether a timed event (`event:<id>` in public.content_windows) is on at launch, from the copy saved on the phone.
+ * For things that can only be decided once per launch, such as which font files to load. Off when it has no window.
+ */
+export function isEventOnAtLaunch(id: string): boolean {
+  return inWindow((preloadedWindows ?? BUNDLED_WINDOWS)[id]);
+}
 
 const CACHE_KEY = 'releases.released';
 const WINDOWS_KEY = 'releases.windows';
@@ -105,6 +121,10 @@ type ReleasesCtx = {
   isClaimable: (id: string) => boolean;
   /** When it can next be claimed, if it's in the vault and a window is coming. */
   nextWindow: (id: string) => Date | null;
+  /** Whether a timed event (`event:<id>`) is on right now. Unlike isClaimable, false when it has no window. */
+  isEventOn: (id: string) => boolean;
+  /** Whether a timed event (`event:<id>`) has started at some point, even if it has ended since. */
+  hasOpened: (id: string) => boolean;
 };
 
 const bundledNow = () => new Set(Object.keys(BUNDLED).filter(id => Date.parse(BUNDLED[id]) <= Date.now()));
@@ -114,6 +134,8 @@ const ReleasesContext = createContext<ReleasesCtx>({
   isAvailable: id => !(id in BUNDLED),
   isClaimable: () => true,
   nextWindow: () => null,
+  isEventOn: () => false,
+  hasOpened: () => false,
 });
 
 export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -154,6 +176,20 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => sub.remove();
   }, [refresh]);
 
+  // Re-check when the next window opens or closes (within a day), so an event starts at midnight even with the app open.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    const next = Object.values(windows)
+      .flat()
+      .flatMap(([open, close]) => [Date.parse(open), Date.parse(close)])
+      .filter(t => t > now && t - now < 24 * 60 * 60 * 1000)
+      .sort((a, b) => a - b)[0];
+    if (!next) return;
+    const timer = setTimeout(() => setTick(t => t + 1), next - now + 1000);
+    return () => clearTimeout(timer);
+  }, [windows, tick]);
+
   const value = useMemo<ReleasesCtx>(
     () => {
       const isReleased = (id: string) => (released ?? bundledNow()).has(id);
@@ -167,9 +203,12 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const next = (windows[id] ?? []).map(([open]) => Date.parse(open)).filter(t => t > now).sort((a, b) => a - b)[0];
         return next ? new Date(next) : null;
       };
-      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow };
+      const isEventOn = (id: string) => inWindow(windows[id]);
+      const hasOpened = (id: string) => (windows[id] ?? []).some(([open]) => Date.parse(open) <= Date.now());
+      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, isEventOn, hasOpened };
     },
-    [released, windows],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick rebuilds the checks when a window opens or closes
+    [released, windows, tick],
   );
 
   return React.createElement(ReleasesContext.Provider, { value }, children);

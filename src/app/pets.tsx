@@ -12,6 +12,7 @@ import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
+import { longDate, realStart, useFrostLordStage, useWinterEvent } from '@/lib/winterEvent';
 
 type Filter = 'all' | CompanionGroup;
 const FILTERS: { id: Filter; label: string }[] = [
@@ -37,7 +38,9 @@ function SearchGlyph({ color }: { color: string }) {
 }
 
 /** One companion's card in the grid: met, not met yet (a silhouette), or not out yet. */
-const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulted, current, width }: {
+const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulted, current, width, arrives }: {
+  /** For an event companion that isn't out yet: the day it arrives. */
+  arrives?: string;
   /** Not claimed and outside its season: it can't be met until it comes back. */
   vaulted: boolean;
   /** Exactly a third of the row, so three always fit. */
@@ -78,7 +81,7 @@ const DexCard = memo(function DexCard({ def, level, stage, met, released, vaulte
         {released ? <Pet id={def.id} stage={met ? stage : 1} size={CARD_ART} animated={false} /> : null}
       </View>
       <Text numberOfLines={1} style={[styles.cardName, !released && styles.cardComing]}>
-        {!released ? (def.season ? `Coming ${def.season}` : 'Coming soon') : met || vaulted ? def.name : '???'}
+        {!released ? (def.eventLine && arrives ? `Arrives ${arrives}` : def.season ? `Coming ${def.season}` : 'Coming soon') : met || vaulted ? (def.eventLine ? def.stages[stage - 1] : def.name) : '???'}
       </Text>
       {current ? <View style={styles.ribbon}><Text style={styles.ribbonText}>WITH YOU</Text></View> : null}
     </Pressable>
@@ -91,13 +94,17 @@ export default function PrayerPalsScreen() {
   const styles = useThemedStyles(makeStyles);
   const { petId, name, progress, xpByPet } = usePetProgress();
   const { isReleased, isClaimable } = useReleases();
+  // The Frost Lord line comes from the Long Winter event: out once the event starts, met once Snowcap arrives.
+  const { state: winter, phase: winterPhase, visible: winterVisible } = useWinterEvent();
+  const frostStage = useFrostLordStage();
+  const frostArrives = winter ? longDate(realStart(winter.event)) : 'December 1';
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState<string | null>(null);
   const { width: screenW } = useWindowDimensions();
   const cardW = Math.floor((Math.min(screenW, 500) - PAGE_PAD * 2 - GRID_GAP * 2) / 3);
 
-  const released = (def: PetDef) => !def.scheduled || isReleased(`pet:${def.id}`);
-  const met = (id: PetId) => id === petId || (xpByPet[id] ?? 0) > 0;
+  const released = (def: PetDef) => (def.eventLine ? !!winterPhase && winterPhase !== 'before' : !def.scheduled || isReleased(`pet:${def.id}`));
+  const met = (id: PetId) => (id === 'frostLord' ? frostStage >= 1 : id === petId || (xpByPet[id] ?? 0) > 0);
   const metCount = PETS.filter(def => released(def) && met(def.id)).length;
 
   const shown = useMemo(() => {
@@ -106,7 +113,7 @@ export default function PrayerPalsScreen() {
       && (!q || (met(def.id) && (def.name.toLowerCase().includes(q) || def.species.toLowerCase().includes(q)))));
   // met reads xpByPet and petId, both listed
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, query, xpByPet, petId]);
+  }, [filter, query, xpByPet, petId, frostStage]);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
@@ -155,6 +162,13 @@ export default function PrayerPalsScreen() {
           </View>
         </Pressable>
 
+        {winterVisible ? (
+          <Pressable onPress={() => router.push('/winter')} accessibilityRole="button" style={styles.winterRow}>
+            <Text style={styles.winterText}>❄ The Long Winter</Text>
+            <Text style={styles.winterSub}>{frostStage >= 1 ? 'Grow Snowcap into the Frost Lord' : 'Meet Snowcap'}  ›</Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.metRow}>
           <Text style={styles.metCount}>{metCount}<Text style={styles.metOf}> / {PETS.length} met</Text></Text>
           <View style={styles.dots}>
@@ -180,7 +194,8 @@ export default function PrayerPalsScreen() {
                 {pets.map(def => {
                   const own = petProgressFromXp(xpByPet[def.id] ?? 0);
                   return (
-                    <DexCard key={def.id} def={def} level={own.level} stage={own.stage}
+                    <DexCard key={def.id} def={def} level={own.level} arrives={def.eventLine ? frostArrives : undefined}
+                      stage={def.eventLine ? (Math.min(3, Math.max(1, frostStage)) as 1 | 2 | 3) : own.stage}
                       met={met(def.id)} released={released(def)} vaulted={!met(def.id) && !isClaimable(`pet:${def.id}`)} current={def.id === petId} width={cardW} />
                   );
                 })}
@@ -220,6 +235,9 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   heroNote: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.85)' },
   bold: { fontFamily: FONTS.bodyBold, color: '#FFFFFF' },
   metRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginTop: 18 },
+  winterRow: { marginHorizontal: 20, marginTop: 14, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#18285A', borderWidth: 1, borderColor: 'rgba(95,227,192,0.35)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  winterText: { fontFamily: FONTS.displaySemi, fontSize: 15, color: '#FBF4E6' },
+  winterSub: { flexShrink: 1, fontFamily: FONTS.body, fontSize: 12.5, color: '#E9C46A', textAlign: 'right' },
   metCount: { fontFamily: FONTS.display, fontSize: 22, color: theme.ink },
   metOf: { fontSize: 13, color: theme.muted },
   dots: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },

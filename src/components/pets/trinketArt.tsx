@@ -5,6 +5,7 @@ import { DashFlow, Fx } from './Fx';
 
 import { COLLECTION_KEEPSAKE_INFO } from './collectionData';
 import { COLLECTION_KEEPSAKE_ART } from './collectionKeepsakes';
+import { WINTER_KEEPSAKE_ART, WINTER_KEEPSAKE_INFO } from './winterKeepsakes';
 
 // The 24 prayer nook trinkets' artwork, converted from design/Trinkets.dc.html (Prayer nook trinkets). Each piece
 // is drawn on a 120x120 artboard; Trinket.tsx frames them and trinkets.ts says when each unlocks and how it's earned.
@@ -915,6 +916,7 @@ export const TRINKET_ART = {
   jacobsLadderMobile: JacobsLadderMobile,
   pearlOfGreatPrice: PearlOfGreatPrice,
   ...COLLECTION_KEEPSAKE_ART,
+  ...WINTER_KEEPSAKE_ART,
 } as const;
 
 export type TrinketId = keyof typeof TRINKET_ART;
@@ -946,4 +948,5 @@ export const TRINKET_INFO: Record<TrinketId, { name: string; rarity: 'common' | 
   jacobsLadderMobile: { name: "Jacob's Ladder Mobile", rarity: "legendary", goal: "Pray for 50 different people", sound: "Up we go!" },
   pearlOfGreatPrice: { name: "Pearl of Great Price", rarity: "legendary", goal: "Finish 6 weekly journeys", sound: "Priceless!" },
   ...COLLECTION_KEEPSAKE_INFO,
+  ...WINTER_KEEPSAKE_INFO,
 };

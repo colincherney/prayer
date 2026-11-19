@@ -21,6 +21,10 @@ import { preloadPet } from '@/lib/pet';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
+import { preloadWinter } from '@/lib/winterEvent';
+import { preloadWinterLook } from '@/components/saint/winterLord';
+import { WinterGate } from '@/components/winter/WinterGate';
+import { DropGate } from '@/components/drops/DropGate';
 
 const SPLASH_BG = '#0F1A33';
 const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
@@ -108,6 +112,7 @@ function RootStack() {
   }, [notificationResponse, signedInId, navSettled, router]);
 
   return (
+    <>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -133,7 +138,13 @@ function RootStack() {
       <Stack.Screen name="quests" options={{ presentation: 'card' }} />
       <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
+      <Stack.Screen name="winter" options={{ presentation: 'card' }} />
     </Stack>
+    {/* The Long Winter's intro clip and evolution moments, over whatever screen is showing (home only). */}
+    {navSettled && session ? <WinterGate /> : null}
+    {/* "What's new": companions and wallpapers that just dropped, shown once each. */}
+    {navSettled && session ? <DropGate /> : null}
+    </>
   );
 }
 
@@ -142,7 +153,7 @@ export default function RootLayout() {
   // The splash stays up during these quick reads, so no screen ever draws the default pet first.
   const [preloaded, setPreloaded] = useState(false);
   useEffect(() => {
-    Promise.all([preloadPet(), preloadReleases(), preloadLocal()]).finally(() => setPreloaded(true));
+    Promise.all([preloadPet(), preloadReleases(), preloadLocal(), preloadWinter(), preloadWinterLook()]).finally(() => setPreloaded(true));
   }, []);
   if (!preloaded) return null;
 

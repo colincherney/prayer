@@ -1,6 +1,9 @@
 import React from 'react';
 
 import { useReleases } from '@/lib/releases';
+import { useFrostLordStage } from '@/lib/winterEvent';
+
+import { FrostLordBear } from './FrostLordPet';
 
 import { OliveDove } from './Dove';
 import { SelahDragon } from './Dragon';
@@ -33,7 +36,8 @@ export type PetId =
   | 'monkey'
   | 'rooster'
   | 'dog'
-  | 'pig';
+  | 'pig'
+  | 'frostLord';
 
 export type PetDef = {
   id: PetId;
@@ -50,6 +54,8 @@ export type PetDef = {
    * everywhere; see src/lib/releases.ts.
    */
   scheduled?: boolean;
+  /** Earned in an event rather than picked; its stage comes from the event too. */
+  eventLine?: boolean;
   Art: React.ComponentType<PetProps>;
 };
 
@@ -244,6 +250,18 @@ export const PETS: PetDef[] = [
     scheduled: true,
     Art: ZODIAC_PETS.pig,
   },
+  // The Long Winter event's companion. You can't pick it: Snowcap arrives with your first winter prayer, the Frost
+  // Mage with four challenges from Christmas Day, and the Frost Lord when you finish all ten (src/lib/winterEvent.ts).
+  {
+    id: 'frostLord',
+    name: 'Snowcap',
+    species: 'Polar bear wizard',
+    tagline: 'From an apprentice cub to the Frost Lord.',
+    stages: ['Snowcap', 'Frost Mage', 'Frost Lord'],
+    season: 'The Long Winter',
+    eventLine: true,
+    Art: FrostLordBear,
+  },
 ];
 
 export const DEFAULT_PET: PetId = 'lamb';
@@ -251,7 +269,8 @@ export const DEFAULT_PET: PetId = 'lamb';
 /** The companions that can be picked right now: scheduled ones appear once the database releases them. */
 export function useAvailablePets(): PetDef[] {
   const { isReleased } = useReleases();
-  return PETS.filter(p => !p.scheduled || isReleased(`pet:${p.id}`));
+  const frostStage = useFrostLordStage();
+  return PETS.filter(p => (p.eventLine ? frostStage >= 1 : !p.scheduled || isReleased(`pet:${p.id}`)));
 }
 
 export function getPet(id: PetId): PetDef {

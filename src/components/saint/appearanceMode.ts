@@ -14,6 +14,8 @@ import React, {
   useState,
 } from 'react';
 
+import { setWinterLookOff, useWinterLordActive } from './winterLord';
+
 export type AppearanceMode = 'room' | 'theme';
 
 const STORAGE_KEY = 'saint.appearanceMode';
@@ -46,12 +48,17 @@ export const AppearanceModeProvider: React.FC<{ children: React.ReactNode }> = (
   }, [cloudVersion]);
 
   const setMode = useCallback((next: AppearanceMode) => {
+    // Choosing a theme during the Long Winter switches the winter look off.
+    if (next === 'theme') setWinterLookOff(true);
     setModeState(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
     saveEntryToCloud('appearance', 'mode', next);
   }, []);
 
-  const value = useMemo<AppearanceModeCtx>(() => ({ mode, setMode }), [mode, setMode]);
+  // The Winter Lord look is a room, so it overrides a theme pick while the event is on.
+  const winterLord = useWinterLordActive();
+  const effectiveMode: AppearanceMode = winterLord ? 'room' : mode;
+  const value = useMemo<AppearanceModeCtx>(() => ({ mode: effectiveMode, setMode }), [effectiveMode, setMode]);
 
   return React.createElement(AppearanceModeContext.Provider, { value }, children);
 };
