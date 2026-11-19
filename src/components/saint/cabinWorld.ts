@@ -787,6 +787,94 @@ function buildLamb(room: THREE.Group, paint: Paint) {
   return body;
 }
 
+/** Judah (the app's lion companion) as a cub, curled up asleep on a round cushion bed in the corner. */
+function buildLionCub(room: THREE.Group, paint: Paint) {
+  const nook = new THREE.Group();
+  nook.position.set(2.3, 0, -2.95);
+  nook.rotation.y = -0.5;
+  room.add(nook);
+
+  // Round pet bed: a puffy ring bolster around a soft cushion.
+  const bedOuter = paint('#8cc8e8', 'cloth');
+  const bedInner = paint('#fbe7c6', 'cloth');
+  geo(nook, new THREE.TorusGeometry(0.38, 0.11, 16, 40), bedOuter, 0, 0.12, 0).rotation.x = Math.PI / 2;
+  geo(nook, new THREE.CylinderGeometry(0.4, 0.42, 0.08, 40), bedOuter, 0, 0.04, 0);
+  blob(nook, bedInner, 0.36, 0.06, 0.36, 0, 0.1, 0);
+  // Little stitched hearts on the bolster.
+  const heart = paint('#f7a8c4');
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    blob(nook, heart, 0.03, 0.03, 0.012, Math.cos(a) * 0.49, 0.14, Math.sin(a) * 0.49).lookAt(Math.cos(a) * 2, 0.14, Math.sin(a) * 2);
+  }
+
+  const fur = paint('#f2c462', 'cloth');
+  const furShade = paint('#edb565', 'cloth');
+  const mane = paint('#d9955a', 'cloth');
+  const muzzle = paint('#f7e3b5');
+  const dark = new THREE.MeshBasicMaterial({ color: '#2b2420' });
+
+  const cub = new THREE.Group();
+  cub.position.set(0, 0.12, 0);
+  nook.add(cub);
+
+  // Curled body (breathes), paws tucked, tail wrapping round to the nose.
+  const body = new THREE.Group();
+  cub.add(body);
+  blob(body, fur, 0.21, 0.15, 0.17, -0.02, 0.13, 0);
+  blob(body, furShade, 0.12, 0.09, 0.1, -0.14, 0.12, -0.05); // haunch
+  for (const z of [0.07, -0.02]) blob(body, fur, 0.07, 0.045, 0.05, 0.17, 0.04, z + 0.06);
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.2, 0.09, -0.08), new THREE.Vector3(-0.24, 0.06, 0.08),
+    new THREE.Vector3(-0.08, 0.04, 0.2), new THREE.Vector3(0.12, 0.05, 0.2),
+  ]);
+  geo(body, new THREE.TubeGeometry(tailCurve, 24, 0.025, 10), fur, 0, 0, 0);
+  blob(body, mane, 0.04, 0.04, 0.04, 0.13, 0.05, 0.2); // tail tuft
+
+  // Big round head resting on the paws, ringed by a puffy mane.
+  const head = new THREE.Group();
+  head.position.set(0.17, 0.15, 0.06);
+  head.rotation.set(0.1, 0.35, -0.35);
+  cub.add(head);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    blob(head, mane, 0.055, 0.055, 0.055, -0.02, Math.sin(a) * 0.11, Math.cos(a) * 0.11);
+  }
+  blob(head, fur, 0.12, 0.11, 0.115, 0, 0, 0);
+  blob(head, muzzle, 0.05, 0.04, 0.065, 0.1, -0.035, 0);
+  blob(head, paint('#e8998a'), 0.016, 0.012, 0.022, 0.145, -0.012, 0); // nose
+  for (const s of [-1, 1]) {
+    blob(head, fur, 0.035, 0.035, 0.02, -0.02, 0.1, s * 0.07).rotation.x = s * 0.4; // ears
+    blob(head, paint('#e8998a'), 0.018, 0.012, 0.024, 0.09, -0.02, s * 0.075); // blush
+    // Sleepy closed eyes.
+    geo(head, new THREE.TorusGeometry(0.02, 0.005, 6, 14, Math.PI), dark, 0.11, 0.025, s * 0.045)
+      .rotation.set(Math.PI, Math.PI / 2 - s * 0.5, 0);
+  }
+
+  // Floating "z z z" that drift up and fade.
+  const zShape = new THREE.Shape();
+  zShape.moveTo(-0.5, 0.5);
+  zShape.lineTo(0.5, 0.5);
+  zShape.lineTo(0.5, 0.3);
+  zShape.lineTo(-0.15, -0.3);
+  zShape.lineTo(0.5, -0.3);
+  zShape.lineTo(0.5, -0.5);
+  zShape.lineTo(-0.5, -0.5);
+  zShape.lineTo(-0.5, -0.3);
+  zShape.lineTo(0.15, 0.3);
+  zShape.lineTo(-0.5, 0.3);
+  zShape.closePath();
+  const zGeo = new THREE.ShapeGeometry(zShape);
+  const zzz = new THREE.Group();
+  zzz.position.set(2.4, 0.5, -2.85);
+  room.add(zzz);
+  for (let i = 0; i < 3; i++) {
+    const z = new THREE.Mesh(zGeo, new THREE.MeshBasicMaterial({ color: '#8cc8e8', transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    z.userData.phase = i / 3;
+    zzz.add(z);
+  }
+  return { body, zzz };
+}
+
 function buildMotes() {
   const random = seedRandom(126);
   const n = 120;
@@ -883,6 +971,7 @@ export function createCabinWorld(options: THREE.WebGLRendererParameters) {
   const { lantern, steam } = buildFurnishings(room, paint, glow, gold);
   shell.ceiling.add(lantern);
   const lambBody = buildLamb(room, paint);
+  const cub = buildLionCub(room, paint);
   const motes = buildMotes();
   const sun = buildSunbeam(shell.leftWin);
   scene.add(motes, sun.group);
@@ -954,6 +1043,16 @@ export function createCabinWorld(options: THREE.WebGLRendererParameters) {
       // Lamb breathes with a gentle squash-and-stretch.
       const breath = Math.sin(seconds * 1.6);
       lambBody.scale.set(1 - breath * 0.015, 1 + breath * 0.035, 1 - breath * 0.015);
+      // The cub breathes slower and deeper — fast asleep.
+      const cubBreath = Math.sin(seconds * 1.1 + 1);
+      cub.body.scale.set(1 + cubBreath * 0.02, 1 + cubBreath * 0.045, 1 + cubBreath * 0.02);
+      for (const z of cub.zzz.children) {
+        const t = (seconds * 0.28 + (z.userData.phase as number)) % 1;
+        z.position.set(Math.sin(t * 6) * 0.06 + t * 0.12, t * 0.75, 0);
+        z.scale.setScalar(0.05 + t * 0.07);
+        z.quaternion.copy(camera.quaternion);
+        (z as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.opacity = Math.sin(t * Math.PI) * 0.9;
+      }
       for (const puff of steam.children) {
         const t = (seconds * 0.5 + (puff.userData.phase as number)) % 1.5;
         puff.position.set(Math.sin(t * 4) * 0.02, t * 0.18, 0);
