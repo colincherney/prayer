@@ -2,6 +2,8 @@
 
 RevenueCat checkout setup and remaining server configuration: [checkout guide](docs/revenuecat-checkout.md).
 
+iPhone prayer request Home Screen widget: [build and device checks](docs/prayer-request-widget.md).
+
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started

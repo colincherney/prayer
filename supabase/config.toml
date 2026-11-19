@@ -8,3 +8,7 @@ verify_jwt = true
 # Notifications are re-verified against RevenueCat; their payload never grants access.
 [functions.revenuecat-subscription-webhook]
 verify_jwt = false
+
+# Cron only: the handler also requires the service-role credential.
+[functions.notify-prayer-activity]
+verify_jwt = true

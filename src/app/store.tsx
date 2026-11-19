@@ -20,6 +20,7 @@ import { NookView } from '@/components/pets/Nook';
 import { DEFAULT_NOOK, isRug, ITEM_META, lightingForHour, NookState } from '@/components/pets/nookData';
 import { NOOK_H, NOOK_W } from '@/components/pets/NookScene';
 import { BackIcon } from '@/components/saint/Icons';
+import { LegalLinks } from '@/components/saint/LegalLinks';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -305,6 +306,7 @@ export default function StoreScreen() {
             <Text style={styles.restore}>{restoring ? 'Restoring…' : loaded ? 'Restore purchases' : 'Loading…'}</Text>
           </Pressable>
         </View>
+        <LegalLinks />
       </ScrollView>
 
       <ProductDetail

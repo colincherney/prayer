@@ -533,3 +533,71 @@ server-only configuration, allowing Apple sandbox receipts for TestFlight.
 Deployed subscription verification that requires the matching store, so Test Store
 receipts cannot grant production subscription access. RevenueCat notifications now
 target the App Store app in both sandbox and production environments.
+
+## Prayer notifications (2026-11-14)
+
+Applied `20261114072417_prayer_notifications.sql` and deployed `notify-prayer-activity` v2.
+Added self-only group notification preferences, a service-only group prayer outbox,
+reflection reminder preferences and atomic claim RPCs, and Expo receipt tracking.
+New approved group prayers queue alerts for other opted-in members. Leaving removes
+the membership's preferences and pending alerts. Reflection reminders are opt-in,
+use the user's local time, and require at least one approved posted prayer.
+
+The `notify_prayer_activity` cron runs every minute through the existing dispatcher.
+The function requires the runtime service credential or an exact match with the
+private scheduler's legacy service-role credential; gateway JWT verification stays on.
+A live dispatch returned HTTP 200 with no messages due. SQL regression tests passed
+in rolled-back transactions before and after deployment, with no fixtures left behind.
+All 64 Node tests pass and the Android production bundle exports successfully.
+See `docs/prayer-notifications.md` for behavior, verification, and existing web build limitations.
+
+To pause this feature without changing data, deactivate the `notify_prayer_activity`
+job in Supabase Cron. Existing daily and social-proof jobs remain separate.
+
+## Notification compute guards (2026-11-17)
+
+Applied `20261117173942_notification_compute_guards.sql` to the connected project.
+The existing cron jobs now check for due work before starting notification Edge
+Functions or processing scheduled prayer interactions. IDs, schedules, owners,
+enabled states, original dispatch/claim functions, delivery logic and credentials
+are preserved. New helpers are private and use invoker privileges with client
+execution revoked. Daily reminders retain minute precision; group retries,
+reflection cadence/catch-up and receipt checks remain eligible.
+
+Ran normal `VACUUM (ANALYZE)` on `net._http_response` and `cron.job_run_details`,
+and added `notification_log_maintenance` at `23 */6 * * *` for ongoing maintenance.
+No stored responses or cron history were deleted. Full compaction and log
+retention were not applied.
+
+Verified with an isolated real-Postgres regression suite, all 67 Node tests,
+the existing rolled-back live SQL notification regression suite, successful
+cron executions and advisors. See `docs/prayer-notifications.md` for details.
+
+**Rollback (restores the original schedules' commands without deleting data):**
+
+```sql
+do $$
+declare job record;
+begin
+  for job in select jobid, jobname from cron.job
+    where jobname in ('notify_daily_reminder', 'notify_prayer_activity', 'notify_social_proof')
+  loop
+    perform cron.alter_job(job.jobid, command := format(
+      'select public.notifications_dispatch(%L);',
+      case job.jobname
+        when 'notify_daily_reminder' then 'notify-daily-reminder'
+        when 'notify_prayer_activity' then 'notify-prayer-activity'
+        when 'notify_social_proof' then 'notify-social-proof'
+      end
+    ));
+  end loop;
+  for job in select jobid from cron.job where jobname = 'process_prayer_interaction_schedule'
+  loop
+    perform cron.alter_job(job.jobid, command := 'select process_prayer_interaction_schedule();');
+  end loop;
+end;
+$$;
+select cron.unschedule('notification_log_maintenance');
+drop function private.dispatch_notifications_if_due(text);
+drop function private.notification_work_due(text, timestamptz);
+```

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
@@ -13,11 +13,9 @@ type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   isGuest: boolean;
-  /**
-   * Step one of sign-in: checks the password without signing in, then emails a code.
-   * `kind` says which code was sent: 'email' for a normal sign-in, 'signup' when the account was never confirmed.
-   * On a phone remembered for this email, there's no code: `signedIn` is true and the person is already in.
-   */
+  emailSignInCodes: boolean;
+  setEmailSignInCodes: (enabled: boolean) => Promise<{ error: string | null }>;
+  /** Signs in with a password or reports which email code the app needs next. */
   signInWithPassword: (
     email: string,
     password: string,
@@ -41,10 +39,7 @@ type AuthContextValue = {
   upgradeToAccount: (email: string, password: string) => Promise<{ error: string | null }>;
   /** Emails a password-reset code (Supabase's "Reset password" template). */
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
-  /**
-   * Checks the reset code and sets the new password without signing in here,
-   * so the person still logs in afterwards with the password and the emailed sign-in code.
-   */
+  /** Checks the reset code and sets the new password before returning to normal sign-in. */
   resetPasswordWithCode: (email: string, code: string, newPassword: string) => Promise<{ error: string | null }>;
   /** Emails a one-time code to the signed-in account's address, to confirm deleting it. */
   sendDeleteCode: (email: string) => Promise<{ error: string | null }>;
@@ -94,20 +89,30 @@ function friendlyError(message: string | undefined | null): string | null {
 /** How long a phone stays remembered after a code is entered on it. */
 export const REMEMBER_DAYS = 30;
 const rememberKey = (email: string) => `remembered-phone:${email.trim().toLowerCase()}`;
+const EMAIL_SIGN_IN_CODES = 'email_sign_in_codes_enabled_at';
+
+// This account preference controls the app's sign-in flow. Supabase treats password and email OTP as separate sign-in methods.
+function emailCodeEnrollment(user: User | null | undefined): string | null {
+  if (!user) return null;
+  const enabledAt: unknown = user.user_metadata[EMAIL_SIGN_IN_CODES];
+  return typeof enabledAt === 'string' && enabledAt ? `${user.id}:${enabledAt}` : null;
+}
 
 // A remembered phone only skips the emailed code; the password is still checked by Supabase every time.
-async function isRemembered(email: string): Promise<boolean> {
+async function isRemembered(email: string, enrollment: string): Promise<boolean> {
   try {
-    const until = Number(await AsyncStorage.getItem(rememberKey(email)));
-    return Number.isFinite(until) && until > Date.now();
+    const stored = await AsyncStorage.getItem(rememberKey(email));
+    const remembered: { enrollment: string; until: number } | null = stored ? JSON.parse(stored) : null;
+    return remembered?.enrollment === enrollment && Number.isFinite(remembered.until) && remembered.until > Date.now();
   } catch {
     return false;
   }
 }
 
-async function rememberPhone(email: string) {
+async function rememberPhone(email: string, enrollment: string) {
   try {
-    await AsyncStorage.setItem(rememberKey(email), String(Date.now() + REMEMBER_DAYS * 24 * 60 * 60 * 1000));
+    const until = Date.now() + REMEMBER_DAYS * 24 * 60 * 60 * 1000;
+    await AsyncStorage.setItem(rememberKey(email), JSON.stringify({ enrollment, until }));
   } catch {}
 }
 
@@ -159,6 +164,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: friendlyError(error?.message) };
   };
 
+  const setEmailSignInCodes: AuthContextValue['setEmailSignInCodes'] = async enabled => {
+    if (!session?.user.email || session.user.is_anonymous) {
+      return { error: 'Sign in with an email address to change this setting.' };
+    }
+    const { error } = await supabase.auth.updateUser({
+      data: { [EMAIL_SIGN_IN_CODES]: enabled ? new Date().toISOString() : null },
+    });
+    return { error: friendlyError(error?.message) };
+  };
+
   const signInWithPassword: AuthContextValue['signInWithPassword'] = async (email, password) => {
     const { data, error } = await passwordCheckClient.auth.signInWithPassword({ email, password });
     if (error?.code === 'email_not_confirmed') {
@@ -167,15 +182,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: friendlyError(resent.error?.message), kind: 'signup' };
     }
     if (error) return { error: friendlyError(error.message) };
-    if (data.session && (await isRemembered(email))) {
-      // A code was entered on this phone recently: hand the password's session straight to the app.
-      const moved = await supabase.auth.setSession({
+    if (!data.session) return { error: 'Could not start your sign-in. Please try again.' };
+
+    const enrollment = emailCodeEnrollment(data.session.user);
+    if (!enrollment || await isRemembered(email, enrollment)) {
+      const { error: sessionError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
       });
-      if (!moved.error) return { error: null, signedIn: true };
+      if (!sessionError) return { error: null, signedIn: true };
+      await passwordCheckClient.auth.signOut({ scope: 'local' });
+      return { error: friendlyError(sessionError.message) };
     }
-    // The password was right. Drop that session so the code is the only way in.
+
+    // Drop the password session before starting the opted-in code step.
     await passwordCheckClient.auth.signOut({ scope: 'local' });
     const sent = await sendSignInCode(email);
     return { error: sent.error, kind: 'email' };
@@ -187,8 +207,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind, remember) => {
-    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
-    if (!error && remember && kind !== 'email_change') await rememberPhone(email);
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
+    if (!error && remember && kind === 'email') {
+      const enrollment = emailCodeEnrollment(data.user);
+      if (enrollment) await rememberPhone(email, enrollment);
+    }
     return { error: friendlyError(error?.message) };
   };
 
@@ -245,6 +268,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         loading,
         isGuest,
+        emailSignInCodes: emailCodeEnrollment(session?.user) !== null,
+        setEmailSignInCodes,
         signInWithPassword,
         signUpWithPassword,
         verifyEmailCode,

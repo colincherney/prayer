@@ -3,8 +3,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
-import React, { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
@@ -16,12 +16,17 @@ import { syncCloudProgress } from '@/lib/cloudProgress';
 import { markLaunched } from '@/lib/launch';
 import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
+import { notificationDestination } from '@/lib/notificationDestination';
 import { preloadPet } from '@/lib/pet';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
 
 const SPLASH_BG = '#0F1A33';
+const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
+
+// Keep home beneath a cold-start widget link so Back and Return home work.
+export const unstable_settings = { anchor: '(tabs)' };
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Match the RN root view background to the splash so there's no white
@@ -33,15 +38,31 @@ function RootStack() {
   const segments = useSegments();
   const router = useRouter();
   const fontsLoaded = useSaintFonts();
+  const notificationResponse = useNotificationResponse();
+  const handledNotification = useRef<string | null>(null);
+  const pendingPrayerRequest = useRef(false);
 
-  const inAuth = segments[0] === 'auth';
+  const currentScreen = segments[0];
+  const inAuth = currentScreen === 'auth';
   // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
   const navSettled = !loading && !session === inAuth;
 
   useEffect(() => {
-    if (loading || navSettled) return;
-    router.replace(session ? '/' : '/auth');
-  }, [session, loading, navSettled, router]);
+    if (loading) return;
+    if (!session) {
+      // Remember the widget's destination while the user signs in or continues
+      // anonymously. Keep the request form behind the existing sign-in wall.
+      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = true;
+      if (!inAuth) router.replace('/auth');
+      return;
+    }
+    if (pendingPrayerRequest.current) {
+      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = false;
+      else router.replace('/prayerRequest');
+    } else if (inAuth) {
+      router.replace('/');
+    }
+  }, [session, loading, currentScreen, inAuth, router]);
 
   // Hide the native splash only once auth, fonts, and navigation are all
   // settled — so the splash transitions directly to a fully-rendered
@@ -69,26 +90,22 @@ function RootStack() {
       const token = await registerForPushNotifications();
       if (cancelled || !token) return;
       await savePushToken(signedInId, token);
-    })();
+    })().catch(error => console.warn('Push registration failed', error));
     return () => {
       cancelled = true;
     };
   }, [signedInId]);
 
-  // Tap-to-navigate: open the relevant prayer when a notification is tapped.
+  // The last response includes taps that launch the app. Wait for sign-in and navigation.
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as
-        | { type?: string; prayer_id?: string }
-        | undefined;
-      if (data?.type === 'reflection' || data?.type === 'social_proof') {
-        router.push('/myPrayers');
-      } else if (data?.type === 'daily_reminder') {
-        router.push('/');
-      }
-    });
-    return () => sub.remove();
-  }, [router]);
+    if (!notificationResponse || !signedInId || !navSettled) return;
+    const request = notificationResponse.notification.request;
+    if (handledNotification.current === request.identifier) return;
+    handledNotification.current = request.identifier;
+    const destination = notificationDestination(request.content.data);
+    if (destination) router.push(destination);
+    Notifications.clearLastNotificationResponseAsync().catch(() => {});
+  }, [notificationResponse, signedInId, navSettled, router]);
 
   return (
     <Stack

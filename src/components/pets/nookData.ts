@@ -14,13 +14,14 @@ export type SceneId =
 export type SlotId = 'floor' | 'left' | 'right' | 'wall' | 'hang' | 'ambience';
 export type DecorSpotId = 'rug' | 'left' | 'right' | 'accentLeft' | 'accentRight' | 'wall' | 'overhead' | 'atmosphere';
 export type NookLayoutId = 'balanced' | 'cozy' | 'garden';
+export type NookPlacementMode = 'snap' | 'free';
 
 /** How far a piece has been dragged from its default spot, in the nook's own 342x440 units. */
 export type Offset = { x: number; y: number };
 
 /**
- * Equipped pieces occupy designed spots. Legacy offsets are retained in the storage shape for older clients;
- * current layouts use placements so decorations cannot pile up over the pet.
+ * Snap layouts use one decoration per designed spot. Free layouts keep every equipped
+ * piece and store its movement from that spot in nook units, independent of screen size.
  */
 export type NookState = {
   scene: SceneId;
@@ -28,6 +29,7 @@ export type NookState = {
   offsets: Record<string, Offset>;
   layout?: NookLayoutId;
   placements?: Record<string, DecorSpotId>;
+  placementMode?: NookPlacementMode;
   /** 3 since the great web and the prayer lights became two removable pieces. Older saves had both built in. */
   v?: 3;
 };
@@ -37,7 +39,7 @@ export const PRAYER_LIGHTS = 'prayerlights';
 /** The big web of rings and spokes behind them. It grows with prayers offered. Drawn by NookView. */
 export const GREAT_WEB = 'greatweb';
 
-/** The pet always stands on one rug. The blue one is the default, and choosing another swaps it out. */
+/** Snap layouts share one rug spot; free layouts can use several rugs together. */
 export const DEFAULT_RUG = 'bluerug';
 const RUGS = [DEFAULT_RUG, 'rug', 'roundrug', 'starrug', 'reedmat', 'flagstones'];
 export const isRug = (id: string) => RUGS.includes(id);
@@ -58,13 +60,14 @@ export const DEFAULT_NOOK: NookState = {
 
 /** Turns anything read from storage into a valid NookState. Understands the older one-item-per-spot format. */
 export function migrateNook(raw: unknown): NookState {
-  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null>; v?: number; layout?: NookLayoutId; placements?: Record<string, DecorSpotId> };
+  const r = (raw ?? {}) as { scene?: SceneId; items?: unknown; offsets?: unknown; slots?: Record<string, string | null>; v?: number; layout?: NookLayoutId; placements?: Record<string, DecorSpotId>; placementMode?: NookPlacementMode };
   const known = new Set(ROWS.flatMap(row => row.items.map(it => it.id)));
   let items: string[];
   if (Array.isArray(r.items)) items = r.items.filter((id): id is string => typeof id === 'string' && known.has(id));
   else if (r.slots) items = [DEFAULT_RUG, ...Object.values(r.slots).filter((id): id is string => typeof id === 'string' && known.has(id))];
   else items = [...DEFAULT_NOOK.items];
-  items = withOneRug(Array.from(new Set(items)));
+  items = Array.from(new Set(items));
+  if (r.placementMode !== 'free') items = withOneRug(items);
   // Older saves always showed the web and lights, so they keep them. Version 2 had them as one piece, the lights.
   const version = r.v ?? 1;
   if (version < 2 && !items.includes(PRAYER_LIGHTS)) items.push(PRAYER_LIGHTS);
@@ -72,11 +75,11 @@ export function migrateNook(raw: unknown): NookState {
   const offsets: Record<string, Offset> = {};
   if (r.offsets && typeof r.offsets === 'object') {
     for (const [id, o] of Object.entries(r.offsets as Record<string, Offset>)) {
-      if (items.includes(id) && typeof o?.x === 'number' && typeof o?.y === 'number') offsets[id] = { x: o.x, y: o.y };
+      if (items.includes(id) && Number.isFinite(o?.x) && Number.isFinite(o?.y)) offsets[id] = { x: o.x, y: o.y };
     }
   }
   const scene = SCENES.some(sc => sc.id === r.scene) ? (r.scene as SceneId) : DEFAULT_NOOK.scene;
-  return arrangeNook({ scene, items, offsets, layout: r.layout, placements: r.placements, v: 3 });
+  return arrangeNook({ scene, items, offsets, layout: r.layout, placements: r.placements, placementMode: r.placementMode, v: 3 });
 }
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -122,9 +125,9 @@ export const ITEM_META: Record<string, ItemMeta> = {
   lights: { slot: 'hang', base: { x: 0, y: 34 }, hit: { x: 4, y: -35, w: 335, h: 65 } },
   dove: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 235, y: -67, w: 61, h: 112 } },
   prayerweb: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 111, y: 2, w: 120, h: 44 } },
-  // Fills the nook and stays put, so there's nothing to grab.
-  [PRAYER_LIGHTS]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
-  [GREAT_WEB]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 0, y: 0, w: 0, h: 0 } },
+  // Small centre handles let free mode move these scene-wide effects without blocking other pieces.
+  [PRAYER_LIGHTS]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 151, y: 208, w: 40, h: 44 } },
+  [GREAT_WEB]: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 151, y: 208, w: 40, h: 44 } },
   garland: { slot: 'hang', base: { x: 0, y: 0 }, hit: { x: 100, y: 14, w: 142, h: 40 } },
 };
 for (const d of SHOWN_COLLECTION_DECOR) {
@@ -140,7 +143,7 @@ export function toggleItem(n: NookState, id: string): NookState {
   const spot = spots.find(candidate => !Object.values(current.placements ?? {}).includes(candidate)) ?? spots[0];
   return arrangeNook({
     ...current,
-    items: [...current.items.filter(item => current.placements?.[item] !== spot), id],
+    items: [...current.items.filter(item => current.placementMode === 'free' || current.placements?.[item] !== spot), id],
     placements: { ...current.placements, [id]: spot },
   });
 }
@@ -362,8 +365,11 @@ export function spotsForItem(id: string): DecorSpotId[] {
 
 /** Repair older or crowded arrangements without changing the inventory of available decorations. */
 export function arrangeNook(n: NookState): NookState {
-  const layout = NOOK_LAYOUTS.some(candidate => candidate.id === n.layout) ? n.layout! : 'balanced';
+  const placementMode = n.placementMode === 'free' ? 'free' : 'snap';
+  // Snap has one fixed arrangement. Keep legacy layouts in free mode so saved pieces stay put.
+  const layout = placementMode === 'free' && NOOK_LAYOUTS.some(candidate => candidate.id === n.layout) ? n.layout! : 'balanced';
   const placements: Record<string, DecorSpotId> = {};
+  const offsets: Record<string, Offset> = {};
   const occupied = new Map<DecorSpotId, string>();
   for (const id of [...new Set(n.items)]) {
     const allowed = spotsForItem(id);
@@ -371,15 +377,45 @@ export function arrangeNook(n: NookState): NookState {
     const saved = n.placements?.[id];
     const spot = saved && allowed.includes(saved) ? saved : allowed.find(candidate => !occupied.has(candidate)) ?? allowed[0];
     const previous = occupied.get(spot);
-    if (previous) delete placements[previous];
+    if (previous && placementMode === 'snap') delete placements[previous];
     occupied.set(spot, id);
     placements[id] = spot;
+    const offset = n.offsets?.[id];
+    if (placementMode === 'free' && offset && Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
+      const base = placementForItem({ ...n, layout, placementMode: 'snap', placements }, id);
+      const { hit } = ITEM_META[id];
+      offsets[id] = {
+        x: Math.max(0, Math.min(342 - hit.w * base.scale, base.x + offset.x)) - base.x,
+        y: Math.max(0, Math.min(440 - hit.h * base.scale, base.y + offset.y)) - base.y,
+      };
+    }
   }
-  return { ...n, layout, items: Object.keys(placements), placements, offsets: {}, v: 3 };
+  return { ...n, layout, placementMode, items: Object.keys(placements), placements, offsets, v: 3 };
+}
+
+/** A mode change is one undoable edit. Entering free mode leaves the current arrangement in place. */
+export function setNookPlacementMode(n: NookState, placementMode: NookPlacementMode): NookState {
+  if ((n.placementMode ?? 'snap') === placementMode && (placementMode === 'free' || n.layout === 'balanced')) return n;
+  return arrangeNook({ ...n, placementMode });
+}
+
+/** Drop a piece at an exact position, keeping its grab area inside the nook. */
+export function moveItemFreely(n: NookState, id: string, position: Offset): NookState {
+  if (n.placementMode !== 'free' || !n.items.includes(id) || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return n;
+  const base = placementForItem({ ...n, placementMode: 'snap' }, id);
+  const { hit } = ITEM_META[id];
+  const offset = {
+    x: Math.max(0, Math.min(342 - hit.w * base.scale, position.x)) - base.x,
+    y: Math.max(0, Math.min(440 - hit.h * base.scale, position.y)) - base.y,
+  };
+  const previous = n.offsets[id] ?? { x: 0, y: 0 };
+  if (previous.x === offset.x && previous.y === offset.y) return n;
+  return { ...n, offsets: { ...n.offsets, [id]: offset } };
 }
 
 /** Moving into an occupied spot swaps the two decorations instead of covering one with the other. */
 export function moveItemToSpot(n: NookState, id: string, destination: DecorSpotId): NookState {
+  if (n.placementMode === 'free') return n;
   const current = arrangeNook(n);
   const origin = current.placements?.[id];
   if (!origin || origin === destination || !spotsForItem(id).includes(destination)) return current;
@@ -394,10 +430,11 @@ export type ItemPlacement = { spot: DecorSpotId; x: number; y: number; scale: nu
 export function placementForItem(n: NookState, id: string, destination?: DecorSpotId): ItemPlacement {
   const { hit, base } = ITEM_META[id];
   const spot = destination ?? n.placements?.[id] ?? spotsForItem(id)[0];
-  if (FRAMING.includes(id)) return { spot, x: hit.x + base.x, y: hit.y + base.y, scale: 1 };
+  const offset = n.placementMode === 'free' && !destination ? n.offsets[id] : undefined;
+  if (FRAMING.includes(id)) return { spot, x: hit.x + base.x + (offset?.x ?? 0), y: hit.y + base.y + (offset?.y ?? 0), scale: 1 };
   const frame = LAYOUT_SPOTS[n.layout ?? 'balanced'][spot];
   const scale = Math.min(1, frame.w / hit.w, frame.h / hit.h);
-  return { spot, x: frame.cx - hit.w * scale / 2, y: frame.bottom - hit.h * scale, scale };
+  return { spot, x: frame.cx - hit.w * scale / 2 + (offset?.x ?? 0), y: frame.bottom - hit.h * scale + (offset?.y ?? 0), scale };
 }
 
 export function spotFrame(n: NookState, spot: DecorSpotId): Box {

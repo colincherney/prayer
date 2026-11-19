@@ -29,6 +29,7 @@ import {
   GREETINGS,
   Lighting,
   NookState,
+  Offset,
   DecorSpotId,
   DECOR_SPOTS,
   arrangeNook,
@@ -67,6 +68,7 @@ type Props = {
   editable?: boolean;
   /** Called when a dragged piece is dropped. */
   onMoveItem?: (id: string, spot: DecorSpotId) => void;
+  onMoveItemFreely?: (id: string, position: Offset) => void;
   /** Called when a piece is tapped. */
   onTapItem?: (id: string) => void;
   showSpots?: boolean;
@@ -128,6 +130,8 @@ const COLLECTION_LAYERS = [...SHOWN_COLLECTION_DECOR]
   .sort((a, b) => LAYER_RANK[a.slot] - LAYER_RANK[b.slot])
   .map(d => d.id);
 const ITEM_ORDER = [
+  GREAT_WEB,
+  PRAYER_LIGHTS,
   'glass',
   'tapestry',
   'rose',
@@ -157,10 +161,13 @@ const ITEM_ORDER = [
   'autumnwreath',
   'hay',
   'jackolantern',
+  'pilgrimlantern',
   'wheat',
   ...COLLECTION_LAYERS,
 ];
 const ITEM_LABEL: Record<string, string> = {
+  [GREAT_WEB]: 'Great web',
+  [PRAYER_LIGHTS]: 'Prayer lights',
   glass: 'Stained glass',
   tapestry: 'Alpha and Omega banner',
   cross: 'Olivewood cross',
@@ -186,6 +193,7 @@ const ITEM_LABEL: Record<string, string> = {
   chimes: 'Chimes',
   hay: 'Hay bale',
   jackolantern: "Jack-o'-lantern",
+  pilgrimlantern: "Pilgrim's lantern",
   wheat: 'Wheat sheaf',
   autumnwreath: 'Autumn wreath',
   web: 'Spiderweb',
@@ -311,12 +319,14 @@ export const NookView = memo(function NookView({
   immersive,
   editable,
   onMoveItem,
+  onMoveItemFreely,
   onTapItem,
   showSpots,
   selectedItem,
   fullBleed,
 }: ViewProps) {
   const nook = useMemo(() => arrangeNook(savedNook), [savedNook]);
+  const freeMove = nook.placementMode === 'free';
   const scale = width / NOOK_W;
   // Keeps the pet uncapped when a parent (the decorator) has already lifted the cap.
   const smoothAround = useContext(SmoothMotion);
@@ -395,14 +405,14 @@ export const NookView = memo(function NookView({
         ]}>
         {fullBleed && hasArtScene(nook.scene) ? null : <SceneBackdrop scene={nook.scene} bg={scene.bg} />}
         {fullBleed ? null : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: TINTS[lighting] }]} />}
-        {has(PRAYER_LIGHTS) || has(GREAT_WEB) ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0.4 }]}><PrayerWeb level={webLevel} web={has(GREAT_WEB)} lights={has(PRAYER_LIGHTS)} /></View> : null}
-        {editable && (showSpots || selectedItem) ? DECOR_SPOTS.filter(spot => spot.id !== 'atmosphere' && (showSpots || spotsForItem(selectedItem!).includes(spot.id))).map(spot => {
+        {!freeMove && (has(PRAYER_LIGHTS) || has(GREAT_WEB)) ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0.4 }]}><PrayerWeb level={webLevel} web={has(GREAT_WEB)} lights={has(PRAYER_LIGHTS)} /></View> : null}
+        {editable && !freeMove && (showSpots || selectedItem) ? DECOR_SPOTS.filter(spot => spot.id !== 'atmosphere' && (showSpots || spotsForItem(selectedItem!).includes(spot.id))).map(spot => {
           const box = spotFrame(nook, spot.id);
           return <View key={spot.id} pointerEvents="none" style={{ position: 'absolute', left: box.x * scale, top: box.y * scale, width: box.w * scale, height: box.h * scale, borderRadius: 12 * scale, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(242,196,98,0.48)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.bodySemi, fontSize: 9 * scale, color: '#F2E9D8', backgroundColor: 'rgba(20,17,42,0.55)', paddingHorizontal: 5, paddingVertical: 3, borderRadius: 5 }}>{spot.label}</Text>
           </View>;
         }) : null}
-        {ITEM_ORDER.filter(has).map(id => (
+        {ITEM_ORDER.filter(id => has(id) && (freeMove || (id !== GREAT_WEB && id !== PRAYER_LIGHTS))).map(id => (
           <NookItem
             key={id}
             id={id}
@@ -410,10 +420,14 @@ export const NookView = memo(function NookView({
             targets={spotsForItem(id).map(spot => placementForItem(nook, id, spot))}
             scale={scale}
             editable={!!editable}
+            freeMove={freeMove}
+            selected={selectedItem === id}
             tapLabel={ITEM_LABEL[id]}
             onTap={onTapItem ? () => { tapFor(id)?.(); onTapItem(id); } : tapFor(id)}
             onMove={onMoveItem}
-            art={fullBleed && id === 'prayerweb' ? null : <ItemArt id={id} lanternBright={lanternBright} leafOn={leafOn} hangFast={hangFast} />}
+            onMoveFreely={onMoveItemFreely}
+            sceneLayer={id === GREAT_WEB || id === PRAYER_LIGHTS ? <PrayerWeb level={webLevel} web={id === GREAT_WEB} lights={id === PRAYER_LIGHTS} /> : undefined}
+            art={fullBleed && !freeMove && id === 'prayerweb' ? null : <ItemArt id={id} lanternBright={lanternBright} leafOn={leafOn} hangFast={hangFast} />}
           />
         ))}
         <NookEffects warmLight={warm} easterSet={easter} sanctuarySet={sanctuary} />
@@ -435,7 +449,7 @@ export const NookView = memo(function NookView({
           </Animated.View>
         </View>
         {/* Only the upper part of the pet wakes it, so the rug and other floor pieces under it stay grabbable. */}
-        <View style={{ position: 'absolute', left: 96 * scale, top: PET_TOP * scale, width: PET * scale, height: PET * 0.72 * scale }}>
+        <View pointerEvents={editable && freeMove ? 'none' : 'auto'} style={{ position: 'absolute', left: 96 * scale, top: PET_TOP * scale, width: PET * scale, height: PET * 0.72 * scale }}>
           <Pressable onPress={wake} accessibilityRole="button" accessibilityLabel="Say hello to your pet" style={{ flex: 1 }} />
         </View>
         {petId === 'lamb' && !awake && <Zzz top={PET_TOP} px={scale} />}

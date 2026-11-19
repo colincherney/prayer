@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -8,6 +8,7 @@ import {
   StyleProp,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   useWindowDimensions,
   View,
@@ -38,11 +39,13 @@ import {
   ArrowIcon,
   BellIcon,
   PrayingIcon,
+  ShieldIcon,
   SparkleIcon,
   StarIcon,
   UserIcon,
 } from '@/components/saint/Icons';
 import { Squiggle } from '@/components/saint/Common';
+import { LegalLinks } from '@/components/saint/LegalLinks';
 import { PageAmbience } from '@/components/saint/PageAmbience';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -167,7 +170,7 @@ function MeContent() {
   const { theme, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
-  const { session, isGuest, signOut } = useAuth();
+  const { session, isGuest, emailSignInCodes, setEmailSignInCodes, signOut } = useAuth();
   useEffect(() => afterLaunch(() => {
     void prefetchNookImages().catch(() => {});
   }), []);
@@ -251,6 +254,9 @@ function MeContent() {
   );
   const [decorating, setDecorating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSignInCodes, setSavingSignInCodes] = useState(false);
+  const [signInCodeError, setSignInCodeError] = useState<string | null>(null);
+  const signInCodeSaveInFlight = useRef(false);
   const reducedMotion = useReducedMotion();
   // Wait for what you own to load before removing cosmetics whose ownership has expired.
   useEffect(() => {
@@ -276,6 +282,22 @@ function MeContent() {
     setSettingsOpen(false);
     await signOut();
     router.replace('/auth');
+  };
+
+  const onToggleSignInCodes = async (enabled: boolean) => {
+    if (signInCodeSaveInFlight.current) return;
+    signInCodeSaveInFlight.current = true;
+    setSavingSignInCodes(true);
+    setSignInCodeError(null);
+    try {
+      const { error } = await setEmailSignInCodes(enabled);
+      setSignInCodeError(error);
+    } catch {
+      setSignInCodeError('Could not save this setting. Please try again.');
+    } finally {
+      signInCodeSaveInFlight.current = false;
+      setSavingSignInCodes(false);
+    }
   };
 
   // Deleting needs a code emailed to the account (checked by the delete-account function), so it has its own screen.
@@ -347,73 +369,95 @@ function MeContent() {
               <Text style={styles.sheetCloseText}>✕</Text>
             </NookButton>
           </View>
-          <NookButton onPress={() => go('/notificationSettings')} accessibilityRole="link" style={styles.settingsRow}>
-            <BellIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Notifications</Text>
-              <Text style={styles.rowNote}>Notes, updates, and your daily reminder.</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          <NookButton onPress={() => go('/customization')} accessibilityRole="link" style={styles.settingsRow}>
-            <SparkleIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Appearance</Text>
-              <Text style={styles.rowNote}>Your theme and app icon.</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          <NookButton onPress={() => go('/pets')} accessibilityRole="link" style={styles.settingsRow}>
-            <UserIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Companions</Text>
-              <Text style={styles.rowNote}>Choose who walks with you and see how they grow.</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          <NookButton onPress={() => go('/trinkets')} accessibilityRole="link" style={styles.settingsRow}>
-            <StarIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Keepsakes</Text>
-              <Text style={styles.rowNote}>{keepsakes.length} collected · your trinket shelf</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          <NookButton onPress={() => go('/store')} accessibilityRole="link" style={styles.settingsRow}>
-            <SparkleIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Store</Text>
-              <Text style={styles.rowNote}>New scenes and decor for your Prayer Nook.</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          <NookButton onPress={() => go('/myPrayers')} accessibilityRole="link" style={styles.settingsRow}>
-            <PrayingIcon size={18} color={theme.inkSoft} />
-            <View style={styles.linkCopy}>
-              <Text style={styles.rowTitle}>Your prayer calendar</Text>
-              <Text style={styles.rowNote}>{stats.offered} prayers offered · {stats.shared} shared</Text>
-            </View>
-            <ArrowIcon size={15} color={theme.inkSoft} />
-          </NookButton>
-          {isGuest ? (
-            <View style={styles.guestNotice}>
-              <Text style={styles.guestNoticeText}>You&apos;re here anonymously. Create an account to keep your prayers and progress safe when you sign out.</Text>
-              <NookButton onPress={() => go('/createAccount')} style={styles.guestButton}>
-                <Text style={styles.textLinkText}>Keep your little corner</Text>
-                <ArrowIcon size={14} color={theme.accent} />
-              </NookButton>
-            </View>
-          ) : null}
-          <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
-          {session?.user?.email ? <Text style={styles.accountEmail}>Signed in as {session.user.email}</Text> : null}
-          {!isGuest && session?.user?.email ? (
-            <NookButton onPress={() => go('/changeEmail')} accessibilityRole="link" style={styles.accountButton}>
-              <Text style={styles.textLinkText}>Change email</Text>
+          <ScrollView style={styles.sheetContent} showsVerticalScrollIndicator={false}>
+            <NookButton onPress={() => go('/notificationSettings')} accessibilityRole="link" style={styles.settingsRow}>
+              <BellIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Notifications</Text>
+                <Text style={styles.rowNote}>Notes, updates, and your daily reminder.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
             </NookButton>
-          ) : null}
-          <NookButton onPress={onDeleteAccount} style={styles.accountButton}>
-            <Text style={styles.deleteText}>Delete account</Text>
-          </NookButton>
+            <NookButton onPress={() => go('/customization')} accessibilityRole="link" style={styles.settingsRow}>
+              <SparkleIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Appearance</Text>
+                <Text style={styles.rowNote}>Your theme and app icon.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            <NookButton onPress={() => go('/pets')} accessibilityRole="link" style={styles.settingsRow}>
+              <UserIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Companions</Text>
+                <Text style={styles.rowNote}>Choose who walks with you and see how they grow.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            <NookButton onPress={() => go('/trinkets')} accessibilityRole="link" style={styles.settingsRow}>
+              <StarIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Keepsakes</Text>
+                <Text style={styles.rowNote}>{keepsakes.length} collected · your trinket shelf</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            <NookButton onPress={() => go('/store')} accessibilityRole="link" style={styles.settingsRow}>
+              <SparkleIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Store</Text>
+                <Text style={styles.rowNote}>New scenes and decor for your Prayer Nook.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            <NookButton onPress={() => go('/myPrayers')} accessibilityRole="link" style={styles.settingsRow}>
+              <PrayingIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Your prayer calendar</Text>
+                <Text style={styles.rowNote}>{stats.offered} prayers offered · {stats.shared} shared</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            {isGuest ? (
+              <View style={styles.guestNotice}>
+                <Text style={styles.guestNoticeText}>You&apos;re here anonymously. Create an account to keep your prayers and progress safe when you sign out.</Text>
+                <NookButton onPress={() => go('/createAccount')} style={styles.guestButton}>
+                  <Text style={styles.textLinkText}>Keep your little corner</Text>
+                  <ArrowIcon size={14} color={theme.accent} />
+                </NookButton>
+              </View>
+            ) : null}
+            {!isGuest && session?.user.email ? (
+              <View style={styles.settingsRow}>
+                <ShieldIcon size={18} color={theme.inkSoft} />
+                <View style={styles.linkCopy}>
+                  <Text style={styles.rowTitle}>Email sign-in codes</Text>
+                  <Text style={styles.rowNote}>Ask for an email code after your password.</Text>
+                  {signInCodeError ? (
+                    <Text accessibilityRole="alert" style={[styles.rowNote, styles.deleteText]}>{signInCodeError}</Text>
+                  ) : null}
+                </View>
+                <Switch
+                  accessibilityLabel="Email sign-in codes"
+                  value={emailSignInCodes}
+                  disabled={savingSignInCodes}
+                  onValueChange={onToggleSignInCodes}
+                  trackColor={{ true: theme.accent }}
+                />
+              </View>
+            ) : null}
+            <NookButton onPress={onSignOut} style={styles.accountButton}><Text style={styles.rowTitle}>Sign out</Text></NookButton>
+            {session?.user?.email ? <Text style={styles.accountEmail}>Signed in as {session.user.email}</Text> : null}
+            {!isGuest && session?.user?.email ? (
+              <NookButton onPress={() => go('/changeEmail')} accessibilityRole="link" style={styles.accountButton}>
+                <Text style={styles.textLinkText}>Change email</Text>
+              </NookButton>
+            ) : null}
+            <NookButton onPress={onDeleteAccount} style={styles.accountButton}>
+              <Text style={styles.deleteText}>Delete account</Text>
+            </NookButton>
+            <LegalLinks />
+          </ScrollView>
         </View>
       </Modal>
 
@@ -447,7 +491,8 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   actionText: { fontFamily: FONTS.bodySemi, fontSize: 16, lineHeight: 22, textAlign: 'center', color: theme.ink, flexShrink: 1 },
   // Settings sheet
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 22, paddingTop: 10, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: theme.surface },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '90%', paddingHorizontal: 22, paddingTop: 10, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: theme.surface },
+  sheetContent: { flexGrow: 0, flexShrink: 1 },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: theme.line, marginBottom: 12 },
   sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 },
   sheetTitle: { flex: 1, fontFamily: FONTS.display, fontSize: 22, lineHeight: 28, color: theme.ink },

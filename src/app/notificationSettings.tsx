@@ -1,6 +1,6 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -26,10 +26,12 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import {
   DEFAULT_PREFS,
+  enablePushNotifications,
+  loadGroupNotificationPrefs,
   loadPrefs,
+  type GroupNotificationPrefs,
   type NotificationPrefs,
-  registerForPushNotifications,
-  savePushToken,
+  updateGroupPrayerNotificationPref,
   updatePrefs,
 } from '@/lib/notifications';
 
@@ -61,63 +63,85 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
   const [androidPickerOpen, setAndroidPickerOpen] = useState(false);
+  const [groups, setGroups] = useState<GroupNotificationPrefs[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [savingGroup, setSavingGroup] = useState<string | null>(null);
+  const prefsInFlight = useRef(false);
+  const groupInFlight = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      if (!session) return;
+      if (!session) { setLoading(false); return; }
       let cancelled = false;
       (async () => {
         setLoading(true);
-        const loaded = await loadPrefs(session.user.id);
-        if (!cancelled) {
-          setPrefs(loaded);
-          setLoading(false);
+        setLoadError(false);
+        try {
+          const [loaded, loadedGroups] = await Promise.all([
+            loadPrefs(session.user.id), loadGroupNotificationPrefs(session.user.id),
+          ]);
+          if (!cancelled) {
+            setPrefs(loaded);
+            setGroups(loadedGroups);
+          }
+        } catch {
+          if (!cancelled) setLoadError(true);
+        } finally {
+          if (!cancelled) setLoading(false);
         }
       })();
       return () => {
         cancelled = true;
       };
-    }, [session]),
+    // The revision lets Try again reload settings without leaving the screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, revision]),
   );
 
   const patchPrefs = useCallback(
     async (patch: Partial<NotificationPrefs>) => {
-      if (!session) return;
-      const previous = prefs;
-      const next = { ...prefs, ...patch } as NotificationPrefs;
-      setPrefs(next);
-
-      const turningOnPush = Object.entries(patch).some(
-        ([, v]) => typeof v === 'boolean' && v === true,
-      );
-      if (turningOnPush) {
-        const token = await registerForPushNotifications();
-        if (!token) {
-          Alert.alert(
-            'Notifications are off',
-            'Enable notifications for Saint Central in your device settings to receive reminders.',
-          );
-          const reverted: Partial<NotificationPrefs> = {};
-          for (const [k, v] of Object.entries(patch)) {
-            if (typeof v === 'boolean' && v === true) {
-              reverted[k as keyof NotificationPrefs] = false as never;
-            }
-          }
-          setPrefs((p) => ({ ...p, ...reverted }));
+      if (!session || prefsInFlight.current) return;
+      prefsInFlight.current = true;
+      setSavingPrefs(true);
+      try {
+        const turningOnPush = Object.values(patch).some(v => v === true);
+        if (turningOnPush && !await enablePushNotifications(session.user.id)) {
+          Alert.alert('Notifications are off', 'Enable notifications for Saint Central in your device settings to receive reminders.');
           return;
         }
-        await savePushToken(session.user.id, token);
-      }
-
-      try {
         await updatePrefs(session.user.id, patch);
+        setPrefs(previous => ({ ...previous, ...patch }));
       } catch (e) {
         console.warn('updatePrefs failed', e);
-        setPrefs(previous);
+        Alert.alert('Could not save setting', 'Please try again.');
+      } finally {
+        prefsInFlight.current = false;
+        setSavingPrefs(false);
       }
     },
-    [prefs, session],
+    [session],
   );
+
+  const toggleGroup = async (groupId: string, enabled: boolean) => {
+    if (!session || groupInFlight.current) return;
+    groupInFlight.current = true;
+    setSavingGroup(groupId);
+    try {
+      if (enabled && !await enablePushNotifications(session.user.id)) {
+        Alert.alert('Notifications are off', 'Enable notifications for Saint Central in your device settings to receive group prayers.');
+        return;
+      }
+      await updateGroupPrayerNotificationPref(session.user.id, groupId, enabled);
+      setGroups(previous => previous.map(group => group.groupId === groupId ? { ...group, enabled } : group));
+    } catch {
+      Alert.alert('Could not save setting', 'Please try again.');
+    } finally {
+      groupInFlight.current = false;
+      setSavingGroup(null);
+    }
+  };
 
   const togglePref = useCallback(
     (key: keyof NotificationPrefs, value: boolean | number | null) =>
@@ -171,6 +195,13 @@ export default function NotificationSettingsScreen() {
           <View style={{ paddingTop: 40, alignItems: 'center' }}>
             <ActivityIndicator color={THEME.accent} />
           </View>
+        ) : loadError ? (
+          <View style={{ padding: 22, gap: 12 }}>
+            <Text style={styles.prefSub}>Could not load your notification settings.</Text>
+            <Pressable accessibilityRole="button" onPress={() => setRevision(value => value + 1)} style={styles.androidPickerBtn}>
+              <Text style={styles.prefTitle}>Try again</Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={{ paddingHorizontal: 22, gap: 10, marginTop: 8 }}>
             <View style={styles.prefRow}>
@@ -181,6 +212,8 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Switch
+                disabled={savingPrefs}
+                accessibilityLabel="Notes of encouragement"
                 value={prefs.comments_enabled}
                 onValueChange={(v) => togglePref('comments_enabled', v)}
                 trackColor={{ true: THEME.accent, false: THEME.line }}
@@ -195,6 +228,8 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Switch
+                disabled={savingPrefs}
+                accessibilityLabel="People praying for you"
                 value={prefs.social_proof_enabled}
                 onValueChange={(v) => togglePref('social_proof_enabled', v)}
                 trackColor={{ true: THEME.accent, false: THEME.line }}
@@ -209,8 +244,10 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Switch
+                disabled={savingPrefs}
+                accessibilityLabel="Daily reminder"
                 value={prefs.daily_reminder_enabled}
-                onValueChange={(v) => togglePref('daily_reminder_enabled', v)}
+                onValueChange={(v) => patchPrefs({ daily_reminder_enabled: v, daily_reminder_hour: prefs.daily_reminder_hour ?? 9, daily_reminder_minute: prefs.daily_reminder_minute ?? 0 })}
                 trackColor={{ true: THEME.accent, false: THEME.line }}
               />
             </View>
@@ -226,6 +263,7 @@ export default function NotificationSettingsScreen() {
                     return (
                       <Pressable
                         key={h}
+                        disabled={savingPrefs}
                         onPress={() =>
                           patchPrefs({ daily_reminder_hour: h, daily_reminder_minute: 0 })
                         }
@@ -257,6 +295,7 @@ export default function NotificationSettingsScreen() {
                       mode="time"
                       display="spinner"
                       minuteInterval={1}
+                      disabled={savingPrefs}
                       onChange={onTimeChange}
                       themeVariant={THEME.bg === '#000000' ? 'dark' : 'light'}
                     />
@@ -265,6 +304,7 @@ export default function NotificationSettingsScreen() {
                   <>
                     <Pressable
                       onPress={() => setAndroidPickerOpen(true)}
+                      disabled={savingPrefs}
                       style={[
                         styles.androidPickerBtn,
                         { backgroundColor: THEME.surface, borderColor: THEME.line },
@@ -289,6 +329,61 @@ export default function NotificationSettingsScreen() {
                 )}
               </View>
             ) : null}
+
+            <View style={styles.prefRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.prefTitle}>Reflect on your prayers</Text>
+                <Text style={styles.prefSub}>A quiet nudge to revisit what you&apos;ve shared. Only sent while you have prayers posted.</Text>
+              </View>
+              <Switch accessibilityLabel="Reflect on your prayers" disabled={savingPrefs}
+                value={prefs.reflection_reminder_enabled}
+                onValueChange={value => togglePref('reflection_reminder_enabled', value)}
+                trackColor={{ true: THEME.accent, false: THEME.line }} />
+            </View>
+
+            {prefs.reflection_reminder_enabled ? (
+              <View style={styles.hourPickerWrap}>
+                <Text style={styles.prefSub}>How often?</Text>
+                <View style={styles.hourRow}>
+                  {[{ days: 2, label: 'Every 2 days' }, { days: 3, label: 'Every 3 days' }, { days: 7, label: 'Weekly' }].map(({ days, label }) => {
+                    const active = prefs.reflection_reminder_interval_days === days;
+                    return <Pressable key={days} accessibilityRole="button" accessibilityState={{ selected: active }}
+                      disabled={savingPrefs} onPress={() => patchPrefs({ reflection_reminder_interval_days: days })}
+                      style={[styles.hourChip, { backgroundColor: active ? THEME.cardDark : THEME.surface, borderColor: active ? THEME.cardDark : THEME.line }]}>
+                      <Text style={[styles.hourChipText, { color: active ? THEME.cardDarkInk : THEME.ink }]}>{label}</Text>
+                    </Pressable>;
+                  })}
+                </View>
+                <Text style={styles.prefSub}>Remind me at (your local time)</Text>
+                <View style={styles.hourRow}>
+                  {REMINDER_HOURS.map(hour => {
+                    const active = prefs.reflection_reminder_hour === hour;
+                    return <Pressable key={hour} accessibilityRole="button" accessibilityLabel={`Reflection reminder at ${formatHour(hour)}`}
+                      accessibilityState={{ selected: active }} disabled={savingPrefs}
+                      onPress={() => patchPrefs({ reflection_reminder_hour: hour })}
+                      style={[styles.hourChip, { backgroundColor: active ? THEME.cardDark : THEME.surface, borderColor: active ? THEME.cardDark : THEME.line }]}>
+                      <Text style={[styles.hourChipText, { color: active ? THEME.cardDarkInk : THEME.ink }]}>{formatHour(hour)}</Text>
+                    </Pressable>;
+                  })}
+                </View>
+                <Text style={styles.prefSub}>Your first reminder arrives after the interval you choose.</Text>
+              </View>
+            ) : null}
+
+            <Text style={[styles.prefTitle, { marginTop: 18 }]}>Group prayers</Text>
+            <Text style={styles.prefSub}>Choose which groups can notify you when someone else shares a prayer.</Text>
+            {groups.length === 0 ? <Text style={styles.prefSub}>Join a group to manage its prayer notifications here.</Text> : groups.map(group => (
+              <View key={group.groupId} style={styles.prefRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.prefTitle}>{group.name}</Text>
+                  <Text style={styles.prefSub}>New prayers in this group</Text>
+                </View>
+                {savingGroup === group.groupId ? <ActivityIndicator size="small" color={THEME.accent} /> : null}
+                <Switch accessibilityLabel={`New prayers in ${group.name}`} disabled={savingGroup !== null}
+                  value={group.enabled} onValueChange={enabled => toggleGroup(group.groupId, enabled)}
+                  trackColor={{ true: THEME.accent, false: THEME.line }} />
+              </View>
+            ))}
           </View>
         )}
       </ScrollView>
