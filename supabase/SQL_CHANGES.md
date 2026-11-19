@@ -892,3 +892,41 @@ Frost Lord and the 5 keepsakes on Jan 31.
 **Revert:** set those six rules and their wording back with the same `jsonb_set` shape. The old values are in the first column
 above: weeks `{"type":"weeks","min":4}`, hours `{"type":"hours","from_hour":21,"to_hour":24,"min":3}` and
 `{"type":"hours","from_hour":4,"to_hour":9,"min":3}`, streak `{"type":"streak","min":7}`.
+
+## Dev account: everything unlocked for the owner's account (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_dev_account.sql`. It widens the `account_unlocks.unlock` check to `('all_pets', 'dev')`.
+
+**Data, for the owner's account only** (picked by e-mail when it ran):
+- `account_unlocks` `'dev'`.
+- `user_cosmetics`: all 90 `cosmetic_products` (nook scenes, decorations, bundles and Plus), source `'grant'`, no expiry. The
+  RevenueCat webhook only ever deletes rows whose source is `'revenuecat'`, so these stay.
+- `user_trinkets`: all 84 keepsakes (the 24 originals, 50 nook-collection, 5 winter and 5 swamp).
+- From earlier: all 22 companions at level 50, and both events at stage 3.
+
+**In the app** (`src/lib/releases.ts`): with `'dev'`, every scheduled companion, wallpaper, keepsake, scene and decoration counts as
+out and nothing is in the vault. The event wallpapers can be picked any time (`prayerRoom.ts`). Two things still follow the real
+calendar: the default wallpaper (`isOutForEveryone`), and event looks switching themselves on.
+
+**Revert:**
+```sql
+-- with me as (select id from auth.users where email = '<owner>')
+delete from public.account_unlocks where user_id = (select id from me);
+delete from public.user_cosmetics where user_id = (select id from me) and source = 'grant';
+delete from public.user_trinkets where user_id = (select id from me);  -- note: also removes keepsakes earned for real
+```
+
+## Keep what you earn, forever (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_keep_what_you_earned.sql`. This fixes `public.winter_event_state`, which returned no
+progress once an event was switched off (`is_active` false). The app would then have forgotten that you'd met that event's
+companion. A switched-off event now returns your saved progress, without re-checking it.
+
+**App side:**
+- A companion counts as yours for good if you've ever walked with it. That means it has a `pet_xp` row (even at 0 XP), it's your
+  active companion, it has XP, or it's an event companion you've met.
+- Prayer Pals, the companion page and the current-companion check all use this. An owned companion is never shown as
+  "Arrives…", "Coming…" or in the vault, and you're never moved back to the default companion.
+
+**Revert:** re-create `winter_event_state` without the `elsif uid is not null` branch (the version in
+`20261118_long_winter_event.sql`).

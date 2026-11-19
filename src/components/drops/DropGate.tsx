@@ -24,8 +24,16 @@ function Gate({ userId }: { userId: string }) {
   const [closedFor, setClosedFor] = useState<string | null>(null);
   const othersBusy = useOtherOverlayBusy('drops');
   const onHome = segments[0] === '(tabs)' && segments.length === 1;
-  // Every event (or its cached copy) has loaded, so each one's start is counted.
-  const winterLoaded = EVENT_IDS.every(id => states[id] !== null);
+  // Every event (or its cached copy) has loaded, so each one's start is counted. If one can't load (offline on a
+  // first launch), stop waiting after a few seconds rather than never showing anything new.
+  const allLoaded = EVENT_IDS.every(id => states[id] !== null);
+  const [gaveUp, setGaveUp] = useState(false);
+  useEffect(() => {
+    if (allLoaded) return;
+    const t = setTimeout(() => setGaveUp(true), 5000);
+    return () => clearTimeout(t);
+  }, [allLoaded]);
+  const winterLoaded = allLoaded || gaveUp;
 
   useEffect(() => {
     // Wait for the event (its start is a drop day too) so everything new shows in one go.

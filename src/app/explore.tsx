@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -253,6 +253,8 @@ export default function PrayForOthersScreen() {
 
   const [index, setIndex] = useState(0);
   const [prayedIds, setPrayedIds] = useState<Set<string>>(new Set());
+  /** Prayers being lit right now, so two taps in the same frame can't record the same prayer twice. */
+  const praying = useRef(new Set<string>());
   const [notesSent, setNotesSent] = useState<Set<string>>(new Set());
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -409,7 +411,8 @@ export default function PrayForOthersScreen() {
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: NIGHT.bg }} />;
 
   const onPray = async () => {
-    if (!req || !session) return;
+    if (!req || !session || praying.current.has(req.id) || prayedIds.has(req.id)) return;
+    praying.current.add(req.id);
     // Optimistic light
     setPrayedIds(prev => {
       const next = new Set(prev);
@@ -425,7 +428,8 @@ export default function PrayForOthersScreen() {
       action: 'prayed',
     });
     if (error) {
-      // Roll back on failure
+      // Roll back on failure, and let them try again
+      praying.current.delete(req.id);
       setPrayedIds(prev => {
         const next = new Set(prev);
         next.delete(req.id);

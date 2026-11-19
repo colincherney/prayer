@@ -9,7 +9,7 @@ import { saveEntryToCloud, saveToCloud } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
-import { usePalStage } from '@/lib/winterEvent';
+import { usePalStage, usePalStages } from '@/lib/winterEvent';
 
 /** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level). */
 export const XP = { share: 20, prayed: 10, journal: 5 } as const;
@@ -39,7 +39,8 @@ const nameKey = (id: PetId) => (id === 'lamb' ? 'pet.name' : `pet.name.${id}`);
 const levelKey = (id: PetId) => `pet.lastSeenLevel.${id}`;
 const XP_CACHE_KEY = 'pet.xpCache';
 
-type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>> };
+/** `claimed`: every companion this account has ever walked with (a public.pet_xp row, or the active one), even at 0 XP. */
+type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>>; claimed?: PetId[] };
 
 // The current pet and XP, shared by every screen. A change here (switching pets, new XP) reaches every screen that
 // shows a pet at once, instead of each one catching up when it's next opened.
@@ -62,8 +63,8 @@ function setKnownPet(next: { id: PetId; name: string }) {
   listeners.forEach(fn => fn());
 }
 
-function rememberXp(userId: string, xpByPet: Record<PetId, number>) {
-  knownXp = { userId, xpByPet };
+function rememberXp(userId: string, xpByPet: Record<PetId, number>, claimed: PetId[]) {
+  knownXp = { userId, xpByPet, claimed };
   listeners.forEach(fn => fn());
   AsyncStorage.setItem(XP_CACHE_KEY, JSON.stringify(knownXp)).catch(() => {});
 }
@@ -169,9 +170,11 @@ export function usePetChoice() {
     if (knownPet) setKnownPet({ ...knownPet, name: n });
   }, []);
 
-  // A companion that isn't out (e.g. its date was moved later) shows as the default until its date.
+  // A companion that isn't out (e.g. its date was moved later) shows as the default until its date, unless this
+  // account has already had it: then it's theirs for good.
   const available = useAvailablePets();
-  if (!available.some(p => p.id === petId)) {
+  const xpSnap = useSyncExternalStore(subscribe, () => knownXp);
+  if (!available.some(p => p.id === petId) && !(xpSnap?.claimed ?? []).includes(petId)) {
     return { petId: DEFAULT_PET, name: getPet(DEFAULT_PET).name, setName, setPetId };
   }
   return { petId, name, setName, setPetId };
@@ -185,13 +188,13 @@ export function usePetChoice() {
 async function loadXpByPet(
   localPet: PetId,
   total: number,
-): Promise<{ xpByPet: Record<PetId, number>; activePet: PetId }> {
+): Promise<{ xpByPet: Record<PetId, number>; activePet: PetId; claimed: PetId[] | null }> {
   const shared = Object.fromEntries(PETS.map(p => [p.id, total])) as Record<PetId, number>;
   const [state, banked] = await Promise.all([
     supabase.from('pet_state').select('active_pet, active_since_xp').maybeSingle(),
     supabase.from('pet_xp').select('pet_id, banked_xp'),
   ]);
-  if (state.error || banked.error) return { xpByPet: shared, activePet: localPet };
+  if (state.error || banked.error) return { xpByPet: shared, activePet: localPet, claimed: null };
 
   let activePet = localPet;
   let since = 0;
@@ -201,7 +204,7 @@ async function loadXpByPet(
   } else {
     // First load since per-pet levels: the current pet keeps everything earned so far.
     const { error } = await supabase.rpc('switch_pet', { p_from: localPet, p_to: localPet, p_total: total });
-    if (error) return { xpByPet: shared, activePet: localPet };
+    if (error) return { xpByPet: shared, activePet: localPet, claimed: null };
   }
 
   const xpByPet = Object.fromEntries(PETS.map(p => [p.id, 0])) as Record<PetId, number>;
@@ -209,7 +212,9 @@ async function loadXpByPet(
     if (isPetId(row.pet_id)) xpByPet[row.pet_id] = (row.banked_xp as number) ?? 0;
   }
   xpByPet[activePet] += Math.max(total - since, 0);
-  return { xpByPet, activePet };
+  // Walked with at some point (a banked row, even at 0 XP) or walking now: this account's for good.
+  const claimed = [...new Set([activePet, ...(banked.data ?? []).map(row => row.pet_id).filter(isPetId)])];
+  return { xpByPet, activePet, claimed };
 }
 
 /** Loads the signed-in user's XP each time the screen gains focus. `progress` is the chosen pet's own level. */
@@ -224,6 +229,18 @@ export function usePetProgress() {
     () => ({ ...Object.fromEntries(PETS.map(p => [p.id, 0])), ...(xpSnapshot && (!userId || xpSnapshot.userId === userId) ? xpSnapshot.xpByPet : {}) }) as Record<PetId, number>,
     [xpSnapshot, userId],
   );
+  // Yours for good once claimed or earned, whatever the season or the vault says: walked with at any time, any XP, or
+  // an event companion met in its event.
+  const palStages = usePalStages();
+  const claimedList = xpSnapshot && (!userId || xpSnapshot.userId === userId) ? xpSnapshot.claimed : undefined;
+  const owned = useMemo(() => {
+    const set = new Set<PetId>(claimedList ?? []);
+    set.add(choice.petId);
+    for (const p of PETS) {
+      if ((xpByPet[p.id] ?? 0) > 0 || (palStages[p.id] ?? 0) >= 1) set.add(p.id);
+    }
+    return set as ReadonlySet<PetId>;
+  }, [claimedList, choice.petId, xpByPet, palStages]);
   // Event companions grow through their event, not XP (Snowcap → Frost Mage → Frost Lord; Vesper → Fen Warden → Old King).
   const palStage = usePalStage(choice.petId);
   const progress = useMemo(() => {
@@ -259,14 +276,14 @@ export function usePetProgress() {
         quests: questXp,
       });
       const localPet = await loadPetId();
-      const { xpByPet: byPet, activePet: active } = await loadXpByPet(localPet, total);
+      const { xpByPet: byPet, activePet: active, claimed } = await loadXpByPet(localPet, total);
       if (id !== loadId.current) return;
       lastTotal = total;
       activePet = active;
       // Another device may have switched pets; follow the account.
       if (active !== localPet) await setChoice(active);
       const next = petProgressFromXp(byPet[active]);
-      rememberXp(userId, byPet);
+      rememberXp(userId, byPet, claimed ?? knownXp?.claimed ?? []);
       const up = await consumeLevelUp(active, next.level);
       if (id === loadId.current && up) {
         setLeveledUp(true);
@@ -307,5 +324,5 @@ export function usePetProgress() {
     [reload, session, setChoice],
   );
 
-  return { progress, xpByPet, leveledUp, reload, ...choice, setPetId };
+  return { progress, xpByPet, owned, leveledUp, reload, ...choice, setPetId };
 }

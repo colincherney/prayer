@@ -78,14 +78,14 @@ export default function CompanionScreen() {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string }>();
-  const { petId, name: currentName, xpByPet, setPetId } = usePetProgress();
+  const { petId, name: currentName, xpByPet, owned, setPetId } = usePetProgress();
   const { isReleased, isClaimable, nextWindow } = useReleases();
   const [tab, setTab] = useState<Tab>('about');
   const [walking, setWalking] = useState(false);
   const [now] = useState(() => Date.now());
   const { width: screenW } = useWindowDimensions();
 
-  const out = PETS.filter(def => !def.scheduled || isReleased(`pet:${def.id}`));
+  const out = PETS.filter(def => owned.has(def.id) || !def.scheduled || isReleased(`pet:${def.id}`));
   const id: PetId = isPetId(params.id) ? params.id : petId;
   const def = PETS.find(p => p.id === id) ?? PETS[0];
   const index = out.findIndex(p => p.id === id);
@@ -97,8 +97,8 @@ export default function CompanionScreen() {
   const metOn = metDates()[id];
   const daysWalked = metOn ? Math.max(1, Math.ceil((now - Date.parse(metOn)) / 86400000)) : null;
   const group = companionGroup(id);
-  // Seasonal companions can only be claimed in their season. Anyone who already has one keeps it.
-  const claimed = isCurrent || xp > 0;
+  // Seasonal companions can only be claimed in their season. Anyone who has ever had one keeps it for good.
+  const claimed = owned.has(id);
   const vaulted = !claimed && !isClaimable(`pet:${id}`);
   const returns = vaulted ? nextWindow(`pet:${id}`) : null;
   // The verse card's text area is the screen less the page and card padding.

@@ -93,7 +93,7 @@ export default function PrayerPalsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { petId, name, progress, xpByPet } = usePetProgress();
+  const { petId, name, progress, xpByPet, owned } = usePetProgress();
   const { isReleased, isClaimable } = useReleases();
   // The event companions (the Frost Lord line, Vesper's line) come from their events: out once the event starts,
   // met once the first stage arrives, in the vault once it ends for anyone who never met them.
@@ -113,20 +113,22 @@ export default function PrayerPalsScreen() {
   const cardW = Math.floor((Math.min(screenW, 500) - PAGE_PAD * 2 - GRID_GAP * 2) / 3);
 
   const released = (def: PetDef) => {
+    // Anything you've claimed or earned is out for you, whatever the date.
+    if (owned.has(def.id)) return true;
     if (!def.eventLine) return !def.scheduled || isReleased(`pet:${def.id}`);
     const phase = palEvent(def.id).phase;
     return !!phase && phase !== 'before';
   };
-  const met = (id: PetId) => (id in palStages ? palStages[id] >= 1 : id === petId || (xpByPet[id] ?? 0) > 0);
+  const met = (id: PetId) => owned.has(id);
   const metCount = PETS.filter(def => released(def) && met(def.id)).length;
 
   const shown = useMemo(() => {
     const q = (query ?? '').trim().toLowerCase();
     return PETS.filter(def => (filter === 'all' || companionGroup(def.id) === filter)
       && (!q || (met(def.id) && (def.name.toLowerCase().includes(q) || def.species.toLowerCase().includes(q)))));
-  // met reads xpByPet and petId, both listed
+  // met reads owned, which is listed
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, query, xpByPet, petId, palStages]);
+  }, [filter, query, owned]);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 

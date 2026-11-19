@@ -121,6 +121,12 @@ async function fetchVerseText(ref: string, version: BibleVersion): Promise<strin
   return data?.[0]?.text ?? null;
 }
 
+/** The local calendar day ('YYYY-MM-DD') a timestamp falls on, so an evening entry isn't filed under tomorrow (UTC). */
+function localDayKey(iso: string | Date): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function formatEntryDate(iso: string): string {
   const d = new Date(iso);
   const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -266,10 +272,18 @@ function EntryDetail({
   useEffect(() => {
     if (!entry?.verse?.ref || !visible) { setFetchedVerseText(null); return; }
     let cancelled = false;
+    // Clear the last entry's text first, so it never shows under this entry's reference while loading.
+    setFetchedVerseText(null);
     setVerseLoading(true);
-    fetchVerseText(entry.verse.ref, bibleVersion).then(text => {
-      if (!cancelled) { setFetchedVerseText(text); setVerseLoading(false); }
-    });
+    fetchVerseText(entry.verse.ref, bibleVersion)
+      .then(text => {
+        if (!cancelled) setFetchedVerseText(text);
+      })
+      // Offline or a failed lookup: fall back to the text saved with the entry, never a spinner that never stops.
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setVerseLoading(false);
+      });
     return () => { cancelled = true; };
   }, [entry?.verse?.ref, bibleVersion, visible]);
 
@@ -805,7 +819,7 @@ function CalendarView({
   const dayMap = useMemo(() => {
     const map: Record<string, DayInfo> = {};
     entries.forEach(e => {
-      const key = e.createdAt?.slice(0, 10);
+      const key = e.createdAt ? localDayKey(e.createdAt) : null;
       if (!key) return;
       if (!map[key]) map[key] = { themes: [], dominant: 'other', color: '#8a9a8a' };
       map[key].themes.push(e.theme);
@@ -822,7 +836,7 @@ function CalendarView({
 
   const weeks = useMemo(() => buildCalGrid(calMonth.year, calMonth.month), [calMonth]);
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localDayKey(new Date());
   const pad = (n: number) => String(n).padStart(2, '0');
   const monthPrefix = `${calMonth.year}-${pad(calMonth.month + 1)}`;
 
@@ -997,7 +1011,7 @@ export default function BiographyScreen() {
   const allEntries = entries;
 
   const filtered = useMemo(() => {
-    if (selectedDate) return allEntries.filter(e => e.createdAt?.slice(0, 10) === selectedDate);
+    if (selectedDate) return allEntries.filter(e => !!e.createdAt && localDayKey(e.createdAt) === selectedDate);
     if (activeTheme === 'all') return allEntries;
     return allEntries.filter(e => e.theme === activeTheme);
   }, [activeTheme, allEntries, selectedDate]);

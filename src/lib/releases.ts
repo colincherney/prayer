@@ -127,6 +127,13 @@ type ReleasesCtx = {
   isEventOn: (id: string) => boolean;
   /** Whether a timed event (`event:<id>`) has started at some point, even if it has ended since. */
   hasOpened: (id: string) => boolean;
+  /**
+   * A dev account (public.account_unlocks 'dev'): everything on a schedule counts as out and nothing is in the vault,
+   * for that one account. Event looks still only switch on by themselves during their events.
+   */
+  isDev: boolean;
+  /** Whether scheduled content is out for everyone, ignoring a dev account's unlocks (for defaults that follow the calendar). */
+  isOutForEveryone: (id: string) => boolean;
 };
 
 const bundledNow = () => new Set(Object.keys(BUNDLED).filter(id => Date.parse(BUNDLED[id]) <= Date.now()));
@@ -138,22 +145,31 @@ const ReleasesContext = createContext<ReleasesCtx>({
   nextWindow: () => null,
   isEventOn: () => false,
   hasOpened: () => false,
+  isDev: false,
+  isOutForEveryone: () => false,
 });
 
 export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [released, setReleased] = useState<Set<string> | null>(preloaded);
   const [windows, setWindows] = useState<Record<string, [string, string][]>>(preloadedWindows ?? BUNDLED_WINDOWS);
-  /** Testing: this account has every companion, whatever the schedule or the vault says (public.account_unlocks). */
-  const [allPets, setAllPets] = useState(false);
+  /**
+   * Per-account unlocks (public.account_unlocks, only ever added in the database): 'all_pets' gives every companion
+   * whatever the schedule or the vault says; 'dev' gives everything.
+   */
+  const [unlocks, setUnlocks] = useState<{ allPets: boolean; dev: boolean }>({ allPets: false, dev: false });
 
   const refresh = useCallback(async () => {
-    const [{ data, error }, win, unlocks] = await Promise.all([
+    const [{ data, error }, win, own] = await Promise.all([
       supabase.from('content_releases').select('id'),
       supabase.from('content_windows').select('id, opens_at, closes_at'),
       // only the signed-in account's own rows come back
       supabase.from('account_unlocks').select('unlock'),
     ]);
-    if (!unlocks.error) setAllPets(!!unlocks.data?.some(row => row.unlock === 'all_pets'));
+    if (!own.error) {
+      const has = (u: string) => !!own.data?.some(row => row.unlock === u);
+      const dev = has('dev');
+      setUnlocks(prev => (prev.dev === dev && prev.allPets === has('all_pets') ? prev : { allPets: has('all_pets'), dev }));
+    }
     if (!win.error && win.data) {
       const byId: Record<string, [string, string][]> = {};
       for (const row of win.data) (byId[row.id as string] ??= []).push([row.opens_at as string, row.closes_at as string]);
@@ -206,7 +222,8 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const value = useMemo<ReleasesCtx>(
     () => {
-      const unlocked = (id: string) => allPets && id.startsWith('pet:');
+      const { allPets, dev } = unlocks;
+      const unlocked = (id: string) => dev || (allPets && id.startsWith('pet:'));
       const isReleased = (id: string) => unlocked(id) || (released ?? bundledNow()).has(id);
       const isClaimable = (id: string) => {
         if (unlocked(id)) return true;
@@ -220,11 +237,12 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return next ? new Date(next) : null;
       };
       const isEventOn = (id: string) => inWindow(windows[id]);
-      const hasOpened = (id: string) => (windows[id] ?? []).some(([open]) => Date.parse(open) <= Date.now());
-      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, isEventOn, hasOpened };
+      const hasOpened = (id: string) => dev || (windows[id] ?? []).some(([open]) => Date.parse(open) <= Date.now());
+      return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, isEventOn, hasOpened, isDev: dev,
+        isOutForEveryone: (id: string) => (released ?? bundledNow()).has(id) };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tick rebuilds the checks when a window opens or closes
-    [released, windows, tick, allPets],
+    [released, windows, tick, unlocks],
   );
 
   return React.createElement(ReleasesContext.Provider, { value }, children);

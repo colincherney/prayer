@@ -320,13 +320,13 @@ const SCHEDULED_ROOMS: PrayerRoomName[] = ['thanksgiving', 'christmas', ...MONTH
 
 /** The rooms that can be picked right now: everything except seasonal rooms whose date hasn't come. */
 export function useAvailableRooms(): PrayerRoomName[] {
-  const { isReleased, isEventOn } = useReleases();
-  // An event's room (the Long Winter, the Swamp King) can be picked only while its event is on. Afterwards it's in
-  // the vault, and anyone who had picked it goes back to the seasonal wallpaper.
+  const { isReleased, isEventOn, isDev } = useReleases();
+  // An event's room (the Long Winter, the Swamp King) can be picked only while its event is on (any time on a dev
+  // account). Afterwards it's in the vault, and anyone who had picked it goes back to the seasonal wallpaper.
   const lookWindow = new Map<string, string>(EVENT_LOOKS.map(l => [l.room, l.window]));
   return PRAYER_ROOM_ORDER.filter(r => {
     const window = lookWindow.get(r);
-    return window ? isEventOn(window) : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`);
+    return window ? isDev || isEventOn(window) : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`);
   });
 }
 
@@ -340,8 +340,9 @@ const STORAGE_KEY = 'saint.prayerRoom';
 const SEASONAL_FALLBACK: PrayerRoomName = 'halloween';
 
 function useSeasonalDefault(): PrayerRoomName {
-  const { isReleased } = useReleases();
-  const newest = [...SCHEDULED_ROOMS].reverse().find(r => isReleased(`room:${r}`));
+  // The real calendar, even on a dev account (which has every room unlocked).
+  const { isOutForEveryone } = useReleases();
+  const newest = [...SCHEDULED_ROOMS].reverse().find(r => isOutForEveryone(`room:${r}`));
   return newest ?? SEASONAL_FALLBACK;
 }
 
