@@ -768,3 +768,5 @@ Checked afterwards:
 **Left from testing (the user hasn't decided yet):** 11 `user_event_progress` rows (6 with Snowcap from test prayers since
 Nov 18), and the community counter at 5. To give everyone a clean start on Dec 1:
 `delete from public.user_event_progress where event_id = 'long-winter-2026'; update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';`
+
+**Decision (2026-11-19):** the user said to keep the testing progress and the community count as they are ("they're from me"), so nothing was wiped.
