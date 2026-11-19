@@ -416,6 +416,18 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'swamp') {
+    // The Swamp King — dusk violet sky, a low sun, dark water, a mossy stump and a blue wisp.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#3A3350' }}>
+        <View style={{ position: 'absolute', left: '50%', top: 22, marginLeft: -16, width: 32, height: 32, borderRadius: 16, backgroundColor: '#E8B97A', opacity: 0.4 }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: 12, height: 14, backgroundColor: '#2A3644' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 28, borderRadius: 28, backgroundColor: '#2E3A2C' }} />
+        <View style={{ position: 'absolute', right: 24, bottom: 14, width: 20, height: 10, borderRadius: 3, backgroundColor: '#5E8A4E' }} />
+        <View style={{ position: 'absolute', left: 30, bottom: 30, width: 5, height: 5, borderRadius: 3, backgroundColor: '#6FC3FF' }} />
+      </View>
+    );
+  }
   if (room === 'christmas') {
     // God With Us — navy sky, the star, snowy hill, a pine.
     return (

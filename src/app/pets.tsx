@@ -12,7 +12,8 @@ import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
-import { longDate, realStart, useFrostLordStage, useWinterEvent } from '@/lib/winterEvent';
+import { SKINS } from '@/components/winter/winterUi';
+import { longDate, PAL_EVENTS, phaseFor, realStart, useEvents, usePalStages } from '@/lib/winterEvent';
 
 type Filter = 'all' | CompanionGroup;
 const FILTERS: { id: Filter; label: string }[] = [
@@ -94,17 +95,29 @@ export default function PrayerPalsScreen() {
   const styles = useThemedStyles(makeStyles);
   const { petId, name, progress, xpByPet } = usePetProgress();
   const { isReleased, isClaimable } = useReleases();
-  // The Frost Lord line comes from the Long Winter event: out once the event starts, met once Snowcap arrives.
-  const { state: winter, phase: winterPhase, visible: winterVisible } = useWinterEvent();
-  const frostStage = useFrostLordStage();
-  const frostArrives = winter ? longDate(realStart(winter.event)) : 'December 1';
+  // The event companions (the Frost Lord line, Vesper's line) come from their events: out once the event starts,
+  // met once the first stage arrives, in the vault once it ends for anyone who never met them.
+  const { states, today, liveId } = useEvents();
+  const palStages = usePalStages();
+  const palEvent = (id: PetId) => {
+    const ev = PAL_EVENTS[id] ? states[PAL_EVENTS[id]] : null;
+    return { phase: ev ? phaseFor(ev.event, today) : null, arrives: ev ? longDate(realStart(ev.event)) : 'soon' };
+  };
+  const live = liveId ? states[liveId] : null;
+  const liveSkin = liveId ? SKINS[liveId] : null;
+  const liveStage = liveSkin ? palStages[liveSkin.palLine] ?? 0 : 0;
+  const liveNames = live ? [1, 2, 3].map(n => live.event.config.evolutions.find(e => e.stage === n)?.name ?? '') : [];
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState<string | null>(null);
   const { width: screenW } = useWindowDimensions();
   const cardW = Math.floor((Math.min(screenW, 500) - PAGE_PAD * 2 - GRID_GAP * 2) / 3);
 
-  const released = (def: PetDef) => (def.eventLine ? !!winterPhase && winterPhase !== 'before' : !def.scheduled || isReleased(`pet:${def.id}`));
-  const met = (id: PetId) => (id === 'frostLord' ? frostStage >= 1 : id === petId || (xpByPet[id] ?? 0) > 0);
+  const released = (def: PetDef) => {
+    if (!def.eventLine) return !def.scheduled || isReleased(`pet:${def.id}`);
+    const phase = palEvent(def.id).phase;
+    return !!phase && phase !== 'before';
+  };
+  const met = (id: PetId) => (id in palStages ? palStages[id] >= 1 : id === petId || (xpByPet[id] ?? 0) > 0);
   const metCount = PETS.filter(def => released(def) && met(def.id)).length;
 
   const shown = useMemo(() => {
@@ -113,7 +126,7 @@ export default function PrayerPalsScreen() {
       && (!q || (met(def.id) && (def.name.toLowerCase().includes(q) || def.species.toLowerCase().includes(q)))));
   // met reads xpByPet and petId, both listed
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, query, xpByPet, petId, frostStage]);
+  }, [filter, query, xpByPet, petId, palStages]);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
 
@@ -162,10 +175,10 @@ export default function PrayerPalsScreen() {
           </View>
         </Pressable>
 
-        {winterVisible ? (
-          <Pressable onPress={() => router.push('/winter')} accessibilityRole="button" style={styles.winterRow}>
-            <Text style={styles.winterText}>❄ The Long Winter</Text>
-            <Text style={styles.winterSub}>{frostStage >= 1 ? 'Grow Snowcap into the Frost Lord' : 'Meet Snowcap'}  ›</Text>
+        {live && liveSkin ? (
+          <Pressable onPress={() => router.push(liveSkin.route)} accessibilityRole="button" style={styles.winterRow}>
+            <Text style={styles.winterText}>{liveSkin.palLine === 'frostLord' ? '❄' : '✦'} {live.event.title}</Text>
+            <Text style={styles.winterSub}>{liveStage >= 1 ? `Grow ${liveNames[0]} into ${liveNames[2]}` : `Meet ${liveNames[0]}`}  ›</Text>
           </Pressable>
         ) : null}
 
@@ -194,9 +207,9 @@ export default function PrayerPalsScreen() {
                 {pets.map(def => {
                   const own = petProgressFromXp(xpByPet[def.id] ?? 0);
                   return (
-                    <DexCard key={def.id} def={def} level={own.level} arrives={def.eventLine ? frostArrives : undefined}
-                      stage={def.eventLine ? (Math.min(3, Math.max(1, frostStage)) as 1 | 2 | 3) : own.stage}
-                      met={met(def.id)} released={released(def)} vaulted={!met(def.id) && (def.eventLine ? winterPhase === 'grace' || winterPhase === 'ended' : !isClaimable(`pet:${def.id}`))} current={def.id === petId} width={cardW} />
+                    <DexCard key={def.id} def={def} level={own.level} arrives={def.eventLine ? palEvent(def.id).arrives : undefined}
+                      stage={def.eventLine ? (Math.min(3, Math.max(1, palStages[def.id] ?? 0)) as 1 | 2 | 3) : own.stage}
+                      met={met(def.id)} released={released(def)} vaulted={!met(def.id) && (def.eventLine ? palEvent(def.id).phase === 'grace' || palEvent(def.id).phase === 'ended' : !isClaimable(`pet:${def.id}`))} current={def.id === petId} width={cardW} />
                   );
                 })}
               </View>

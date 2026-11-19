@@ -32,7 +32,8 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
 import { useQuests } from '@/lib/quests';
-import { useWinterEvent } from '@/lib/winterEvent';
+import { SKINS } from '@/components/winter/winterUi';
+import { useEvents } from '@/lib/winterEvent';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -315,7 +316,9 @@ export default function PrayLauncherScreen() {
   const { theme: THEME, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { progress, name, setName, petId, leveledUp } = usePetProgress();
-  const { visible: winterVisible } = useWinterEvent();
+  // The event that's running, if any: its pill stays here even after its home banner is put away for the day.
+  const { states: eventStates, liveId } = useEvents();
+  const liveEvent = liveId ? { skin: SKINS[liveId], title: eventStates[liveId]?.event.title ?? '' } : null;
   const quests = useQuests();
   const questsDone = quests.quests.filter(x => x.slot !== 'bonus' && quests.statusOf(x) === 'done').length;
   const [hero, setHero] = useState<Size | null>(null);
@@ -615,17 +618,22 @@ export default function PrayLauncherScreen() {
             <Text style={styles.questBadgeText}>Quests</Text>
             <Text style={styles.questBadgeCount}>{questsDone}/4</Text>
           </Pressable>
-          {/* The Long Winter is always reachable from here, even after its home banner is put away for the day. */}
-          {winterVisible ? (
+          {/* The running event is always reachable from here, even after its home banner is put away for the day. */}
+          {liveEvent ? (
             <Pressable
-              onPress={() => router.push('/winter')}
+              onPress={() => router.push(liveEvent.skin.route)}
               accessibilityRole="button"
-              accessibilityLabel="The Long Winter event"
-              style={({ pressed }) => [styles.winterBadge, pressed && { transform: [{ scale: 0.95 }] }]}>
+              accessibilityLabel={`${liveEvent.title} event`}
+              style={({ pressed }) => [styles.winterBadge, { backgroundColor: liveEvent.skin.palette.navy }, pressed && { transform: [{ scale: 0.95 }] }]}>
               <Svg width={16} height={16} viewBox="0 0 24 24">
-                <Path d="M12 2v20 M3.3 7l17.4 10 M20.7 7L3.3 17 M12 2l-2.5 2.5 M12 2l2.5 2.5 M12 22l-2.5-2.5 M12 22l2.5-2.5" stroke="#BFE6FF" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+                {liveEvent.skin.palLine === 'frostLord' ? (
+                  <Path d="M12 2v20 M3.3 7l17.4 10 M20.7 7L3.3 17 M12 2l-2.5 2.5 M12 2l2.5 2.5 M12 22l-2.5-2.5 M12 22l2.5-2.5" stroke={liveEvent.skin.palette.ice} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+                ) : (
+                  // a crown for the Swamp King
+                  <Path d="M4 18h16 M4 18L3 7l5 4 4-6 4 6 5-4-1 11" stroke={liveEvent.skin.palette.gold} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                )}
               </Svg>
-              <Text style={styles.winterBadgeText}>The Long Winter</Text>
+              <Text style={[styles.winterBadgeText, { color: liveEvent.skin.palette.cream }]}>{liveEvent.title}</Text>
             </Pressable>
           ) : null}
         </View>

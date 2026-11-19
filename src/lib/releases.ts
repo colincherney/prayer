@@ -84,6 +84,8 @@ const BUNDLED_WINDOWS: Record<string, [string, string][]> = {
   'pet:donkey': [['2026-12-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-12-01T05:00:00Z', '2028-01-01T05:00:00Z']],
   // The Winter Lord look: midnight US Eastern Dec 1, 2026 through the end of Jan 31, 2027.
   'event:winterLord': [['2026-12-01T05:00:00Z', '2027-02-01T05:00:00Z']],
+  // The Swamp King look: midnight US Eastern Mar 1, 2027 through the end of May 1.
+  'event:swampKing': [['2027-03-01T05:00:00Z', '2027-05-02T04:00:00Z']],
 };
 
 const inWindow = (list: [string, string][] | undefined, now = Date.now()) =>
@@ -141,12 +143,17 @@ const ReleasesContext = createContext<ReleasesCtx>({
 export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [released, setReleased] = useState<Set<string> | null>(preloaded);
   const [windows, setWindows] = useState<Record<string, [string, string][]>>(preloadedWindows ?? BUNDLED_WINDOWS);
+  /** Testing: this account has every companion, whatever the schedule or the vault says (public.account_unlocks). */
+  const [allPets, setAllPets] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [{ data, error }, win] = await Promise.all([
+    const [{ data, error }, win, unlocks] = await Promise.all([
       supabase.from('content_releases').select('id'),
       supabase.from('content_windows').select('id, opens_at, closes_at'),
+      // only the signed-in account's own rows come back
+      supabase.from('account_unlocks').select('unlock'),
     ]);
+    if (!unlocks.error) setAllPets(!!unlocks.data?.some(row => row.unlock === 'all_pets'));
     if (!win.error && win.data) {
       const byId: Record<string, [string, string][]> = {};
       for (const row of win.data) (byId[row.id as string] ??= []).push([row.opens_at as string, row.closes_at as string]);
@@ -173,7 +180,14 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') refresh();
     });
-    return () => sub.remove();
+    // And on sign-in or sign-out, since what an account has unlocked is per account.
+    const auth = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') refresh();
+    });
+    return () => {
+      sub.remove();
+      auth.data.subscription.unsubscribe();
+    };
   }, [refresh]);
 
   // Re-check when the next window opens or closes (within a day), so an event starts at midnight even with the app open.
@@ -192,8 +206,10 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const value = useMemo<ReleasesCtx>(
     () => {
-      const isReleased = (id: string) => (released ?? bundledNow()).has(id);
+      const unlocked = (id: string) => allPets && id.startsWith('pet:');
+      const isReleased = (id: string) => unlocked(id) || (released ?? bundledNow()).has(id);
       const isClaimable = (id: string) => {
+        if (unlocked(id)) return true;
         const list = windows[id];
         const now = Date.now();
         return !list || list.some(([open, close]) => Date.parse(open) <= now && now < Date.parse(close));
@@ -208,7 +224,7 @@ export const ReleasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return { isReleased, isAvailable: (id: string) => !(id in BUNDLED) || isReleased(id), isClaimable, nextWindow, isEventOn, hasOpened };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tick rebuilds the checks when a window opens or closes
-    [released, windows, tick],
+    [released, windows, tick, allPets],
   );
 
   return React.createElement(ReleasesContext.Provider, { value }, children);

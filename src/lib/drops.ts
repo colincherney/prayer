@@ -1,8 +1,8 @@
 // "What's new": the companions, home wallpapers, nook scenes, keepsakes and nook decorations that have just come out
 // (keepsakes and decorations drop most weeks, so there's something new nearly every week), shown once per account
 // (src/components/drops/DropShowcase.tsx). Release times come from public.content_releases, the same rows that
-// unlock the content, so the showcase and the unlock always agree. The Long Winter's two pieces (Snowcap and its
-// wallpaper) come from the event's own start date.
+// unlock the content, so the showcase and the unlock always agree. Each event's two pieces (its companion and its
+// wallpaper: Snowcap and the aurora, Vesper and the fen) come from the event's own start date.
 //
 // In dev builds, the winter screen's "pretend today is…" date also previews drops: it reads the app's built-in copy
 // of the schedule, since the database won't hand out rows whose date hasn't come.
@@ -46,8 +46,13 @@ async function releaseTimes(previewDay: string | null): Promise<[string, string]
   return Object.entries(RELEASE_SCHEDULE).filter(([, at]) => previewDay || Date.parse(at) <= now);
 }
 
+/** The events' states, any order; missing ones are skipped. */
+export type EventStates = readonly (WinterState | null | undefined)[];
+/** Each event companion line's wallpaper. */
+const EVENT_ROOMS: Record<string, string> = { frostLord: 'winter', vesper: 'swamp' };
+
 /** Everything that has dropped up to `today` (and after `from`, if given), oldest first. */
-async function dropsUpTo(today: string, winter: WinterState | null, previewDay: string | null, from?: string): Promise<DropItem[]> {
+async function dropsUpTo(today: string, events: EventStates, previewDay: string | null, from?: string): Promise<DropItem[]> {
   const items: DropItem[] = [];
   for (const [key, at] of await releaseTimes(previewDay)) {
     const [kind, id] = key.split(':');
@@ -56,19 +61,22 @@ async function dropsUpTo(today: string, winter: WinterState | null, previewDay: 
     const day = eventDayFor(new Date(at), 'America/New_York');
     if (day <= today && (!from || day > from)) items.push({ key, kind, id, day });
   }
-  if (winter?.event.is_active) {
-    const day = realStart(winter.event);
+  for (const ev of events) {
+    if (!ev?.event.is_active) continue;
+    const day = realStart(ev.event);
+    const pal = ev.event.config.pal_line;
+    const room = EVENT_ROOMS[pal];
     if (day <= today && (!from || day > from)) {
-      items.push({ key: 'pet:frostLord', kind: 'pet', id: 'frostLord', day });
-      items.push({ key: 'room:winter', kind: 'room', id: 'winter', day });
+      if (isPetId(pal)) items.push({ key: `pet:${pal}`, kind: 'pet', id: pal, day });
+      if (room && room in PRAYER_ROOMS) items.push({ key: `room:${room}`, kind: 'room', id: room, day });
     }
   }
   return items.sort((a, b) => (a.day === b.day ? ORDER[a.kind] - ORDER[b.kind] : a.day < b.day ? -1 : 1));
 }
 
 /** The full history for the Patch notes page: every drop up to `today`, newest week first, grouped by week (Mon-Sun). */
-export async function loadDropHistory(today: string, winter: WinterState | null, previewDay: string | null): Promise<{ weekOf: string; items: DropItem[] }[]> {
-  const items = await dropsUpTo(today, winter, previewDay);
+export async function loadDropHistory(today: string, events: EventStates, previewDay: string | null): Promise<{ weekOf: string; items: DropItem[] }[]> {
+  const items = await dropsUpTo(today, events, previewDay);
   const weeks = new Map<string, DropItem[]>();
   for (const item of items) {
     const weekOf = mondayOf(item.day);
@@ -97,14 +105,14 @@ export async function markPatchNotesSeen(day: string): Promise<void> {
 }
 
 /** The newest drop day up to `today`, or null. */
-export async function latestDropDay(today: string, winter: WinterState | null, previewDay: string | null): Promise<string | null> {
-  const items = await dropsUpTo(today, winter, previewDay, addDays(today, -60));
+export async function latestDropDay(today: string, events: EventStates, previewDay: string | null): Promise<string | null> {
+  const items = await dropsUpTo(today, events, previewDay, addDays(today, -60));
   return items.length ? items[items.length - 1].day : null;
 }
 
 /** The drops from the last WINDOW_DAYS days (up to `today`) that this account hasn't seen yet, in showing order. */
-export async function loadNewDrops(userId: string, today: string, winter: WinterState | null, previewDay: string | null): Promise<DropItem[]> {
-  const items = await dropsUpTo(today, winter, previewDay, addDays(today, -WINDOW_DAYS));
+export async function loadNewDrops(userId: string, today: string, events: EventStates, previewDay: string | null): Promise<DropItem[]> {
+  const items = await dropsUpTo(today, events, previewDay, addDays(today, -WINDOW_DAYS));
   let seen: string[] = [];
   try {
     seen = JSON.parse((await AsyncStorage.getItem(seenKey(userId))) ?? '[]') as string[];

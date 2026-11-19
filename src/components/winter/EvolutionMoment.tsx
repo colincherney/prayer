@@ -1,34 +1,16 @@
 import * as Haptics from 'expo-haptics';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Modal, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AuroraBackdrop, StageImage, W, WF, useWinterFonts } from './winterUi';
+import { Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
 
-// The full-screen moments of the Long Winter: Snowcap arriving, the Frost Mage on Christmas Day, and the Frost Lord
-// crowned at the end. Shown once each (the account remembers, user_event_progress.stage_seen).
+// An event's full-screen moments, from its skin: the first stage arriving, the second at four challenges, and the final
+// stage crowned when all ten are done (Snowcap, the Frost Mage, the Frost Lord; Vesper, the Fen Warden, the Old King).
+// Shown once each (the account remembers, user_event_progress.stage_seen).
 
-const MOMENTS: Record<1 | 2 | 3, { kicker: string; title: string; body: string; verse: string }> = {
-  1: {
-    kicker: 'THE LONG WINTER',
-    title: 'Snowcap has arrived',
-    body: 'A little apprentice of the snow walks with you now. Finish the winter challenges and he will grow.',
-    verse: 'He giveth snow like wool. Psalm 147:16',
-  },
-  2: {
-    kicker: 'FOUR CHALLENGES DONE',
-    title: 'Your Frost Mage is ready',
-    body: 'Snowcap has grown into the Frost Mage. Finish all ten challenges to crown the Frost Lord.',
-    verse: 'The people that walked in darkness have seen a great light. Isaiah 9:2',
-  },
-  3: {
-    kicker: 'ALL TEN CHALLENGES DONE',
-    title: 'The Frost Lord is crowned',
-    body: 'You faced the long winter and brought him home. He is yours to keep, and all five winter keepsakes are on your shelf.',
-    verse: 'He sendeth out his word, and melteth them. Psalm 147:18',
-  },
-};
+const ART_SPACE = 340;
 
 export function EvolutionMoment({ stage, visible, onDone }: { stage: number; visible: boolean; onDone: () => void }) {
   return (
@@ -41,6 +23,9 @@ export function EvolutionMoment({ stage, visible, onDone }: { stage: number; vis
 function MomentBody({ stage, onDone }: { stage: 1 | 2 | 3; onDone: () => void }) {
   const fontsLoaded = useWinterFonts();
   const insets = useSafeAreaInsets();
+  const skin = useSkin();
+  const styles = useMemo(() => makeStyles(skin.palette), [skin.palette]);
+  const Backdrop = skin.Backdrop;
   const rise = useSharedValue(0);
   const glow = useSharedValue(0);
   const text = useSharedValue(0);
@@ -55,18 +40,20 @@ function MomentBody({ stage, onDone }: { stage: 1 | 2 | 3; onDone: () => void })
   const artStyle = useAnimatedStyle(() => ({ opacity: rise.get(), transform: [{ translateY: (1 - rise.get()) * 60 }, { scale: 0.7 + 0.3 * rise.get() }] }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: 0.25 + 0.45 * glow.get(), transform: [{ scale: 0.9 + 0.15 * glow.get() }] }));
   const textStyle = useAnimatedStyle(() => ({ opacity: text.get(), transform: [{ translateY: (1 - text.get()) * 12 }] }));
-  const m = MOMENTS[stage];
+  const m = skin.moments[stage];
+  // As big as fits: the whole picture (including an extended hat) stays inside the art space.
+  const f = skin.frames[stage];
+  const figureH = Math.min(300, Math.round((ART_SPACE * f.body) / f.h));
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <AuroraBackdrop hills />
+      <Backdrop hills />
       <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
         <View style={styles.artWrap}>
           <Animated.View style={[styles.glow, glowStyle]} />
           <Animated.View style={artStyle}>
-            {/* Sized so the Mage's and Lord's full hats fit the 360pt space. */}
-            <StageImage stage={stage} height={stage === 3 ? 270 : stage === 2 ? 290 : 300} />
+            <StageImage stage={stage} height={figureH} />
           </Animated.View>
         </View>
         {fontsLoaded ? (
@@ -87,11 +74,11 @@ function MomentBody({ stage, onDone }: { stage: 1 | 2 | 3; onDone: () => void })
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (W: Palette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: W.navyDeep, justifyContent: 'space-between' },
   center: { alignItems: 'center', paddingHorizontal: 28 },
-  artWrap: { alignItems: 'center', justifyContent: 'flex-end', height: 360 },
-  glow: { position: 'absolute', bottom: 40, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(95,227,192,0.28)' },
+  artWrap: { alignItems: 'center', justifyContent: 'flex-end', height: ART_SPACE + 20 },
+  glow: { position: 'absolute', bottom: 40, width: 280, height: 280, borderRadius: 140, backgroundColor: W.teal, opacity: 0.28 },
   copy: { alignItems: 'center', marginTop: 18, gap: 8 },
   kicker: { fontFamily: WF.semi, fontSize: 12, letterSpacing: 2.4, color: W.ice },
   title: { fontFamily: WF.bold, fontSize: 32, lineHeight: 38, color: W.cream, textAlign: 'center' },

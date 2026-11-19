@@ -313,6 +313,17 @@ export const WINTER_VERSES = [
   { text: 'Where two or three are gathered, there am I', ref: 'Matthew 18:20' },
 ];
 
+/** Verses for the Swamp King room (KJV, Psalm 40 and the spring, Lent to Easter), laid out the same way. */
+export const SWAMP_VERSES = [
+  { text: 'He brought me up also out of an horrible pit, out of the miry clay', ref: 'Psalm 40:2' },
+  { text: 'And set my feet upon a rock', ref: 'Psalm 40:2' },
+  { text: 'I waited patiently for the LORD', ref: 'Psalm 40:1' },
+  { text: 'He hath put a new song in my mouth', ref: 'Psalm 40:3' },
+  { text: 'He is not here: for he is risen', ref: 'Matthew 28:6' },
+  { text: 'Weeping may endure for a night, but joy cometh in the morning', ref: 'Psalm 30:5' },
+  { text: 'I will make a way in the wilderness, and rivers in the desert', ref: 'Isaiah 43:19' },
+];
+
 export const VERSES = [
   { text: 'Pray without ceasing', ref: '1 Thessalonians 5:17' },
   { text: 'Be still, and know that I am God', ref: 'Psalm 46:10' },

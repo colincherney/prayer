@@ -57,7 +57,7 @@ import { usePetProgress } from '@/lib/pet';
 import { stripUnowned, useOwned } from '@/lib/store';
 import { useTrinkets } from '@/lib/trinkets';
 import { latestDropDay, patchNotesSeenDay } from '@/lib/drops';
-import { useWinterEvent } from '@/lib/winterEvent';
+import { useEvents } from '@/lib/winterEvent';
 
 const TAB_BAR_SPACE = 92;
 /** Space between the header and the top of the medallion. */
@@ -255,12 +255,12 @@ function MeContent() {
   const [decorating, setDecorating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // "NEW" on Patch notes when something has dropped since this phone last opened it.
-  const { state: winter, today, devToday } = useWinterEvent();
+  const { states: eventStates, today, devToday } = useEvents();
   const [patchNew, setPatchNew] = useState(false);
   useEffect(() => {
     if (!settingsOpen) return;
     let cancelled = false;
-    Promise.all([latestDropDay(today, winter, __DEV__ ? devToday : null), patchNotesSeenDay()])
+    Promise.all([latestDropDay(today, Object.values(eventStates), __DEV__ ? devToday : null), patchNotesSeenDay()])
       .then(([latest, seen]) => {
         if (!cancelled) setPatchNew(!!latest && (!seen || latest > seen));
       })
@@ -268,7 +268,7 @@ function MeContent() {
     return () => {
       cancelled = true;
     };
-    // winter is read for the event's start date only
+    // the events are read for their start dates only
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen, today, devToday]);
   const [savingSignInCodes, setSavingSignInCodes] = useState(false);

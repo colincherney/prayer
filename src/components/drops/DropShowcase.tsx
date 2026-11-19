@@ -20,6 +20,7 @@ import { MonthlyRoomName } from '@/components/saint/monthlyRooms';
 import { PRAYER_ROOM_LABELS, PrayerRoomName } from '@/components/saint/prayerRoom';
 import { FONTS, mixColors } from '@/components/saint/theme';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
+import { SwampKingScene } from '@/components/saint/SwampKingScene';
 import { WinterLordScene } from '@/components/saint/WinterLordScene';
 import type { DropItem } from '@/lib/drops';
 import { shortDate } from '@/lib/winterEvent';
@@ -36,6 +37,7 @@ function RoomScene({ room }: { room: PrayerRoomName }) {
   if (room === 'christmas') return <ChristmasScene />;
   if (room === 'thanksgiving') return <ThanksgivingScene />;
   if (room === 'winter') return <WinterLordScene />;
+  if (room === 'swamp') return <SwampKingScene />;
   if (room in MONTHLY_SCENES) return React.createElement(MONTHLY_SCENES[room as MonthlyRoomName]);
   return null;
 }
@@ -47,12 +49,17 @@ export function copyFor(item: DropItem): { label: string; title: string; body: s
     if (pet.id === 'frostLord') {
       return { label: 'NEW COMPANION', title: 'Snowcap', body: 'Pray through the Long Winter to grow him into the Frost Mage, then crown the Frost Lord.', hue };
     }
+    if (pet.id === 'vesper') {
+      return { label: 'NEW COMPANION', title: 'Vesper', body: 'Pray through the spring to grow him into the Fen Warden, then crown the Old King of the fen.', hue };
+    }
     return { label: 'NEW COMPANION', title: `${pet.name} the ${pet.species}`, body: `${pet.tagline} Find ${pet.name} in Prayer Pals.`, hue };
   }
   if (item.kind === 'room') {
     const room = item.id as PrayerRoomName;
     const body = room === 'winter'
       ? 'The whole app turns to winter for the Long Winter, through the end of January.'
+      : room === 'swamp'
+      ? 'The whole app goes down to the fen for the Swamp King, through May 1.'
       : 'A new home screen to pray in. Pick it any time in Customize.';
     return { label: 'NEW HOME WALLPAPER', title: PRAYER_ROOM_LABELS[room], body, hue: '#1F2A44' };
   }

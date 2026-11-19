@@ -24,6 +24,7 @@ import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
+import { SwampKingScene } from '@/components/saint/SwampKingScene';
 import { WinterLordScene } from '@/components/saint/WinterLordScene';
 import { WinterBanner } from '@/components/winter/winterUi';
 import {
@@ -40,6 +41,7 @@ import {
   CHRISTMAS_VERSES,
   HALLOWEEN_VERSES,
   THANKSGIVING_VERSES,
+  SWAMP_VERSES,
   VERSES,
   WINTER_VERSES,
 } from '@/components/saint/theme';
@@ -318,6 +320,8 @@ function RoomHomeScreen() {
                 ? ChristmasScene
                 : roomName === 'winter'
                   ? WinterLordScene
+                  : roomName === 'swamp'
+                  ? SwampKingScene
                   : roomName in MONTHLY_SCENES
                   ? MONTHLY_SCENES[roomName as MonthlyRoomName]
                   : LamplitScene;
@@ -330,8 +334,8 @@ function RoomHomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
       <SceneComponent />
-      {/* The winter scene has its own falling snow, so it skips the warm dust (less to animate). */}
-      {roomName === 'winter' ? null : <DustMotes count={26} />}
+      {/* The event scenes have their own snow, mist and wisps, so they skip the warm dust (less to animate). */}
+      {roomName === 'winter' || roomName === 'swamp' ? null : <DustMotes count={26} />}
 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar barStyle={ROOM.statusBar} />
@@ -487,6 +491,7 @@ const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
   thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
   christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
   winter: { ...split(WINTER_VERSES), pill: 'The Long Winter', word: 'light' },
+  swamp: { ...split(SWAMP_VERSES), pill: 'The Swamp King', word: 'hope' },
 };
 
 function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {

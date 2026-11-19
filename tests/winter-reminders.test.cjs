@@ -59,3 +59,23 @@ test('halfway (Jan 1) and the last three days only go to people still working on
 test('no Christmas-only reminder: Dec 25 is an ordinary day', () => {
   assert.equal(reminderFor(event, person({ challenges_completed: done(2) }), '2026-12-25'), null);
 });
+
+test('another event uses its own wording from config.reminders', () => {
+  const swamp = {
+    ...event,
+    id: 'swamp-king-2027',
+    title: 'The Swamp King',
+    starts_on: '2027-03-01',
+    ends_on: '2027-05-01',
+    config: {
+      real_starts_on: '2027-03-01',
+      challenges: event.config.challenges,
+      reminders: { start: 'The Swamp King awakens. Meet Vesper.', mage: 'Your Fen Warden is ready. {n} to the Old King.', last: '{n} left to the Old King.' },
+    },
+  };
+  assert.equal(reminderFor(swamp, person({ stage_unlocked: 0 }), '2027-03-01').body, 'The Swamp King awakens. Meet Vesper.');
+  assert.equal(reminderFor(swamp, person({ stage_unlocked: 2, challenges_completed: done(4) }), '2027-03-09').body, 'Your Fen Warden is ready. 6 challenges to the Old King.');
+  assert.equal(reminderFor(swamp, person({ challenges_completed: done(9) }), '2027-04-30').body, '1 challenge left to the Old King.');
+  // halfway for Mar 1 - May 1 is Apr 1
+  assert.equal(reminderFor(swamp, person({ challenges_completed: done(2) }), '2027-04-01').key, 'halfway');
+});

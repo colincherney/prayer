@@ -139,9 +139,10 @@ function RootStack() {
       <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
       <Stack.Screen name="winter" options={{ presentation: 'card' }} />
+      <Stack.Screen name="swamp" options={{ presentation: 'card' }} />
       <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
     </Stack>
-    {/* The Long Winter's intro clip and evolution moments, over whatever screen is showing (home only). */}
+    {/* The running event's intro clip and evolution moments, over whatever screen is showing (home only). */}
     {navSettled && session ? <WinterGate /> : null}
     {/* "What's new": companions and wallpapers that just dropped, shown once each. */}
     {navSettled && session ? <DropGate /> : null}

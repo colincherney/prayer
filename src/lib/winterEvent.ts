@@ -1,7 +1,8 @@
-// The Long Winter event, on the phone. Everything about the event (dates, chapters, challenges, rewards) is data in
-// public.events, and all progress is worked out in the database (supabase/migrations/20261118_long_winter_event.sql)
-// from prayers, Vigil candles and partner sessions. This file reads it, caches it, and does the date maths the
-// screens need. The phone never writes progress: it can only ask the server to claim a reward or mark something seen.
+// The seasonal events (the Long Winter, the Swamp King, ...), on the phone. Everything about an event (dates, chapters,
+// challenges, rewards) is data in public.events, and all progress is worked out in the database
+// (supabase/migrations/20261118_long_winter_event.sql and later) from the records the app already writes. This file
+// reads each event, caches it, and does the date maths the screens need. The phone never writes progress: it can only
+// mark something seen or switch reminders. The "winter" names are kept for the Long Winter, which came first.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
@@ -14,12 +15,18 @@ import { deviceTimeZone, eventDayFor, phaseFor } from './winterDates';
 export * from './winterDates';
 
 export const WINTER_EVENT_ID = 'long-winter-2026';
+export const SWAMP_EVENT_ID = 'swamp-king-2027';
+/** Every event the app knows how to show, oldest first. */
+export const EVENT_IDS = [WINTER_EVENT_ID, SWAMP_EVENT_ID] as const;
+export type EventId = (typeof EVENT_IDS)[number];
+/** Which event each event-only companion belongs to. */
+export const PAL_EVENTS: Record<string, EventId> = { frostLord: WINTER_EVENT_ID, vesper: SWAMP_EVENT_ID };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types (the shapes public.winter_event_state returns)
 
 export type ChallengeRule =
-  | { type: 'prayers' | 'candles' | 'partner' | 'streak' | 'people'; min: number }
+  | { type: 'prayers' | 'candles' | 'partner' | 'streak' | 'people' | 'shared' | 'journal' | 'notes' | 'quests'; min: number }
   /** Weeks of the event (7-day blocks from its start) with `days` prayed (3 by default). */
   | { type: 'weeks'; min: number; days?: number }
   /** Days with a prayer between from_hour (inclusive) and to_hour (exclusive), local time. */
@@ -35,8 +42,8 @@ export type WinterConfig = {
   claim_grace_days?: number;
   chapters: { key: string; title: string; starts_on: string; ends_on: string }[];
   evolutions: { stage: number; name: string; unlock: { min_event_prayers?: number; min_challenges?: number; not_before?: string; claim?: boolean } }[];
-  advent_wreath: { candle: number; color: 'purple' | 'pink'; starts_on: string; ends_on: string; days_needed: number }[];
-  weeks: { week: number; title: string; chapter: string }[];
+  advent_wreath?: { candle: number; color: 'purple' | 'pink'; starts_on: string; ends_on: string; days_needed: number }[];
+  weeks?: { week: number; title: string; chapter: string }[];
   /** Keepsakes per event week (no longer used: every keepsake now comes with finishing all the challenges). */
   weekly_rewards?: { week: number; keepsake: string; days_needed?: number }[];
   /** Keepsakes given the moment every challenge is done, straight onto the shelf. */
@@ -75,25 +82,31 @@ export type WinterState = {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Dev-only "pretend today is…" (never in production builds: __DEV__ is false there, and the server ignores test dates
-// unless config.allow_test_dates is on).
+// unless config.allow_test_dates is on). One date for every event.
 
 const DEV_DAY_KEY = 'winter.devToday';
 let devToday: string | null = null;
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The shared store
+// The shared store: one entry per event.
 
-const CACHE_KEY = 'winter.state';
 const COMMUNITY_TTL = 60_000;
+/** The Long Winter kept its original cache key, so phones that already have it don't start empty. */
+const cacheKey = (id: EventId) => (id === WINTER_EVENT_ID ? 'winter.state' : `event.state.${id}`);
 
-let current: WinterState | null = null;
-let lastFetch = 0;
-let inFlight: Promise<WinterState | null> | null = null;
+type Entry = { current: WinterState | null; lastFetch: number; inFlight: Promise<WinterState | null> | null };
+const entries = new Map<EventId, Entry>(EVENT_IDS.map(id => [id, { current: null, lastFetch: 0, inFlight: null }]));
+const entry = (id: EventId) => entries.get(id)!;
+
+type Snapshot = { states: Record<EventId, WinterState | null>; devToday: string | null };
 const listeners = new Set<() => void>();
-let snapshot: { state: WinterState | null; devToday: string | null } = { state: current, devToday };
+let snapshot: Snapshot = makeSnapshot();
 
+function makeSnapshot(): Snapshot {
+  return { states: Object.fromEntries(EVENT_IDS.map(id => [id, entry(id).current])) as Record<EventId, WinterState | null>, devToday };
+}
 function emit() {
-  snapshot = { state: current, devToday };
+  snapshot = makeSnapshot();
   listeners.forEach(fn => fn());
 }
 function subscribe(fn: () => void) {
@@ -103,144 +116,197 @@ function subscribe(fn: () => void) {
   };
 }
 
-/** Reads the cached event and the dev date into memory (behind the splash screen). */
+/** Reads every cached event and the dev date into memory (behind the splash screen). */
 export async function preloadWinter(): Promise<void> {
   try {
-    const [cached, dev] = await Promise.all([AsyncStorage.getItem(CACHE_KEY), __DEV__ ? AsyncStorage.getItem(DEV_DAY_KEY) : null]);
-    if (cached) current = JSON.parse(cached) as WinterState;
-    if (__DEV__ && dev) devToday = dev;
+    const cached = await Promise.all(EVENT_IDS.map(id => AsyncStorage.getItem(cacheKey(id))));
+    EVENT_IDS.forEach((id, i) => {
+      if (cached[i]) entry(id).current = JSON.parse(cached[i]!) as WinterState;
+    });
+    if (__DEV__) {
+      const dev = await AsyncStorage.getItem(DEV_DAY_KEY);
+      if (dev) devToday = dev;
+    }
     emit();
   } catch {}
 }
 
 /**
- * Asks the server for the event and this person's progress (re-evaluated there). Cached for a minute unless `force`,
+ * Asks the server for an event and this person's progress (re-evaluated there). Cached for a minute unless `force`,
  * so the community count is never fetched more than once a minute and nobody holds a realtime subscription.
  */
-export function refreshWinter(force = false): Promise<WinterState | null> {
-  if (!force && current && Date.now() - lastFetch < COMMUNITY_TTL) return Promise.resolve(current);
-  if (inFlight) return inFlight;
-  inFlight = (async () => {
+export function refreshEvent(id: EventId, force = false): Promise<WinterState | null> {
+  const en = entry(id);
+  if (!force && en.current && Date.now() - en.lastFetch < COMMUNITY_TTL) return Promise.resolve(en.current);
+  if (en.inFlight) return en.inFlight;
+  en.inFlight = (async () => {
     try {
       const { data, error } = await supabase.rpc('winter_event_state', {
-        p_event: WINTER_EVENT_ID,
+        p_event: id,
         p_tz: deviceTimeZone() ?? null,
         p_today: __DEV__ ? devToday : null,
       });
-      if (error || !data?.found) return current;
-      current = { event: data.event, progress: data.progress ?? null, community: data.community };
-      lastFetch = Date.now();
-      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(current)).catch(() => {});
+      if (error || !data?.found) return en.current;
+      en.current = { event: data.event, progress: data.progress ?? null, community: data.community };
+      en.lastFetch = Date.now();
+      AsyncStorage.setItem(cacheKey(id), JSON.stringify(en.current)).catch(() => {});
       emit();
-      return current;
+      return en.current;
     } catch {
-      return current;
+      return en.current;
     } finally {
-      inFlight = null;
+      en.inFlight = null;
     }
   })();
-  return inFlight;
+  return en.inFlight;
 }
 
-/** Forget the cached copy (sign-out). */
+export function refreshAllEvents(force = false): Promise<unknown> {
+  return Promise.all(EVENT_IDS.map(id => refreshEvent(id, force)));
+}
+
+export function refreshWinter(force = false): Promise<WinterState | null> {
+  return refreshEvent(WINTER_EVENT_ID, force);
+}
+
+/** Forget the cached copies (sign-out). */
 export function clearWinter() {
-  current = null;
-  lastFetch = 0;
-  AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
-  emit();
-}
-
-function applyProgress(progress: WinterProgress) {
-  if (!current) return;
-  current = { ...current, progress };
-  AsyncStorage.setItem(CACHE_KEY, JSON.stringify(current)).catch(() => {});
-  emit();
-}
-
-/** Claims a weekly keepsake, or 'frost_lord' to crown the Frost Lord. Returns an error message, or null. */
-export async function claimWinterReward(reward: string): Promise<string | null> {
-  const { data, error } = await supabase.rpc('claim_event_reward', {
-    p_event: WINTER_EVENT_ID,
-    p_reward: reward,
-    p_today: __DEV__ ? devToday : null,
-  });
-  if (error) {
-    if (error.message.includes('event_closed')) return 'The Long Winter has ended.';
-    if (error.message.includes('not_ready') || error.message.includes('not_earned')) return 'Not earned yet.';
-    return 'Could not claim that. Please try again.';
+  for (const id of EVENT_IDS) {
+    const en = entry(id);
+    en.current = null;
+    en.lastFetch = 0;
+    AsyncStorage.removeItem(cacheKey(id)).catch(() => {});
   }
-  if (data) applyProgress(data as WinterProgress);
-  return null;
+  emit();
 }
 
-/** Marks the intro clip as started, or an evolution celebration as shown, on the account (so it never repeats). */
-export async function markWinterSeen(what: 'intro' | 'stage', stage?: number): Promise<void> {
-  if (current?.progress) {
+function applyProgress(id: EventId, progress: WinterProgress) {
+  const en = entry(id);
+  if (!en.current) return;
+  en.current = { ...en.current, progress };
+  AsyncStorage.setItem(cacheKey(id), JSON.stringify(en.current)).catch(() => {});
+  emit();
+}
+
+/** Marks an event's intro clip as started, or an evolution celebration as shown, on the account (so it never repeats). */
+export async function markEventSeen(id: EventId, what: 'intro' | 'stage', stage?: number): Promise<void> {
+  const cur = entry(id).current;
+  if (cur?.progress) {
     applyProgress(
+      id,
       what === 'intro'
-        ? { ...current.progress, intro_seen_at: current.progress.intro_seen_at ?? new Date().toISOString() }
-        : { ...current.progress, stage_seen: Math.max(current.progress.stage_seen, stage ?? 0) },
+        ? { ...cur.progress, intro_seen_at: cur.progress.intro_seen_at ?? new Date().toISOString() }
+        : { ...cur.progress, stage_seen: Math.max(cur.progress.stage_seen, stage ?? 0) },
     );
   }
-  await supabase.rpc('mark_event_seen', { p_event: WINTER_EVENT_ID, p_what: what, p_stage: stage ?? null });
+  await supabase.rpc('mark_event_seen', { p_event: id, p_what: what, p_stage: stage ?? null });
 }
 
-export async function setWinterNotifications(on: boolean): Promise<void> {
-  if (current?.progress) applyProgress({ ...current.progress, event_notifications: on });
-  const { error } = await supabase.rpc('set_event_notifications', { p_event: WINTER_EVENT_ID, p_on: on });
-  if (error) refreshWinter(true);
+export function markWinterSeen(what: 'intro' | 'stage', stage?: number): Promise<void> {
+  return markEventSeen(WINTER_EVENT_ID, what, stage);
 }
 
-/** Dev builds only: pretend today is `day` (or null for the real date). */
+export async function setEventNotifications(id: EventId, on: boolean): Promise<void> {
+  const cur = entry(id).current;
+  if (cur?.progress) applyProgress(id, { ...cur.progress, event_notifications: on });
+  const { error } = await supabase.rpc('set_event_notifications', { p_event: id, p_on: on });
+  if (error) refreshEvent(id, true);
+}
+
+export function setWinterNotifications(on: boolean): Promise<void> {
+  return setEventNotifications(WINTER_EVENT_ID, on);
+}
+
+/** Dev builds only: pretend today is `day` (or null for the real date), for every event. */
 export async function setDevToday(day: string | null): Promise<void> {
   if (!__DEV__) return;
   devToday = day;
   emit();
   if (day) await AsyncStorage.setItem(DEV_DAY_KEY, day).catch(() => {});
   else await AsyncStorage.removeItem(DEV_DAY_KEY).catch(() => {});
-  await refreshWinter(true);
+  await refreshAllEvents(true);
 }
 
-/** Today for the event: the dev date when one is set (dev builds), otherwise the local calendar day. */
+/** Today for the events: the dev date when one is set (dev builds), otherwise the local calendar day. */
 export function winterToday(): string {
   return (__DEV__ && devToday) || eventDayFor(new Date(), deviceTimeZone());
 }
 
-/** The event, your progress and today's date, kept fresh: on mount, when the app comes back, and every minute. */
-export function useWinterEvent(options: { poll?: boolean } = {}) {
-  const snap = useSyncExternalStore(subscribe, () => snapshot);
-  const { poll } = options;
+/** Keeps every event fresh: on mount, when the app comes back, and every minute if `poll`. */
+function useRefreshing(ids: readonly EventId[], poll?: boolean) {
+  const key = ids.join(',');
   useEffect(() => {
-    refreshWinter();
+    const list = key.split(',') as EventId[];
+    list.forEach(id => refreshEvent(id));
     const sub = AppState.addEventListener('change', s => {
-      if (s === 'active') refreshWinter();
+      if (s === 'active') list.forEach(id => refreshEvent(id));
     });
-    const timer = poll ? setInterval(() => refreshWinter(), COMMUNITY_TTL) : null;
+    const timer = poll ? setInterval(() => list.forEach(id => refreshEvent(id)), COMMUNITY_TTL) : null;
     return () => {
       sub.remove();
       if (timer) clearInterval(timer);
     };
-  }, [poll]);
-  const refresh = useCallback(() => refreshWinter(true), []);
-  const state = snap.state;
-  const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
+  }, [key, poll]);
+}
+
+function view(state: WinterState | null, today: string) {
   const phase = state ? phaseFor(state.event, today) : null;
   /**
    * Shown at all (the banner, the Pray page pill, the Prayer Pals row): only while the event is running and switched
-   * on. From Feb 1 the Long Winter is in the vault: nothing about it appears or pops up any more, and whoever earned the
-   * Frost Lord and the keepsakes keeps them.
+   * on. Afterwards it's in the vault: nothing about it appears or pops up any more, and whoever earned the companion and
+   * the keepsakes keeps them.
    */
   const visible = !!state && state.event.is_active && phase === 'live';
-  return { state, today, phase, visible, devToday: snap.devToday, refresh };
+  return { phase, visible };
 }
 
-/** The Frost Lord's stage for this account (0 until Snowcap arrives). Any screen, no network. */
-export function useFrostLordStage(): number {
+/** One event, your progress in it and today's date, kept fresh. */
+export function useEvent(id: EventId, options: { poll?: boolean } = {}) {
   const snap = useSyncExternalStore(subscribe, () => snapshot);
-  return snap.state?.progress?.stage_unlocked ?? 0;
+  useRefreshing([id], options.poll);
+  const refresh = useCallback(() => refreshEvent(id, true), [id]);
+  const state = snap.states[id];
+  const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
+  return { id, state, today, ...view(state, today), devToday: snap.devToday, refresh };
+}
+
+export function useWinterEvent(options: { poll?: boolean } = {}) {
+  return useEvent(WINTER_EVENT_ID, options);
+}
+
+/** Every event at once (for "What's new"), and the one that's running today, if any (for the banner, the gate, the pills). */
+export function useEvents() {
+  const snap = useSyncExternalStore(subscribe, () => snapshot);
+  useRefreshing(EVENT_IDS);
+  const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
+  const live = EVENT_IDS.find(id => view(snap.states[id], today).visible) ?? null;
+  return { states: snap.states, today, devToday: snap.devToday, liveId: live };
+}
+
+/** An event's companion stage for this account (0 until the first stage arrives). Any screen, no network. */
+export function useEventStage(id: EventId): number {
+  const snap = useSyncExternalStore(subscribe, () => snapshot);
+  return snap.states[id]?.progress?.stage_unlocked ?? 0;
+}
+
+export function useFrostLordStage(): number {
+  return useEventStage(WINTER_EVENT_ID);
+}
+
+/** The stage of an event-only companion ('frostLord', 'vesper'), 0 if not met; null for any other pet. */
+export function usePalStage(petId: string): number | null {
+  const snap = useSyncExternalStore(subscribe, () => snapshot);
+  const id = PAL_EVENTS[petId];
+  return id ? snap.states[id]?.progress?.stage_unlocked ?? 0 : null;
+}
+
+/** Every event companion's stage, by pet id ({ frostLord: 2, vesper: 0 }). */
+export function usePalStages(): Record<string, number> {
+  const snap = useSyncExternalStore(subscribe, () => snapshot);
+  return Object.fromEntries(Object.entries(PAL_EVENTS).map(([pet, id]) => [pet, snap.states[id]?.progress?.stage_unlocked ?? 0]));
 }
 
 /** The same, outside React. */
 export function frostLordStage(): number {
-  return current?.progress?.stage_unlocked ?? 0;
+  return entry(WINTER_EVENT_ID).current?.progress?.stage_unlocked ?? 0;
 }

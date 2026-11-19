@@ -1,15 +1,14 @@
-// Long Winter reminders. Called hourly by pg_cron through private.dispatch_winter_event_if_due(), which only calls it
-// when someone is due. Opt-in only (user_event_progress.event_notifications), at 9am in the person's timezone, never
-// more than one a day (last_notified_on), and each reminder at most once (user_event_progress.notified).
+// Seasonal event reminders (the Long Winter, the Swamp King, ...). Called hourly by pg_cron through
+// private.dispatch_winter_event_if_due(), which only calls it when someone is due. Opt-in only
+// (user_event_progress.event_notifications), at 9am in the person's timezone, never more than one a day
+// (last_notified_on), and each reminder at most once (user_event_progress.notified). The wording for each event is in
+// its config.reminders; the reminders follow each person's own progress rather than holidays:
 //
-// The event is two months long and every challenge can be done on any day, so the reminders follow each person's
-// own progress rather than holidays:
-//
-//   start       first day of the event              "The Long Winter has begun. Meet Snowcap."
-//   mage        the morning after the Frost Mage     "Your Frost Mage is ready. N challenges to the Frost Lord."
-//   lord        the morning after all 10             "The Frost Lord is crowned, and five keepsakes are on your shelf."
-//   halfway     the event's middle day, if unfinished "Halfway through the Long Winter. N challenges to go."
-//   last-<day>  the last 3 days, if still possible  "N challenges left to the Frost Lord."
+//   start       first day of the event
+//   mage        the morning after stage 2
+//   lord        the morning after all 10 challenges
+//   halfway     the event's middle day, if unfinished
+//   last-<day>  the last 3 days, if still possible
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -51,32 +50,35 @@ const addDays = (day: string, n: number) => new Date(toUtc(day) + n * 86400000).
 const daysBetween = (a: string, b: string) => Math.round((toUtc(b) - toUtc(a)) / 86400000);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** Each event's wording lives in its config.reminders ('{n}' becomes "3 challenges"); these are the Long Winter's. */
+const DEFAULT_WORDING = {
+  start: 'The Long Winter has begun. Meet Snowcap.',
+  mage: 'Your Frost Mage is ready. {n} to the Frost Lord.',
+  lord: 'The Frost Lord is crowned, and five winter keepsakes are on your shelf.',
+  halfway: 'Halfway through the Long Winter. {n} to go.',
+  last: '{n} left to the Frost Lord.',
+};
+
 /** The one reminder for this person today, if any. The most personal one wins. */
 export function reminderFor(e: EventRow, p: ProgressRow, today: string): Reminder | null {
   const c = e.config ?? {};
+  const words = { ...DEFAULT_WORDING, ...(c.reminders ?? {}) } as typeof DEFAULT_WORDING;
   const sent = new Set(p.notified ?? []);
   const first: string = c.real_starts_on ?? e.starts_on;
   const total: number = (c.challenges ?? []).length;
   const left = Math.max(0, total - (p.challenges_completed?.length ?? 0));
+  const say = (text: string) => text.replace('{n}', plural(left, 'challenge'));
   const finished = p.stage_unlocked >= 3 || p.frost_lord_ready;
   const halfway = addDays(first, Math.ceil(daysBetween(first, e.ends_on) / 2)); // Jan 1 for Dec 1 - Jan 31
 
-  if (finished && !sent.has('lord')) {
-    return { key: 'lord', title: e.title, body: 'The Frost Lord is crowned, and five winter keepsakes are on your shelf.' };
-  }
-  if (!finished && p.stage_unlocked >= 2 && !sent.has('mage')) {
-    return { key: 'mage', title: e.title, body: `Your Frost Mage is ready. ${plural(left, 'challenge')} to the Frost Lord.` };
-  }
-  if (today === first && !sent.has('start')) {
-    return { key: 'start', title: e.title, body: 'The Long Winter has begun. Meet Snowcap.' };
-  }
+  if (finished && !sent.has('lord')) return { key: 'lord', title: e.title, body: say(words.lord) };
+  if (!finished && p.stage_unlocked >= 2 && !sent.has('mage')) return { key: 'mage', title: e.title, body: say(words.mage) };
+  if (today === first && !sent.has('start')) return { key: 'start', title: e.title, body: say(words.start) };
   if (finished) return null;
-  if (today === halfway && !sent.has('halfway')) {
-    return { key: 'halfway', title: e.title, body: `Halfway through the Long Winter. ${plural(left, 'challenge')} to go.` };
-  }
+  if (today === halfway && !sent.has('halfway')) return { key: 'halfway', title: e.title, body: say(words.halfway) };
   const lastThree = today >= addDays(e.ends_on, -2) && today <= e.ends_on;
   if (lastThree && (p.challenges_closed ?? []).length === 0 && !sent.has(`last-${today}`)) {
-    return { key: `last-${today}`, title: e.title, body: `${plural(left, 'challenge')} left to the Frost Lord.` };
+    return { key: `last-${today}`, title: e.title, body: say(words.last) };
   }
   return null;
 }

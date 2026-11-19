@@ -100,23 +100,28 @@ export function nextStep(state: WinterState, day: string): string {
   const total = c.challenges.length;
   const done = progress?.challenges_completed.length ?? 0;
   const stage = progress?.stage_unlocked ?? 0;
+  const names = [1, 2, 3].map(s => c.evolutions.find(e => e.stage === s)?.name ?? '');
+  const [first, middle, last] = names;
+  // "the Frost Lord", but "The Old King" is already a full name
+  const lastName = /^the /i.test(last) ? last.replace(/^The /, 'the ') : `the ${last}`;
   const mage = c.evolutions.find(e => e.stage === 2);
   const mageFrom = mage?.unlock.not_before;
   const mageNeeds = mage?.unlock.min_challenges ?? 4;
+  const noun = c.pal_line === 'frostLord' ? 'winter' : 'spring';
 
-  if (stage >= 3) return 'The Frost Lord walks with you';
-  if (progress?.frost_lord_ready) return 'All ten done. Crown your Frost Lord';
-  if (stage === 0) return 'Pray your first winter prayer to meet Snowcap';
+  if (stage >= 3) return `${lastName.charAt(0).toUpperCase()}${lastName.slice(1)} walks with you`;
+  if (progress?.frost_lord_ready) return `All ten done. Crown your ${last.replace(/^The /, '')}`;
+  if (stage === 0) return `Pray your first ${noun} prayer to meet ${first}`;
   if ((progress?.challenges_closed.length ?? 0) > 0) {
-    return stage >= 2 ? 'Your Frost Mage is yours to keep' : 'Keep praying to grow Snowcap';
+    return stage >= 2 ? `Your ${middle} is yours to keep` : `Keep praying to grow ${first}`;
   }
-  if (stage === 1 && done >= mageNeeds && mageFrom && day < mageFrom) return `Frost Mage unlocks ${shortDate(mageFrom)}`;
+  if (stage === 1 && done >= mageNeeds && mageFrom && day < mageFrom) return `${middle} unlocks ${shortDate(mageFrom)}`;
   if (stage === 1 && done < mageNeeds) {
     const n = mageNeeds - done;
-    return `${n} more challenge${n === 1 ? '' : 's'} to Frost Mage`;
+    return `${n} more challenge${n === 1 ? '' : 's'} to ${middle}`;
   }
   const n = total - done;
-  return `${n} more challenge${n === 1 ? '' : 's'} to the Frost Lord`;
+  return `${n} more challenge${n === 1 ? '' : 's'} to ${lastName}`;
 }
 
 /** Title for the community card: "A million winter lights" for a million, otherwise the configured title. */

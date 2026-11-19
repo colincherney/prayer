@@ -9,7 +9,7 @@ import { saveEntryToCloud, saveToCloud } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
-import { useFrostLordStage } from '@/lib/winterEvent';
+import { usePalStage } from '@/lib/winterEvent';
 
 /** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level). */
 export const XP = { share: 20, prayed: 10, journal: 5 } as const;
@@ -224,12 +224,12 @@ export function usePetProgress() {
     () => ({ ...Object.fromEntries(PETS.map(p => [p.id, 0])), ...(xpSnapshot && (!userId || xpSnapshot.userId === userId) ? xpSnapshot.xpByPet : {}) }) as Record<PetId, number>,
     [xpSnapshot, userId],
   );
-  // The Frost Lord grows through the Long Winter event, not XP: Snowcap, then the Frost Mage, then the Frost Lord.
-  const frostStage = useFrostLordStage();
+  // Event companions grow through their event, not XP (Snowcap → Frost Mage → Frost Lord; Vesper → Fen Warden → Old King).
+  const palStage = usePalStage(choice.petId);
   const progress = useMemo(() => {
     const own = petProgressFromXp(xpByPet[choice.petId] ?? 0);
-    return choice.petId === 'frostLord' ? { ...own, stage: Math.min(3, Math.max(1, frostStage)) as PipStage } : own;
-  }, [xpByPet, choice.petId, frostStage]);
+    return palStage !== null ? { ...own, stage: Math.min(3, Math.max(1, palStage)) as PipStage } : own;
+  }, [xpByPet, choice.petId, palStage]);
   const [leveledUp, setLeveledUp] = useState(false);
 
   // Bumped to throw away a load that finished after a newer one started (or after the screen lost focus).

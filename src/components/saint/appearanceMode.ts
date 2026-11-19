@@ -14,7 +14,9 @@ import React, {
   useState,
 } from 'react';
 
-import { setWinterLookOff, useWinterLordActive } from './winterLord';
+import { useReleases } from '@/lib/releases';
+
+import { EVENT_LOOKS, setLookChoice, useWinterLordActive } from './winterLord';
 
 export type AppearanceMode = 'room' | 'theme';
 
@@ -47,15 +49,16 @@ export const AppearanceModeProvider: React.FC<{ children: React.ReactNode }> = (
     // Runs again when the account's copy arrives (a new phone), which may have a different look.
   }, [cloudVersion]);
 
+  const { isEventOn } = useReleases();
   const setMode = useCallback((next: AppearanceMode) => {
-    // Choosing a theme during the Long Winter switches the winter look off.
-    if (next === 'theme') setWinterLookOff(true);
+    // Choosing a theme during an event switches its look off.
+    if (next === 'theme') setLookChoice(null, EVENT_LOOKS.map(l => l.window).filter(w => isEventOn(w)));
     setModeState(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
     saveEntryToCloud('appearance', 'mode', next);
-  }, []);
+  }, [isEventOn]);
 
-  // The Winter Lord look is a room, so it overrides a theme pick while the event is on.
+  // An event look is a room, so it overrides a theme pick while it's on.
   const winterLord = useWinterLordActive();
   const effectiveMode: AppearanceMode = winterLord ? 'room' : mode;
   const value = useMemo<AppearanceModeCtx>(() => ({ mode: effectiveMode, setMode }), [effectiveMode, setMode]);

@@ -118,3 +118,20 @@ test('the community title follows the target', () => {
   assert.equal(W.communityTitle({ ...config.community_goal, target: 1_000_000 }), 'A million winter lights');
   assert.equal(W.communityTitle(config.community_goal), 'Winter lights');
 });
+
+test('the next step uses each event\'s own companion names', () => {
+  const swampConfig = {
+    ...config,
+    pal_line: 'vesper',
+    evolutions: [
+      { stage: 1, name: 'Vesper', unlock: { min_event_prayers: 1 } },
+      { stage: 2, name: 'Fen Warden', unlock: { min_challenges: 4 } },
+      { stage: 3, name: 'The Old King', unlock: { min_challenges: 10 } },
+    ],
+  };
+  const swamp = progress => ({ ...state(progress), event: { ...event, config: swampConfig } });
+  assert.equal(W.nextStep(swamp({}), '2027-03-02'), 'Pray your first spring prayer to meet Vesper');
+  assert.equal(W.nextStep(swamp({ stage_unlocked: 1, challenges_completed: done(2) }), '2027-03-02'), '2 more challenges to Fen Warden');
+  assert.equal(W.nextStep(swamp({ stage_unlocked: 2, challenges_completed: done(7) }), '2027-03-20'), '3 more challenges to the Old King');
+  assert.equal(W.nextStep(swamp({ stage_unlocked: 3, challenges_completed: done(10) }), '2027-04-20'), 'The Old King walks with you');
+});

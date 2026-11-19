@@ -4,12 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { DropItem, loadNewDrops, markDropsSeen } from '@/lib/drops';
 import { setOverlayBusy, useOtherOverlayBusy } from '@/lib/overlays';
-import { useWinterEvent } from '@/lib/winterEvent';
+import { EVENT_IDS, useEvents } from '@/lib/winterEvent';
 
 import { DropShowcase } from './DropShowcase';
 
 // Opens "What's new" once, on the home screen, when something has dropped since this account last looked. It waits
-// for the winter intro and any celebration to finish first. Checks again when the (dev) date changes.
+// for an event's intro and any celebration to finish first. Checks again when the (dev) date changes.
 
 export function DropGate() {
   const { session } = useAuth();
@@ -19,18 +19,19 @@ export function DropGate() {
 
 function Gate({ userId }: { userId: string }) {
   const segments = useSegments();
-  const { state, today, devToday } = useWinterEvent();
+  const { states, today, devToday } = useEvents();
   const [found, setFound] = useState<{ day: string; items: DropItem[] } | null>(null);
   const [closedFor, setClosedFor] = useState<string | null>(null);
   const othersBusy = useOtherOverlayBusy('drops');
   const onHome = segments[0] === '(tabs)' && segments.length === 1;
-  const winterLoaded = state !== null;
+  // Every event (or its cached copy) has loaded, so each one's start is counted.
+  const winterLoaded = EVENT_IDS.every(id => states[id] !== null);
 
   useEffect(() => {
     // Wait for the event (its start is a drop day too) so everything new shows in one go.
     if (!winterLoaded) return;
     let cancelled = false;
-    loadNewDrops(userId, today, state, __DEV__ ? devToday : null)
+    loadNewDrops(userId, today, Object.values(states), __DEV__ ? devToday : null)
       .then(items => {
         if (!cancelled) setFound({ day: today, items });
       })
@@ -38,7 +39,7 @@ function Gate({ userId }: { userId: string }) {
     return () => {
       cancelled = true;
     };
-    // state is read for the event's start date; reloading on today/devToday/winterLoaded is enough
+    // the events are read for their start dates; reloading on today/devToday/winterLoaded is enough
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, today, devToday, winterLoaded]);
 

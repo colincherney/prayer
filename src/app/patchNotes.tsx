@@ -14,7 +14,7 @@ import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { DropItem, loadDropHistory, markPatchNotesSeen, mondayOf } from '@/lib/drops';
-import { shortDate, useWinterEvent } from '@/lib/winterEvent';
+import { shortDate, useEvents } from '@/lib/winterEvent';
 
 // Patch notes: everything that has dropped, week by week, newest first, so people can see the app keeps growing.
 // It reads the same release schedule as "What's new" (public.content_releases), so it's always up to date.
@@ -52,12 +52,13 @@ export default function PatchNotesScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { state: winter, today, devToday } = useWinterEvent();
+  const { states: eventStates, today, devToday } = useEvents();
+  const eventsLoaded = Object.values(eventStates).filter(Boolean).length;
   const [weeks, setWeeks] = useState<{ weekOf: string; items: DropItem[] }[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadDropHistory(today, winter, __DEV__ ? devToday : null)
+    loadDropHistory(today, Object.values(eventStates), __DEV__ ? devToday : null)
       .then(list => {
         if (cancelled) return;
         setWeeks(list);
@@ -69,9 +70,9 @@ export default function PatchNotesScreen() {
     return () => {
       cancelled = true;
     };
-    // winter is read for the event's start date only
+    // the events are read for their start dates only
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, devToday, !!winter]);
+  }, [today, devToday, eventsLoaded]);
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: theme.bg }} />;
   const thisWeek = mondayOf(today);

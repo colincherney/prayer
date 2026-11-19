@@ -4,27 +4,37 @@ import React, { useEffect, useState } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { setOverlayBusy, useOtherOverlayBusy } from '@/lib/overlays';
-import { markWinterSeen, refreshWinter, useWinterEvent } from '@/lib/winterEvent';
+import { EventId, markEventSeen, refreshEvent, useEvent, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
 
 import { EvolutionMoment } from './EvolutionMoment';
 import { IntroClip } from './IntroClip';
+import { SKINS, SkinContext, useSkin } from './winterUi';
 
-// Plays "Face the Winter Lord" once per account (never again on any device: the account remembers, and this phone
-// caches it so it never flashes on a slow network), then shows any evolution celebration that's waiting. Only on the
-// home screen, so it never interrupts sign-in or a prayer opened from a link or notification.
+// For whichever event is running, plays its intro clip once per account (never again on any device: the account
+// remembers, and this phone caches it so it never flashes on a slow network), then shows any evolution celebration
+// that's waiting. Only on the home screen, so it never interrupts sign-in or a prayer opened from a link or
+// notification. Each event has its own "seen", so watching the winter clip doesn't count as watching the next one.
 
-const introKey = (userId: string) => `winter.introSeen.${userId}`;
+// The Long Winter kept its original key.
+const introKey = (id: EventId, userId: string) => (id === WINTER_EVENT_ID ? `winter.introSeen.${userId}` : `event.introSeen.${id}.${userId}`);
 
 export function WinterGate() {
   const { session } = useAuth();
+  const { liveId } = useEvents();
   const userId = session?.user?.id;
-  // Keyed by account, so switching accounts starts fresh.
-  return userId ? <Gate key={userId} userId={userId} /> : null;
+  if (!userId || !liveId) return null;
+  // Keyed by account and event, so switching either starts fresh.
+  return (
+    <SkinContext.Provider value={SKINS[liveId]}>
+      <Gate key={`${userId}-${liveId}`} userId={userId} />
+    </SkinContext.Provider>
+  );
 }
 
 function Gate({ userId }: { userId: string }) {
+  const skin = useSkin();
   const segments = useSegments();
-  const { state, phase } = useWinterEvent();
+  const { state, phase } = useEvent(skin.id);
   /** This phone's copy of "seen": null while it's being read. */
   const [cachedSeen, setCachedSeen] = useState<boolean | null>(null);
   /** Playback started (or the still showed) this session, so the clip stays up even once the account says seen. */
@@ -33,20 +43,21 @@ function Gate({ userId }: { userId: string }) {
   const [momentDone, setMomentDone] = useState(0);
 
   useEffect(() => {
-    refreshWinter(true);
-    AsyncStorage.getItem(introKey(userId)).then(v => setCachedSeen(v === '1')).catch(() => setCachedSeen(false));
-  }, [userId]);
+    refreshEvent(skin.id, true);
+    AsyncStorage.getItem(introKey(skin.id, userId)).then(v => setCachedSeen(v === '1')).catch(() => setCachedSeen(false));
+  }, [userId, skin.id]);
 
   const progress = state?.progress ?? null;
   const on = !!state?.event.is_active;
   const live = on && phase === 'live';
   const onHome = segments[0] === '(tabs)' && segments.length === 1; // the home tab is '(tabs)' with nothing after it
+  const onEventScreen = (segments[0] as string) === skin.route.slice(1);
   const seenOnAccount = !!progress?.intro_seen_at;
 
   // The account says seen but this phone didn't know: remember it here too.
   useEffect(() => {
-    if (seenOnAccount && cachedSeen === false && !introStarted) AsyncStorage.setItem(introKey(userId), '1').catch(() => {});
-  }, [seenOnAccount, cachedSeen, introStarted, userId]);
+    if (seenOnAccount && cachedSeen === false && !introStarted) AsyncStorage.setItem(introKey(skin.id, userId), '1').catch(() => {});
+  }, [seenOnAccount, cachedSeen, introStarted, userId, skin.id]);
 
   // Takes turns with "What's new": whichever opened first finishes before the other starts.
   const othersBusy = useOtherOverlayBusy('winter');
@@ -54,8 +65,8 @@ function Gate({ userId }: { userId: string }) {
 
   const pending = progress && progress.stage_unlocked > progress.stage_seen ? progress.stage_unlocked : 0;
   const introFirst = live && cachedSeen === false && !seenOnAccount && !introClosed;
-  // Celebrations only while the event runs: from Feb 1 nothing about the Long Winter pops up.
-  const showMoment = live && !showIntro && !introFirst && !othersBusy && pending > momentDone && (onHome || segments[0] === 'winter');
+  // Celebrations only while the event runs: once it ends nothing about it pops up.
+  const showMoment = live && !showIntro && !introFirst && !othersBusy && pending > momentDone && (onHome || onEventScreen);
 
   useEffect(() => {
     setOverlayBusy('winter', showIntro || showMoment);
@@ -65,14 +76,14 @@ function Gate({ userId }: { userId: string }) {
   const markIntroSeen = () => {
     if (introStarted) return;
     setIntroStarted(true);
-    AsyncStorage.setItem(introKey(userId), '1').catch(() => {});
-    markWinterSeen('intro').catch(() => {});
+    AsyncStorage.setItem(introKey(skin.id, userId), '1').catch(() => {});
+    markEventSeen(skin.id, 'intro').catch(() => {});
   };
 
   const closeIntro = (thenOpenEvent: boolean) => {
     markIntroSeen();
     setIntroClosed(true);
-    if (thenOpenEvent) router.push('/winter');
+    if (thenOpenEvent) router.push(skin.route);
   };
 
   return (
@@ -83,7 +94,7 @@ function Gate({ userId }: { userId: string }) {
         stage={pending}
         onDone={() => {
           setMomentDone(pending);
-          markWinterSeen('stage', pending).catch(() => {});
+          markEventSeen(skin.id, 'stage', pending).catch(() => {});
         }}
       />
     </>

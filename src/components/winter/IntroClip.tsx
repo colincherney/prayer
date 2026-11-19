@@ -1,20 +1,20 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Modal, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pauseBackgroundMotion } from '@/components/pets/anim';
-import { realStart, shortDate, useWinterEvent } from '@/lib/winterEvent';
+import { realStart, shortDate, useEvent } from '@/lib/winterEvent';
 
-import { AuroraBackdrop, StageImage, W, WF, useWinterFonts } from './winterUi';
+import { Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
 
-// "Face the Winter Lord": the event's 29-second intro clip (no audio track, so it never stops someone's music).
-// Full screen, Skip after 1.5 s, and the moment the clip reaches its own title card (27 s) it fades into a page the
-// app draws itself: the aurora, Snowcap and the Frost Lord, and one option, "Begin the winter" (replayed from the
-// event screen, it just closes). Reduce Motion stops it playing by itself; a failed or slow load goes straight there.
+// An event's 29-second intro clip ("Face the Winter Lord", "Face the Swamp King"), from the skin of the event it's
+// shown for (no audio track, so it never stops someone's music). Full screen, Skip after 1.5 s, and the moment the clip
+// reaches its own title card (27 s) it fades into a page the app draws itself: the event's sky, its first and final
+// stages, and one option ("Begin the winter", "Enter the fen"; replayed from the event screen, it just closes).
+// Reduce Motion stops it playing by itself; a failed or slow load goes straight to that page.
 
-const CLIP = require('../../../assets/video/face-the-winter-lord.mp4');
 const END_AT = 26.9;
 const LOAD_LIMIT_MS = 2000;
 
@@ -25,9 +25,9 @@ export function IntroClip({ visible, mode, onStarted, onBegin, onClose }: {
   mode: IntroMode;
   /** Called once, when playback starts (that's when it counts as seen, so a crash mid-clip won't replay it). */
   onStarted?: () => void;
-  /** "Begin the winter": close and open the event screen. */
+  /** The one button: close and open the event screen. */
   onBegin: () => void;
-  /** "Begin the winter" when replayed, or the Android back button: back to where they were. */
+  /** The same button when replayed, or the Android back button: back to where they were. */
   onClose: () => void;
 }) {
   return (
@@ -40,8 +40,10 @@ export function IntroClip({ visible, mode, onStarted, onBegin, onClose }: {
 function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onStarted?: () => void; onBegin: () => void; onClose: () => void }) {
   const fontsLoaded = useWinterFonts();
   const insets = useSafeAreaInsets();
+  const skin = useSkin();
+  const styles = useMemo(() => makeStyles(skin.palette), [skin.palette]);
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
-  /** Load failed, too slow, or skipped: show the still end card. */
+  /** Load failed, too slow, or skipped: show the end page. */
   const [forcedStill, setStill] = useState(false);
   // With Reduce Motion on, the clip never plays by itself; replaying it from the event screen is asking for it.
   const still = forcedStill || (reduceMotion === true && mode === 'auto');
@@ -50,7 +52,7 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
   const [showSkip, setShowSkip] = useState(false);
   const started = useRef(false);
 
-  const player = useVideoPlayer(CLIP, p => {
+  const player = useVideoPlayer(skin.clip, p => {
     p.muted = true;
     p.loop = false;
     p.audioMixingMode = 'mixWithOthers';
@@ -81,7 +83,7 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
       player.addListener('playToEnd', () => setEnded(true)),
     ];
     player.play();
-    // Never a spinner for more than 2 s: show the still end card instead.
+    // Never a spinner for more than 2 s: show the end page instead.
     const slow = setTimeout(() => {
       if (player.status !== 'readyToPlay') setStill(true);
     }, LOAD_LIMIT_MS);
@@ -123,7 +125,7 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
     <View style={styles.root}>
       <StatusBar hidden />
       {!showEndPage ? <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} /> : null}
-      {!showEndPage && !ready ? <ActivityIndicator style={styles.spinner} color={W.cream} /> : null}
+      {!showEndPage && !ready ? <ActivityIndicator style={styles.spinner} color={skin.palette.cream} /> : null}
 
       {fontsLoaded && showSkip && !showEndPage ? (
         <Animated.View entering={FadeIn.duration(400)} style={[styles.skipWrap, { top: insets.top + 12 }]}>
@@ -133,37 +135,38 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
         </Animated.View>
       ) : null}
 
-      {showEndPage && fontsLoaded ? <EndPage onBegin={mode === 'auto' ? onBegin : onClose} /> : null}
+      {showEndPage && fontsLoaded ? <EndPage styles={styles} onBegin={mode === 'auto' ? onBegin : onClose} /> : null}
     </View>
   );
 }
 
 /**
- * Where the clip lands (also on Skip, Reduce Motion or a failed load): the aurora sky, Snowcap with the Frost Lord he
- * can become standing behind him, and one option, "Begin the winter". Drawn by the app, so nothing in the video can
- * overlap it.
+ * Where the clip lands (also on Skip, Reduce Motion or a failed load): the event's sky, its first stage with the
+ * final stage it can become standing behind, and one option. Drawn by the app, so nothing in the video can overlap it.
  */
-function EndPage({ onBegin }: { onBegin: () => void }) {
+function EndPage({ onBegin, styles }: { onBegin: () => void; styles: ReturnType<typeof makeStyles> }) {
   const insets = useSafeAreaInsets();
+  const skin = useSkin();
+  const Backdrop = skin.Backdrop;
   const { height: screenH } = useWindowDimensions();
-  // Sized from the screen so the bears never climb into the title on a small phone.
-  // lordH is the Frost Lord's body; his hat adds a quarter again above it.
+  // Sized from the screen so the figures never climb into the title on a small phone. lordH is the final stage's
+  // figure; the Frost Lord's hat adds a quarter again above it.
   const lordH = Math.min(290, Math.round(screenH * 0.31));
   const cubH = Math.round(lordH * 0.8);
-  const { state } = useWinterEvent();
+  const { state } = useEvent(skin.id);
   const dates = state ? `${shortDate(realStart(state.event)).toUpperCase()} TO ${shortDate(state.event.ends_on).toUpperCase()}` : null;
   return (
     <Animated.View entering={FadeIn.duration(500)} style={[StyleSheet.absoluteFill, styles.page]}>
-      <AuroraBackdrop hills />
+      <Backdrop hills />
       <View style={[styles.copy, { paddingTop: insets.top + 56 }]}>
         <Animated.Text entering={FadeInDown.delay(150).duration(500)} style={styles.kicker}>
-          THE LONG WINTER{dates ? ` · ${dates}` : ''}
+          {(state?.event.title ?? '').toUpperCase()}{dates ? ` · ${dates}` : ''}
         </Animated.Text>
         <Animated.Text entering={FadeInDown.delay(250).duration(500)} accessibilityRole="header" style={styles.title}>
-          Face the{'\n'}Winter Lord
+          {skin.clipTitle}
         </Animated.Text>
         <Animated.Text entering={FadeInDown.delay(350).duration(500)} style={styles.subtitle}>
-          Complete the winter challenges{'\n'}to bring him home.
+          {skin.clipSubtitle}
         </Animated.Text>
       </View>
 
@@ -178,14 +181,14 @@ function EndPage({ onBegin }: { onBegin: () => void }) {
 
       <Animated.View entering={FadeInDown.delay(700).duration(450)} style={[styles.ctaWrap, { paddingBottom: insets.bottom + 36 }]}>
         <Pressable onPress={onBegin} accessibilityRole="button" style={({ pressed }) => [styles.cta, pressed && { opacity: 0.88 }]}>
-          <Text style={styles.ctaText}>Begin the winter</Text>
+          <Text style={styles.ctaText}>{skin.beginLabel}</Text>
         </Pressable>
       </Animated.View>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (W: Palette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: W.navyDeep },
   spinner: { position: 'absolute', alignSelf: 'center', top: '50%' },
   skipWrap: { position: 'absolute', right: 16 },
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
   copy: { alignItems: 'center', paddingHorizontal: 24, gap: 10 },
   kicker: { fontFamily: WF.semi, fontSize: 11.5, letterSpacing: 2.4, color: W.ice, textAlign: 'center' },
   title: { fontFamily: WF.bold, fontSize: 44, lineHeight: 50, color: W.cream, textAlign: 'center' },
-  subtitle: { fontFamily: WF.regular, fontSize: 17, lineHeight: 24, color: 'rgba(191,230,255,0.82)', textAlign: 'center', marginTop: 4 },
+  subtitle: { fontFamily: WF.regular, fontSize: 17, lineHeight: 24, color: W.ice, opacity: 0.85, textAlign: 'center', marginTop: 4 },
   bears: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   lord: { position: 'absolute', bottom: 0, right: '6%', opacity: 0.55 },
   cub: { position: 'absolute', bottom: 0, left: '10%' },

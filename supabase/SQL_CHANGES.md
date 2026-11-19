@@ -770,3 +770,125 @@ Nov 18), and the community counter at 5. To give everyone a clean start on Dec 1
 `delete from public.user_event_progress where event_id = 'long-winter-2026'; update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';`
 
 **Decision (2026-11-19):** the user said to keep the testing progress and the community count as they are ("they're from me"), so nothing was wiped.
+
+## The Swamp King event (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_swamp_king_event.sql` (migration `swamp_king_event`), through the connector.
+Tested with `supabase/tests/swamp_king_event.test.sql` (14/14 passed, rolled back).
+
+What it added:
+- **Event row** `swamp-king-2027`: Mar 1 to May 1, 2027, `allow_test_dates` false. It has 10 anytime challenges, Vesper on the
+  first prayer, the Fen Warden at 4 challenges, and the Old King plus 5 keepsakes at 10.
+- **Community counter** `fen_lights`, with a target of 2000.
+- **Content window** `event:swampKing`: Mar 1 00:00 ET to May 2 00:00 ET.
+- **New challenge types in `private.evaluate_event`:** `shared`, `journal`, `notes` and `quests`.
+- **Four new triggers:** `event_activity_on_prayer_shared`, `event_activity_on_journal`, `event_activity_on_note` and
+  `event_activity_on_quest`.
+- **Pet-id checks** now allow `vesper`.
+- **`switch_pet`** checks event-pet ownership by `events.config->>'pal_line'`.
+- **Winter wording:** a `reminders` wording config was added to the winter row.
+- **Edge function:** `notify-winter-event` was redeployed (version 2). Its reminder wording now comes from `config.reminders`.
+
+**Revert:**
+```sql
+drop trigger if exists event_activity_on_prayer_shared on public.prayers;
+drop trigger if exists event_activity_on_journal on public.biography_entries;
+drop trigger if exists event_activity_on_note on public.reflections;
+drop trigger if exists event_activity_on_quest on public.quest_completions;
+delete from public.user_event_progress where event_id = 'swamp-king-2027';
+delete from public.community_counters where event_id = 'swamp-king-2027';
+delete from public.content_windows where id = 'event:swampKing';
+delete from public.events where id = 'swamp-king-2027';
+update public.events set config = config - 'reminders' where id = 'long-winter-2026';
+-- evaluate_event / switch_pet / the pet-id checks: re-run their definitions from the earlier winter migrations
+-- (the new challenge types and 'vesper' are harmless if left in place).
+```
+
+## Swamp King in testing mode (2026-11-19)
+
+The user asked to set the date to March 1 for testing. **Applied as:** `supabase/migrations/20261119_swamp_testing_mode_on.sql`.
+- The event now starts 2026-11-19, so real prayers count.
+- `allow_test_dates` is on, so the "Mar 1" dev chip on /swamp works on the server too.
+- The `event:swampKing` window opens 2026-11-19 00:00 ET.
+- The dates people see still say Mar 1 (`real_starts_on`).
+- After the re-check: 5 progress rows, 3 with Vesper.
+
+**Revert / before release:** run `supabase/migrations/20261119_swamp_testing_mode_off.sql`. It has optional lines to wipe test progress.
+
+## Testing: the user's own account skipped to the Old King (2026-11-19)
+
+At the user's request, all 10 Swamp King challenges were marked done on their own account only. That account now has
+`stage_unlocked = 3` and the 5 spring keepsakes in `user_trinkets`. The challenge list is recalculated on the next check
+and drops back to what was really done, but the stage and keepsakes stay.
+
+**Revert, for that account only:**
+`delete from public.user_trinkets where user_id = '<their id>' and trinket_id in ('fenLantern','lentenCross','palmBranches','easterLilies','oldKingsCrown');`
+`delete from public.user_event_progress where user_id = '<their id>' and event_id = 'swamp-king-2027';`
+The swamp-testing-off step's optional wipe also covers the progress row.
+
+## Testing: every companion at max for the user's own account (2026-11-19)
+
+**New table, applied as `supabase/migrations/20261119_account_unlocks.sql`:** `public.account_unlocks (user_id, unlock)`.
+- RLS lets an account read only its own rows, and only the database can add rows.
+- An `'all_pets'` row makes every companion count as released and claimable in the app for that one account
+  (`src/lib/releases.ts`).
+
+**Data, for the user's account only:**
+- An `all_pets` row.
+- `pet_xp.banked_xp = 2450` (level 50, final stage) for all 22 companions.
+- Long Winter `user_event_progress.stage_unlocked = 3`, so the Frost Lord line is owned. Vesper was already at 3.
+
+**Revert:**
+```sql
+delete from public.account_unlocks where user_id = '<their id>';
+-- pet_xp can't be restored exactly (earlier banked values weren't saved); to reset: delete from public.pet_xp where user_id = '<their id>';
+delete from public.user_event_progress where user_id = '<their id>' and event_id = 'long-winter-2026';
+-- to remove the feature entirely: drop table public.account_unlocks;
+```
+
+## Swamp King: testing over, real schedule, late-comer rules (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_swamp_launch_settings.sql`, through the connector.
+
+The schedule:
+- The event runs 2027-03-01 to 2027-05-01, with `allow_test_dates` false.
+- The `event:swampKing` look runs Mar 1 00:00 ET to May 2 00:00 ET.
+
+So that someone who joins on the last days can still finish everything:
+- **`out_of_the_mire` and `feet_upon_a_rock`:** these were rule `prayers` (days prayed). They're now `candles` 20 and 40,
+  which count the prayers prayed, repeats included. Their wording is now "Pray 20 / 40 spring prayers".
+- **`steadfast`:** this was a 10-day streak. It's now `people` 15, "Pray for 15 different requests".
+- Every swamp challenge now closes only when the event ends (`first_steps` needs one day).
+- Everyone with swamp progress was re-checked. A stage already reached is kept.
+
+**Tests:** `supabase/tests/swamp_king_event.test.sql` passes 17/17. That includes a late comer who starts Apr 30, finishes all 10
+and gets the Old King on May 1.
+
+**Kept from testing:** the user's own account (Old King, all companions at max, `account_unlocks`). The other test-day progress
+was also kept: 3 accounts got Vesper from prayers on Nov 19.
+
+**Revert (old rules):** put `out_of_the_mire` back to `{"type":"prayers","min":20}`, `feet_upon_a_rock` to `{"type":"prayers","min":40}`
+and `steadfast` to `{"type":"streak","min":10}`, using the same `jsonb_set` shape as the migration.
+
+## Long Winter: late-comer rules (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_winter_late_comer_rules.sql`. Like the Swamp King, every challenge now closes
+only when the event ends, so someone who starts on Jan 30 can still finish all 10. The titles are unchanged.
+
+| Challenge | Before | Now |
+|---|---|---|
+| `snow_like_wool` | prayers 15 (days) | candles 15, "Pray 15 winter prayers" |
+| `word_melts` | prayers 40 (days) | candles 40, "Pray 40 winter prayers" |
+| `four_candles` | weeks 4 | quests 4, "Finish 4 daily quests" |
+| `silent_night` | hours 21-24 x3 | journal 3, "Write 3 journal entries" |
+| `hoarfrost` | streak 7 | shared 2, "Share 2 prayer requests" |
+| `candlemas` | hours 4-9 x3 | notes 3, "Send 3 encouragements" |
+
+Everyone with winter progress was re-checked, and a stage already reached is kept.
+
+**Test:** `supabase/tests/winter_late_comer.test.sql` passes 4/4. It covers someone who starts on Jan 30 and finishes all 10, the
+Frost Lord and the 5 keepsakes on Jan 31.
+
+**Revert:** set those six rules and their wording back with the same `jsonb_set` shape. The old values are in the first column
+above: weeks `{"type":"weeks","min":4}`, hours `{"type":"hours","from_hour":21,"to_hour":24,"min":3}` and
+`{"type":"hours","from_hour":4,"to_hour":9,"min":3}`, streak `{"type":"streak","min":7}`.

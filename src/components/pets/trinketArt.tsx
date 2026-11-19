@@ -5,6 +5,7 @@ import { DashFlow, Fx } from './Fx';
 
 import { COLLECTION_KEEPSAKE_INFO } from './collectionData';
 import { COLLECTION_KEEPSAKE_ART } from './collectionKeepsakes';
+import { SWAMP_KEEPSAKE_ART, SWAMP_KEEPSAKE_INFO } from './swampKeepsakes';
 import { WINTER_KEEPSAKE_ART, WINTER_KEEPSAKE_INFO } from './winterKeepsakes';
 
 // The 24 prayer nook trinkets' artwork, converted from design/Trinkets.dc.html (Prayer nook trinkets). Each piece
@@ -917,6 +918,7 @@ export const TRINKET_ART = {
   pearlOfGreatPrice: PearlOfGreatPrice,
   ...COLLECTION_KEEPSAKE_ART,
   ...WINTER_KEEPSAKE_ART,
+  ...SWAMP_KEEPSAKE_ART,
 } as const;
 
 export type TrinketId = keyof typeof TRINKET_ART;
@@ -949,4 +951,5 @@ export const TRINKET_INFO: Record<TrinketId, { name: string; rarity: 'common' | 
   pearlOfGreatPrice: { name: "Pearl of Great Price", rarity: "legendary", goal: "Finish 6 weekly journeys", sound: "Priceless!" },
   ...COLLECTION_KEEPSAKE_INFO,
   ...WINTER_KEEPSAKE_INFO,
+  ...SWAMP_KEEPSAKE_INFO,
 };

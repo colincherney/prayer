@@ -5,17 +5,39 @@ import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { FROST_LORD_ART, FROST_LORD_FRAMES, PalFrame, VESPER_ART, VESPER_FRAMES } from '@/components/pets/FrostLordPet';
 import { DriftLayer, Flake, SnowFall, Star, Twinkles } from '@/components/saint/SceneParticles';
-import { FROST_LORD_ART, FROST_LORD_FRAMES } from '@/components/pets/FrostLordPet';
-import { realStart, shortDate, useWinterEvent } from '@/lib/winterEvent';
+import { EventId, realStart, shortDate, SWAMP_EVENT_ID, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
 
-// The Long Winter's look, from the design pack: navy, gold, aurora teal and cream, all in Playfair Display, no italics.
+// The look of each seasonal event ("skin"): its colours, backdrop, companion art, intro clip and wording. Every event
+// screen, the intro clip, the celebrations and the home banner draw from the skin of the event they belong to, so a
+// new event is a new skin plus a row in public.events. All text is Playfair Display, no italics.
 
-export const W = {
+export type Palette = {
+  navy: string;
+  navyDeep: string;
+  sheet: string;
+  card: string;
+  cardOn: string;
+  /** The main accent: progress, buttons, rewards. */
+  gold: string;
+  /** The second accent: the current chapter, the community bar. */
+  teal: string;
+  cream: string;
+  /** Small capitals over titles. */
+  ice: string;
+  muted: string;
+  faint: string;
+  line: string;
+  track: string;
+};
+
+/** The Long Winter: navy, gold, aurora teal and cream. */
+export const W: Palette = {
   navy: '#0F1834',
   navyDeep: '#0B1230',
   sheet: '#10182A',
@@ -29,7 +51,24 @@ export const W = {
   faint: 'rgba(251,244,230,0.38)',
   line: 'rgba(251,244,230,0.10)',
   track: 'rgba(251,244,230,0.12)',
-} as const;
+};
+
+/** The Swamp King: fen navy, gold, wisp blue and dawn cream. */
+export const SWAMP_PALETTE: Palette = {
+  navy: '#111A26',
+  navyDeep: '#0D141E',
+  sheet: '#111A26',
+  card: '#1B2433',
+  cardOn: '#18283A',
+  gold: '#C9A35A',
+  teal: '#6FC3FF',
+  cream: '#FBF4E6',
+  ice: '#FFE2B8',
+  muted: 'rgba(251,244,230,0.66)',
+  faint: 'rgba(251,244,230,0.38)',
+  line: 'rgba(251,244,230,0.10)',
+  track: 'rgba(251,244,230,0.12)',
+};
 
 export const WF = {
   regular: 'PlayfairDisplay_400Regular',
@@ -44,16 +83,28 @@ export function useWinterFonts(): boolean {
   return loaded;
 }
 
+/* ------------------------------------------------ backdrops ------------------------------------------------ */
+// The still parts are SVGs drawn once; the motion is native view transforms (see SceneParticles). `animated={false}`
+// gives a still copy, like the home banner, which sits on a home scene that already moves.
+
+type BackdropProps = { hills?: boolean; animated?: boolean };
+
 const STARS: Star[] = [
   [20, 30, 1.2, 0], [70, 80, 1, 0.35], [130, 20, 1.3, 0.7], [190, 64, 1, 0.1], [250, 26, 1.2, 0.45],
   [320, 52, 1.3, 0.8], [370, 120, 1, 0.2], [30, 170, 1.1, 0.55], [350, 210, 1.1, 0.9], [110, 240, 1, 0.3],
 ].map(([x, y, r, phase]) => [x / 390, y / 420, r, phase] as Star);
 const SNOW: Flake[] = [[24, 2, 0], [96, 1.6, 0.17], [168, 2.2, 0.33], [240, 1.6, 0.5], [312, 2, 0.67], [370, 1.6, 0.83]]
   .map(([x, r, phase]) => [x / 390, r, phase] as Flake);
+const WISPS: Star[] = [[60, 330, 2.4, 0], [150, 360, 2, 0.4], [250, 340, 2.6, 0.75], [330, 370, 2, 0.2]]
+  .map(([x, y, r, phase]) => [x / 390, y / 420, r, phase] as Star);
 
-const BackdropSky = React.memo(function BackdropSky() {
+const Full = ({ children }: { children: React.ReactNode }) => (
+  <Svg width="100%" height="100%" viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice">{children}</Svg>
+);
+
+const WinterSky = React.memo(function WinterSky() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice">
+    <Full>
       <Defs>
         <LinearGradient id="wbSky" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#0B1230" />
@@ -62,13 +113,13 @@ const BackdropSky = React.memo(function BackdropSky() {
         </LinearGradient>
       </Defs>
       <Rect width={390} height={420} fill="url(#wbSky)" />
-    </Svg>
+    </Full>
   );
 });
 
-const BackdropAurora = React.memo(function BackdropAurora() {
+const WinterAurora = React.memo(function WinterAurora() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice">
+    <Full>
       <Defs>
         <LinearGradient id="wbAur" x1="0" y1="0" x2="1" y2="0">
           <Stop offset="0" stopColor="#5FE3C0" stopOpacity={0.55} />
@@ -78,119 +129,269 @@ const BackdropAurora = React.memo(function BackdropAurora() {
       </Defs>
       <Path d="M-40 140 C40 60 140 170 230 110 C300 64 350 120 430 90 L430 190 C350 220 290 170 220 220 C130 280 40 190 -40 260 Z" fill="url(#wbAur)" opacity={0.6} />
       <Path d="M-40 230 C70 190 160 250 250 210 C320 180 370 220 430 200 L430 250 C370 270 320 230 250 262 C160 300 70 245 -40 290 Z" fill="#6E8BFF" opacity={0.18} />
-    </Svg>
+    </Full>
   );
 });
 
-const BackdropHills = React.memo(function BackdropHills() {
+const WinterHills = React.memo(function WinterHills() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice">
+    <Full>
       <Polygon points="-20,420 80,300 180,420" fill="#24396A" />
       <Polygon points="80,300 66,320 80,316 94,320" fill="#C9D9F0" />
       <Polygon points="210,420 320,280 440,420" fill="#24396A" />
       <Polygon points="320,280 304,302 320,297 336,302" fill="#C9D9F0" />
-    </Svg>
+    </Full>
   );
 });
 
-/**
- * The arctic sky behind the event screens: a navy gradient, a drifting aurora, stars and falling snow. The still parts
- * are SVGs drawn once; the motion is native view transforms (see SceneParticles). `animated={false}` for a still
- * copy, like the home banner, which sits on a home scene that already moves.
- */
-export function AuroraBackdrop({ hills = false, animated = true }: { hills?: boolean; animated?: boolean }) {
+/** The arctic sky: a navy gradient, a drifting aurora, stars and falling snow. */
+export function AuroraBackdrop({ hills = false, animated = true }: BackdropProps) {
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
-      <BackdropSky />
+      <WinterSky />
       <View style={StyleSheet.absoluteFill}>
         <DriftLayer reach={22} duration={28000} animated={animated}>
-          <BackdropAurora />
+          <WinterAurora />
         </DriftLayer>
       </View>
       <Twinkles stars={STARS} animated={animated} />
-      {hills ? (
-        <View style={StyleSheet.absoluteFill}>
-          <BackdropHills />
-        </View>
-      ) : null}
+      {hills ? <View style={StyleSheet.absoluteFill}><WinterHills /></View> : null}
       {animated ? <SnowFall flakes={SNOW} duration={9000} /> : null}
     </View>
   );
 }
 
+const FenSky = React.memo(function FenSky() {
+  return (
+    <Full>
+      <Defs>
+        <LinearGradient id="fbSky" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#1E2033" />
+          <Stop offset="0.55" stopColor="#3A3350" />
+          <Stop offset="1" stopColor="#6A5260" />
+        </LinearGradient>
+        <RadialGradient id="fbSun" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor="#E8B97A" stopOpacity={0.4} />
+          <Stop offset="1" stopColor="#E8B97A" stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect width={390} height={420} fill="url(#fbSky)" />
+      <Circle cx={195} cy={300} r={130} fill="url(#fbSun)" />
+    </Full>
+  );
+});
+
+const FenMist = React.memo(function FenMist() {
+  return (
+    <Full>
+      <Path d="M-40 250 C60 224 160 266 250 240 C320 220 370 250 430 234 L430 284 C350 300 260 274 170 294 C90 310 20 280 -40 298 Z" fill="#C9B8D8" opacity={0.16} />
+    </Full>
+  );
+});
+
+const FenHills = React.memo(function FenHills() {
+  return (
+    <Full>
+      <Polygon points="-30,420 80,300 200,420" fill="#3B3348" />
+      <Polygon points="180,420 300,290 430,420" fill="#3B3348" />
+      <Path d="M70 420 L70 300 M70 350 L48 320 M70 330 L88 304" stroke="#141820" strokeWidth={4} strokeLinecap="round" fill="none" />
+      <Path d="M330 420 L330 330 M330 370 L350 344" stroke="#141820" strokeWidth={4} strokeLinecap="round" fill="none" />
+    </Full>
+  );
+});
+
+/** The fen at dusk: a violet sky with a low sun, drifting mist, stars and blue wisps over the water. */
+export function FenBackdrop({ hills = false, animated = true }: BackdropProps) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+      <FenSky />
+      <Twinkles stars={STARS} animated={animated} />
+      <View style={StyleSheet.absoluteFill}>
+        <DriftLayer reach={20} duration={30000} breathe={[0.5, 1]} animated={animated}>
+          <FenMist />
+        </DriftLayer>
+      </View>
+      {hills ? <View style={StyleSheet.absoluteFill}><FenHills /></View> : null}
+      <Twinkles stars={WISPS} duration={3400} color="#6FC3FF" animated={animated} />
+    </View>
+  );
+}
+
+/* ------------------------------------------------ the skins ------------------------------------------------ */
+
+type Moment = { kicker: string; title: string; body: string; verse: string };
+
+export type EventSkin = {
+  id: EventId;
+  route: '/winter' | '/swamp';
+  /** "winter prayers", "spring prayers" */
+  season: string;
+  /** "WINTER EVENT" */
+  kicker: string;
+  palLine: 'frostLord' | 'vesper';
+  palette: Palette;
+  art: Record<1 | 2 | 3, number>;
+  frames: Record<1 | 2 | 3, PalFrame>;
+  /** Tint for a stage not reached yet. */
+  silhouette: string;
+  Backdrop: React.ComponentType<BackdropProps>;
+  clip: number;
+  clipTitle: string;
+  clipSubtitle: string;
+  /** The one button at the end of the clip. */
+  beginLabel: string;
+  heroHint: string;
+  moments: Record<1 | 2 | 3, Moment>;
+  summaryTitle: string;
+  /** Dev builds: dates the event screen's "pretend today is…" offers. */
+  devDates: string[];
+};
+
+export const WINTER_SKIN: EventSkin = {
+  id: WINTER_EVENT_ID,
+  route: '/winter',
+  season: 'winter',
+  kicker: 'WINTER EVENT',
+  palLine: 'frostLord',
+  palette: W,
+  art: FROST_LORD_ART,
+  frames: FROST_LORD_FRAMES,
+  silhouette: 'rgba(191,230,255,0.28)',
+  Backdrop: AuroraBackdrop,
+  clip: require('../../../assets/video/face-the-winter-lord.mp4'),
+  clipTitle: 'Face the\nWinter Lord',
+  clipSubtitle: 'Complete the winter challenges\nto bring him home.',
+  beginLabel: 'Begin the winter',
+  heroHint: 'Pray to meet Snowcap',
+  moments: {
+    1: { kicker: 'THE LONG WINTER', title: 'Snowcap has arrived', body: 'A little apprentice of the snow walks with you now. Finish the winter challenges and he will grow.', verse: 'He giveth snow like wool. Psalm 147:16' },
+    2: { kicker: 'FOUR CHALLENGES DONE', title: 'Your Frost Mage is ready', body: 'Snowcap has grown into the Frost Mage. Finish all ten challenges to crown the Frost Lord.', verse: 'The people that walked in darkness have seen a great light. Isaiah 9:2' },
+    3: { kicker: 'ALL TEN CHALLENGES DONE', title: 'The Frost Lord is crowned', body: 'You faced the long winter and brought him home. He is yours to keep, and all five winter keepsakes are on your shelf.', verse: 'He sendeth out his word, and melteth them. Psalm 147:18' },
+  },
+  summaryTitle: 'Your long winter',
+  devDates: ['2026-12-01', '2026-12-24', '2026-12-25', '2027-01-01', '2027-01-10', '2027-01-11', '2027-01-31', '2027-02-01', '2027-02-07', '2027-02-08'],
+};
+
+export const SWAMP_SKIN: EventSkin = {
+  id: SWAMP_EVENT_ID,
+  route: '/swamp',
+  season: 'spring',
+  kicker: 'SPRING EVENT',
+  palLine: 'vesper',
+  palette: SWAMP_PALETTE,
+  art: VESPER_ART,
+  frames: VESPER_FRAMES,
+  silhouette: 'rgba(255,226,184,0.26)',
+  Backdrop: FenBackdrop,
+  clip: require('../../../assets/video/face-the-swamp-king.mp4'),
+  clipTitle: 'Face the\nSwamp King',
+  clipSubtitle: 'Complete the spring challenges\nto bring him home.',
+  beginLabel: 'Enter the fen',
+  heroHint: 'Pray to meet Vesper',
+  moments: {
+    1: { kicker: 'THE SWAMP KING', title: 'Vesper has arrived', body: 'A little wanderer of the fen walks with you now. Finish the spring challenges and he will grow.', verse: 'I waited patiently for the LORD; and he inclined unto me. Psalm 40:1' },
+    2: { kicker: 'FOUR CHALLENGES DONE', title: 'Your Fen Warden is ready', body: 'Vesper has grown into the Fen Warden, his blade mended. Finish all ten challenges to crown the Old King.', verse: 'And heard my cry. Psalm 40:1' },
+    3: { kicker: 'ALL TEN CHALLENGES DONE', title: 'The Old King is crowned', body: 'You brought him up out of the miry clay. He is yours to keep, and all five spring keepsakes are on your shelf.', verse: 'He set my feet upon a rock. Psalm 40:2' },
+  },
+  summaryTitle: 'Your season in the fen',
+  devDates: ['2027-03-01', '2027-03-15', '2027-03-21', '2027-03-28', '2027-04-01', '2027-04-05', '2027-04-28', '2027-05-01', '2027-05-02'],
+};
+
+export const SKINS: Record<EventId, EventSkin> = { [WINTER_EVENT_ID]: WINTER_SKIN, [SWAMP_EVENT_ID]: SWAMP_SKIN };
+
+/** Which event's skin the components below use. */
+export const SkinContext = createContext<EventSkin>(WINTER_SKIN);
+export const useSkin = () => useContext(SkinContext);
+
+/* ------------------------------------------------ pieces ------------------------------------------------ */
+
 /**
- * The Frost Lord line's art for a stage; stage 0 (not met yet) is Snowcap as a silhouette. `height` sizes the bear
- * (the original 1120 px frame), so all three stand at the same scale; the Mage's and Lord's hats rise above it.
+ * The event companion's art for a stage; stage 0 (not met yet) is the first stage as a silhouette. `height` sizes the
+ * figure (its original painted frame), so all three stages stand at the same scale; extended hats rise above it.
  */
 export function StageImage({ stage, height, dim }: { stage: number; height: number; dim?: boolean }) {
+  const skin = useSkin();
   const s = (Math.min(3, Math.max(1, stage)) as 1 | 2 | 3);
-  const f = FROST_LORD_FRAMES[s];
+  const f = skin.frames[s];
   const scale = height / f.body;
   const silhouette = stage < 1 || dim;
   return (
     <Image
-      source={FROST_LORD_ART[s]}
+      source={skin.art[s]}
       accessibilityIgnoresInvertColors
-      style={{ height: f.h * scale, width: f.w * scale, tintColor: silhouette ? 'rgba(191,230,255,0.28)' : undefined }}
+      style={{ height: f.h * scale, width: f.w * scale, tintColor: silhouette ? skin.silhouette : undefined }}
       resizeMode="contain"
     />
   );
 }
 
 export function ProgressBar({ value, color, height = 8 }: { value: number; color: string; height?: number }) {
+  const { palette } = useSkin();
   return (
-    <View style={{ height, borderRadius: height / 2, backgroundColor: W.track, overflow: 'hidden' }}>
+    <View style={{ height, borderRadius: height / 2, backgroundColor: palette.track, overflow: 'hidden' }}>
       <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height, borderRadius: height / 2, backgroundColor: color }} />
     </View>
   );
 }
 
-const BANNER_KEY = 'winter.bannerDismissed';
+const bannerKey = (id: EventId) => (id === WINTER_EVENT_ID ? 'winter.bannerDismissed' : `event.bannerDismissed.${id}`);
 
 /**
- * The home screen's banner (design: home-winter-banner@3x.png): only while the event is on and switched on in the
- * database, opens the event screen, and can be put away for the rest of the day.
+ * The home screen's banner for whichever event is running: only while it's on and switched on in the database, opens
+ * its screen, and can be put away for the rest of the day.
  */
 export function WinterBanner({ style }: { style?: object }) {
+  const { liveId } = useEvents();
+  if (!liveId) return null;
+  return (
+    <SkinContext.Provider value={SKINS[liveId]}>
+      <EventBanner key={liveId} style={style} />
+    </SkinContext.Provider>
+  );
+}
+
+function EventBanner({ style }: { style?: object }) {
+  const skin = useSkin();
+  const P = skin.palette;
   const fontsLoaded = useWinterFonts();
-  const { state, phase, today } = useWinterEvent();
+  const { states, today } = useEvents();
+  const state = states[skin.id];
   const [dismissedOn, setDismissedOn] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    AsyncStorage.getItem(BANNER_KEY).then(setDismissedOn).catch(() => setDismissedOn(null));
-  }, []);
-  if (!fontsLoaded || !state || !state.event.is_active || phase !== 'live' || dismissedOn === undefined || dismissedOn === today) {
-    return null;
-  }
+    AsyncStorage.getItem(bannerKey(skin.id)).then(setDismissedOn).catch(() => setDismissedOn(null));
+  }, [skin.id]);
+  if (!fontsLoaded || !state || dismissedOn === undefined || dismissedOn === today) return null;
   const stage = state.progress?.stage_unlocked ?? 0;
+  const Backdrop = skin.Backdrop;
   const dismiss = () => {
     setDismissedOn(today);
-    AsyncStorage.setItem(BANNER_KEY, today).catch(() => {});
+    AsyncStorage.setItem(bannerKey(skin.id), today).catch(() => {});
   };
   return (
     <Pressable
-      onPress={() => router.push('/winter')}
+      onPress={() => router.push(skin.route)}
       accessibilityRole="button"
-      accessibilityLabel={`${state.event.title}, winter event, ${shortDate(realStart(state.event))} to ${shortDate(state.event.ends_on)}. Opens the event.`}
+      accessibilityLabel={`${state.event.title}, ${skin.season} event, ${shortDate(realStart(state.event))} to ${shortDate(state.event.ends_on)}. Opens the event.`}
       style={({ pressed }) => [banner.wrap, style, pressed && { opacity: 0.9 }]}>
       {/* still: the home scene behind it already moves */}
-      <AuroraBackdrop hills animated={false} />
+      <Backdrop hills animated={false} />
       <View style={banner.text}>
-        <Text style={banner.kicker} numberOfLines={1}>
-          WINTER EVENT · {shortDate(realStart(state.event)).toUpperCase()} TO {shortDate(state.event.ends_on).toUpperCase()}
+        <Text style={[banner.kicker, { color: P.ice }]} numberOfLines={1}>
+          {skin.kicker} · {shortDate(realStart(state.event)).toUpperCase()} TO {shortDate(state.event.ends_on).toUpperCase()}
         </Text>
-        <Text style={banner.title} numberOfLines={2}>{state.event.title}</Text>
+        <Text style={[banner.title, { color: P.cream }]} numberOfLines={2}>{state.event.title}</Text>
       </View>
       <View style={banner.art} pointerEvents="none">
-        {/* small enough that the Lord's whole hat fits the 96pt banner */}
-        <StageImage stage={Math.max(stage, 3)} height={74} dim={stage < 3} />
+        {/* small enough that the final stage's whole hat or crown fits the 96pt banner */}
+        <StageImage stage={3} height={74} dim={stage < 3} />
         {stage >= 1 && stage < 3 ? (
           <View style={banner.current}>
             <StageImage stage={stage} height={70} />
           </View>
         ) : null}
       </View>
-      <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide the winter banner for today" style={banner.close}>
-        <Text style={banner.closeText}>×</Text>
+      <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide the event banner for today" style={banner.close}>
+        <Text style={[banner.closeText, { color: P.cream }]}>×</Text>
       </Pressable>
     </Pressable>
   );
@@ -199,10 +400,10 @@ export function WinterBanner({ style }: { style?: object }) {
 const banner = StyleSheet.create({
   wrap: { height: 96, borderRadius: 22, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(191,230,255,0.18)' },
   text: { flex: 1, paddingLeft: 18, paddingRight: 6, gap: 2 },
-  kicker: { fontFamily: WF.semi, fontSize: 9.5, letterSpacing: 1.6, color: W.ice },
-  title: { fontFamily: WF.bold, fontSize: 26, lineHeight: 30, color: W.cream },
+  kicker: { fontFamily: WF.semi, fontSize: 9.5, letterSpacing: 1.6 },
+  title: { fontFamily: WF.bold, fontSize: 26, lineHeight: 30 },
   art: { width: 112, height: 96, alignItems: 'center', justifyContent: 'flex-end', marginRight: 10 },
   current: { position: 'absolute', left: -18, bottom: 0 },
   close: { position: 'absolute', top: 6, right: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(7,11,30,0.45)' },
-  closeText: { color: W.cream, fontSize: 15, lineHeight: 17, fontFamily: WF.semi },
+  closeText: { fontSize: 15, lineHeight: 17, fontFamily: WF.semi },
 });

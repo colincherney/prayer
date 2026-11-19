@@ -1,9 +1,9 @@
 import React from 'react';
 
 import { useReleases } from '@/lib/releases';
-import { useFrostLordStage } from '@/lib/winterEvent';
+import { usePalStages } from '@/lib/winterEvent';
 
-import { FrostLordBear } from './FrostLordPet';
+import { FrostLordBear, VesperPal } from './FrostLordPet';
 
 import { OliveDove } from './Dove';
 import { SelahDragon } from './Dragon';
@@ -37,7 +37,8 @@ export type PetId =
   | 'rooster'
   | 'dog'
   | 'pig'
-  | 'frostLord';
+  | 'frostLord'
+  | 'vesper';
 
 export type PetDef = {
   id: PetId;
@@ -262,6 +263,18 @@ export const PETS: PetDef[] = [
     eventLine: true,
     Art: FrostLordBear,
   },
+  // The Swamp King event's companion: Vesper arrives with the first spring prayer, the Fen Warden with four challenges,
+  // and the Old King when all ten are done (src/lib/winterEvent.ts).
+  {
+    id: 'vesper',
+    name: 'Vesper',
+    species: 'Fen wanderer',
+    tagline: 'From a little wanderer to the Old King of the fen.',
+    stages: ['Vesper', 'Fen Warden', 'The Old King'],
+    season: 'The Swamp King',
+    eventLine: true,
+    Art: VesperPal,
+  },
 ];
 
 export const DEFAULT_PET: PetId = 'lamb';
@@ -269,8 +282,9 @@ export const DEFAULT_PET: PetId = 'lamb';
 /** The companions that can be picked right now: scheduled ones appear once the database releases them. */
 export function useAvailablePets(): PetDef[] {
   const { isReleased } = useReleases();
-  const frostStage = useFrostLordStage();
-  return PETS.filter(p => (p.eventLine ? frostStage >= 1 : !p.scheduled || isReleased(`pet:${p.id}`)));
+  const palStages = usePalStages();
+  // An event companion can be picked once its first stage has been met in its event.
+  return PETS.filter(p => (p.eventLine ? (palStages[p.id] ?? 0) >= 1 : !p.scheduled || isReleased(`pet:${p.id}`)));
 }
 
 export function getPet(id: PetId): PetDef {

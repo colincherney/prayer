@@ -17,7 +17,7 @@ import React, {
 import { useReleases } from '@/lib/releases';
 
 import { MONTHLY_ROOM_NAMES, MONTHLY_ROOMS, MonthlyRoomName } from './monthlyRooms';
-import { setWinterLookOff, useWinterLordActive, WINTER_LORD_EVENT } from './winterLord';
+import { EVENT_LOOKS, setLookChoice, useEventLookRoom } from './winterLord';
 
 export type PrayerRoomName =
   | 'lamp'
@@ -28,6 +28,7 @@ export type PrayerRoomName =
   | 'thanksgiving'
   | 'christmas'
   | 'winter'
+  | 'swamp'
   | MonthlyRoomName;
 
 const monthly = <T,>(pick: (name: MonthlyRoomName) => T) =>
@@ -251,6 +252,30 @@ const WINTER: PrayerRoomPalette = {
   lowMuted: 'rgba(15,24,52,0.6)',
 };
 
+// The Swamp King — a fen at dusk: violet sky, gold accent and cream text, from the swamp-king design pack. The bank
+// below the stump is dark, so the bottom ticker stays light.
+const SWAMP: PrayerRoomPalette = {
+  bg: '#111A26',
+  bgSoft: '#1E2433',
+  surface: '#1B2433',
+  ink: '#FBF4E6',
+  inkSoft: 'rgba(251,244,230,0.84)',
+  muted: 'rgba(251,244,230,0.58)',
+  divider: 'rgba(251,244,230,0.18)',
+  accent: '#C9A35A',
+  accentSoft: '#6FC3FF',
+  pillBg: 'rgba(111,195,255,0.14)',
+  pillInk: '#FBF4E6',
+  cardDark: 'rgba(17,26,38,0.92)',
+  cardDarkInk: '#FBF4E6',
+  cardLight: 'rgba(255,226,184,0.95)',
+  cardLightInk: '#111A26',
+  cardLightInkSoft: 'rgba(17,26,38,0.72)',
+  cardLightPillBg: 'rgba(201,163,90,0.22)',
+  cardLightPillInk: '#7A5A1E',
+  statusBar: 'light-content',
+};
+
 export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
@@ -260,6 +285,7 @@ export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   thanksgiving: THANKSGIVING,
   christmas: CHRISTMAS,
   winter: WINTER,
+  swamp: SWAMP,
   ...monthly(n => MONTHLY_ROOMS[n].palette),
 };
 
@@ -272,6 +298,7 @@ export const PRAYER_ROOM_ORDER: PrayerRoomName[] = [
   'thanksgiving',
   'christmas',
   'winter',
+  'swamp',
   ...MONTHLY_ROOM_NAMES,
 ];
 
@@ -284,6 +311,7 @@ export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   thanksgiving: 'Give Thanks',
   christmas: 'God With Us',
   winter: 'The Long Winter',
+  swamp: 'The Swamp King',
   ...monthly(n => MONTHLY_ROOMS[n].label),
 };
 
@@ -293,10 +321,13 @@ const SCHEDULED_ROOMS: PrayerRoomName[] = ['thanksgiving', 'christmas', ...MONTH
 /** The rooms that can be picked right now: everything except seasonal rooms whose date hasn't come. */
 export function useAvailableRooms(): PrayerRoomName[] {
   const { isReleased, isEventOn } = useReleases();
-  // The Long Winter (the ice bear's wallpaper) can be picked only while the Winter Lord event is on. Afterwards it's in
+  // An event's room (the Long Winter, the Swamp King) can be picked only while its event is on. Afterwards it's in
   // the vault, and anyone who had picked it goes back to the seasonal wallpaper.
-  const winterOut = isEventOn(WINTER_LORD_EVENT);
-  return PRAYER_ROOM_ORDER.filter(r => (r === 'winter' ? winterOut : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`)));
+  const lookWindow = new Map<string, string>(EVENT_LOOKS.map(l => [l.room, l.window]));
+  return PRAYER_ROOM_ORDER.filter(r => {
+    const window = lookWindow.get(r);
+    return window ? isEventOn(window) : !SCHEDULED_ROOMS.includes(r) || isReleased(`room:${r}`);
+  });
 }
 
 const STORAGE_KEY = 'saint.prayerRoom';
@@ -346,19 +377,20 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
     // Runs again when the account's copy arrives (a new phone), which may have a different look.
   }, [cloudVersion]);
 
+  const { isEventOn } = useReleases();
   const setRoom = useCallback((next: PrayerRoomName) => {
-    // During the Long Winter, picking another wallpaper switches the winter look off; picking it switches it back on.
-    setWinterLookOff(next !== 'winter');
+    // During an event, picking another wallpaper switches its look off; picking the event's room switches it back on.
+    setLookChoice(next, EVENT_LOOKS.map(l => l.window).filter(w => isEventOn(w)));
     setChosen(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
     saveEntryToCloud('appearance', 'room', next);
-  }, []);
+  }, [isEventOn]);
 
+  // During an event everyone gets its room by default; their own pick returns afterwards (or when they switch it off).
+  const lookRoom = useEventLookRoom();
   // A room that isn't out (e.g. its date was moved later) falls back to the seasonal default.
-  const winterLord = useWinterLordActive();
-  // During the Winter Lord event everyone gets the Long Winter room; their own pick returns afterwards.
-  const name: PrayerRoomName = winterLord
-    ? 'winter'
+  const name: PrayerRoomName = lookRoom
+    ? lookRoom
     : chosen && available.includes(chosen)
       ? chosen
       : seasonal;
