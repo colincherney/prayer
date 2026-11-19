@@ -746,3 +746,11 @@ Function first, or it will fail to save).
   tester keeps Snowcap. To start everyone fresh on Dec 1:
   `delete from public.user_event_progress where event_id = 'long-winter-2026';`
 - **To test again:** set `starts_on` back to today and `allow_test_dates` to true, the reverse of the update above.
+
+## Long Winter back in testing mode (2026-11-19)
+
+The user is still testing, so `supabase/migrations/20261119_winter_testing_mode_on.sql` puts the event back to
+starting 2026-11-18, with `allow_test_dates` on and the `event:winterLord` window open from Nov 18. Everyone who had
+prayed since Nov 18 was re-checked, so their prayers count straight away.
+
+**Before Dec 1, run `supabase/migrations/20261118_winter_launch_settings.sql` again** to leave testing mode.
