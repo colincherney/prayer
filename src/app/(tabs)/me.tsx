@@ -353,6 +353,11 @@ function MeContent() {
                   accessibilityLabel="Open customizations" style={[styles.action, actionSizing]}>
                   <Text style={styles.actionText}>Customizations</Text>
                 </NookButton>
+                {/* 3d-test branch: temporary entry to the 3D cabin prototype. */}
+                <NookButton onPress={() => router.push('/cabin3d')} accessibilityRole="link"
+                  accessibilityLabel="Open the 3D cabin test" style={[styles.action, actionSizing]}>
+                  <Text style={styles.actionText}>3D Cabin</Text>
+                </NookButton>
               </View>
             </Animated.View>
           </View>

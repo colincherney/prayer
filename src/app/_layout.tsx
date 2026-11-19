@@ -133,6 +133,8 @@ function RootStack() {
       <Stack.Screen name="quests" options={{ presentation: 'card' }} />
       <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
+      {/* 3d-test: swipe-back off so dragging to look around doesn't pop the screen. */}
+      <Stack.Screen name="cabin3d" options={{ presentation: 'card', gestureEnabled: false }} />
     </Stack>
   );
 }
