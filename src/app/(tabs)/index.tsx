@@ -24,6 +24,7 @@ import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
+import { BelovedScene } from '@/components/saint/BelovedScene';
 import { SwampKingScene } from '@/components/saint/SwampKingScene';
 import { WinterLordScene } from '@/components/saint/WinterLordScene';
 import { WinterBanner } from '@/components/winter/winterUi';
@@ -41,6 +42,7 @@ import {
   CHRISTMAS_VERSES,
   HALLOWEEN_VERSES,
   THANKSGIVING_VERSES,
+  BELOVED_VERSES,
   SWAMP_VERSES,
   VERSES,
   WINTER_VERSES,
@@ -326,6 +328,8 @@ function RoomHomeScreen() {
                 ? ChristmasScene
                 : roomName === 'winter'
                   ? WinterLordScene
+                  : roomName === 'beloved'
+                  ? BelovedScene
                   : roomName === 'swamp'
                   ? SwampKingScene
                   : roomName in MONTHLY_SCENES
@@ -341,7 +345,7 @@ function RoomHomeScreen() {
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
       <SceneComponent />
       {/* The event scenes have their own snow, mist and wisps, so they skip the warm dust (less to animate). */}
-      {roomName === 'winter' || roomName === 'swamp' ? null : <DustMotes count={26} />}
+      {roomName === 'winter' || roomName === 'swamp' || roomName === 'beloved' ? null : <DustMotes count={26} />}
 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar barStyle={ROOM.statusBar} />
@@ -499,6 +503,7 @@ const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
   thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
   christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
   winter: { ...split(WINTER_VERSES), pill: 'The Long Winter', word: 'light' },
+  beloved: { ...split(BELOVED_VERSES), pill: 'The Beloved', word: 'love' },
   swamp: { ...split(SWAMP_VERSES), pill: 'The Swamp King', word: 'hope' },
 };
 

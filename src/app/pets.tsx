@@ -186,7 +186,7 @@ export default function PrayerPalsScreen() {
 
         {live && liveSkin ? (
           <Pressable onPress={() => router.push(liveSkin.route)} accessibilityRole="button" style={styles.winterRow}>
-            <Text style={styles.winterText}>{liveSkin.palLine === 'frostLord' ? '❄' : '✦'} {live.event.title}</Text>
+            <Text style={styles.winterText}>{liveSkin.palLine === 'frostLord' ? '❄' : liveSkin.palLine === 'beloved' ? '♥' : '✦'} {live.event.title}</Text>
             <Text style={styles.winterSub}>{liveStage >= 1 ? `Grow ${liveNames[0]} into ${liveNames[2]}` : `Meet ${liveNames[0]}`}  ›</Text>
           </Pressable>
         ) : null}

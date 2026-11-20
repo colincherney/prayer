@@ -139,6 +139,7 @@ function RootStack() {
       <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
       <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
       <Stack.Screen name="winter" options={{ presentation: 'card' }} />
+      <Stack.Screen name="beloved" options={{ presentation: 'card' }} />
       <Stack.Screen name="swamp" options={{ presentation: 'card' }} />
       <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
     </Stack>

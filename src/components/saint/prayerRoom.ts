@@ -28,6 +28,7 @@ export type PrayerRoomName =
   | 'thanksgiving'
   | 'christmas'
   | 'winter'
+  | 'beloved'
   | 'swamp'
   | MonthlyRoomName;
 
@@ -252,6 +253,31 @@ const WINTER: PrayerRoomPalette = {
   lowMuted: 'rgba(15,24,52,0.6)',
 };
 
+// The Beloved — a rose garden by day around a marble temple: blush sky, wine text and a rose accent, from the beloved
+// design pack. The only light event room. The hedges along the bottom are deep green, so the bottom ticker goes light.
+const BELOVED: PrayerRoomPalette = {
+  bg: '#FBE6E6',
+  bgSoft: '#F7D6DD',
+  surface: '#FFF8F5',
+  ink: '#4A2232',
+  inkSoft: 'rgba(74,34,50,0.84)',
+  muted: 'rgba(74,34,50,0.58)',
+  divider: 'rgba(74,34,50,0.16)',
+  accent: '#C2546F',
+  accentSoft: '#E8879B',
+  pillBg: 'rgba(194,84,111,0.12)',
+  pillInk: '#4A2232',
+  cardDark: 'rgba(74,34,50,0.88)',
+  cardDarkInk: '#FFF5F7',
+  cardLight: 'rgba(255,248,245,0.95)',
+  cardLightInk: '#4A2232',
+  cardLightInkSoft: 'rgba(74,34,50,0.72)',
+  cardLightPillBg: 'rgba(194,84,111,0.14)',
+  cardLightPillInk: '#C2546F',
+  statusBar: 'dark-content',
+  lowMuted: 'rgba(255,250,246,0.9)',
+};
+
 // The Swamp King — a fen at dusk: violet sky, gold accent and cream text, from the swamp-king design pack. The bank
 // below the stump is dark, so the bottom ticker stays light.
 const SWAMP: PrayerRoomPalette = {
@@ -285,6 +311,7 @@ export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   thanksgiving: THANKSGIVING,
   christmas: CHRISTMAS,
   winter: WINTER,
+  beloved: BELOVED,
   swamp: SWAMP,
   ...monthly(n => MONTHLY_ROOMS[n].palette),
 };
@@ -298,6 +325,7 @@ export const PRAYER_ROOM_ORDER: PrayerRoomName[] = [
   'thanksgiving',
   'christmas',
   'winter',
+  'beloved',
   'swamp',
   ...MONTHLY_ROOM_NAMES,
 ];
@@ -311,6 +339,7 @@ export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   thanksgiving: 'Give Thanks',
   christmas: 'God With Us',
   winter: 'The Long Winter',
+  beloved: 'The Beloved',
   swamp: 'The Swamp King',
   ...monthly(n => MONTHLY_ROOMS[n].label),
 };
@@ -321,7 +350,7 @@ const SCHEDULED_ROOMS: PrayerRoomName[] = ['thanksgiving', 'christmas', ...MONTH
 /** The rooms that can be picked right now: everything except seasonal rooms whose date hasn't come. */
 export function useAvailableRooms(): PrayerRoomName[] {
   const { isReleased, isEventOn, isDev } = useReleases();
-  // An event's room (the Long Winter, the Swamp King) can be picked only while its event is on (any time on a dev
+  // An event's room (the Long Winter, the Beloved, the Swamp King) can be picked only while its event is on (any time on a dev
   // account). Afterwards it's in the vault, and anyone who had picked it goes back to the seasonal wallpaper.
   const lookWindow = new Map<string, string>(EVENT_LOOKS.map(l => [l.room, l.window]));
   return PRAYER_ROOM_ORDER.filter(r => {

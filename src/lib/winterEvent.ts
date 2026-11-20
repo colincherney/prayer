@@ -15,12 +15,13 @@ import { deviceTimeZone, eventDayFor, phaseFor } from './winterDates';
 export * from './winterDates';
 
 export const WINTER_EVENT_ID = 'long-winter-2026';
+export const BELOVED_EVENT_ID = 'beloved-2027';
 export const SWAMP_EVENT_ID = 'swamp-king-2027';
 /** Every event the app knows how to show, oldest first. */
-export const EVENT_IDS = [WINTER_EVENT_ID, SWAMP_EVENT_ID] as const;
+export const EVENT_IDS = [WINTER_EVENT_ID, BELOVED_EVENT_ID, SWAMP_EVENT_ID] as const;
 export type EventId = (typeof EVENT_IDS)[number];
 /** Which event each event-only companion belongs to. */
-export const PAL_EVENTS: Record<string, EventId> = { frostLord: WINTER_EVENT_ID, vesper: SWAMP_EVENT_ID };
+export const PAL_EVENTS: Record<string, EventId> = { frostLord: WINTER_EVENT_ID, beloved: BELOVED_EVENT_ID, vesper: SWAMP_EVENT_ID };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types (the shapes public.winter_event_state returns)
@@ -39,6 +40,8 @@ export type WinterConfig = {
   real_starts_on?: string;
   weeks_start?: string;
   allow_test_dates?: boolean;
+  /** Testing mode on any build: the day the event pretends it is (with allow_test_dates), e.g. "2027-02-01". */
+  test_today?: string;
   claim_grace_days?: number;
   chapters: { key: string; title: string; starts_on: string; ends_on: string }[];
   evolutions: { stage: number; name: string; unlock: { min_event_prayers?: number; min_challenges?: number; not_before?: string; claim?: boolean } }[];
@@ -48,6 +51,8 @@ export type WinterConfig = {
   weekly_rewards?: { week: number; keepsake: string; days_needed?: number }[];
   /** Keepsakes given the moment every challenge is done, straight onto the shelf. */
   completion_rewards?: string[];
+  /** Looks the final stage can switch between once it's reached (the Beloved: marble, or her Seraph spirit form). */
+  forms?: { key: string; name: string; kind?: string }[];
   community_goal: { key: string; title?: string; target: number; reward: string; reward_name?: string };
   challenges: { key: string; title: string; detail: string; rule: ChallengeRule }[];
 };
@@ -156,6 +161,11 @@ export function refreshEvent(id: EventId, force = false): Promise<WinterState | 
       en.lastFetch = Date.now();
       AsyncStorage.setItem(cacheKey(id), JSON.stringify(en.current)).catch(() => {});
       emit();
+      // A dev date left on the phone after testing ends: once every event has loaded and none is in testing mode,
+      // go back to the real date.
+      if (__DEV__ && devToday && EVENT_IDS.every(e => entry(e).current && !entry(e).current!.event.config.allow_test_dates)) {
+        setDevToday(null).catch(() => {});
+      }
       return en.current;
     } catch {
       return en.current;
@@ -240,12 +250,26 @@ export function winterToday(): string {
   return (__DEV__ && devToday) || eventDayFor(new Date(), deviceTimeZone());
 }
 
-/** Keeps every event fresh: on mount, when the app comes back, and every minute if `poll`. */
+/**
+ * The day an event is shown for: the dev date (dev builds), or its testing-mode pretend day (config.test_today, any
+ * build, only while allow_test_dates is on), or the real local day.
+ */
+export function eventToday(state: WinterState | null, devDay: string | null): string {
+  const c = state?.event.config;
+  // Only while the event is in testing mode: the server ignores test dates otherwise, so the app does too (a dev
+  // date left on the phone from testing can't keep a finished test showing).
+  if (__DEV__ && devDay && c?.allow_test_dates) return devDay;
+  if (c?.allow_test_dates && c.test_today) return c.test_today;
+  return eventDayFor(new Date(), deviceTimeZone());
+}
+
+/** Keeps every event fresh: on mount, when the app comes back, and every minute if `poll` (the event screen, which
+ * also skips the one-minute cache when it opens, so a prayer you just prayed shows straight away). */
 function useRefreshing(ids: readonly EventId[], poll?: boolean) {
   const key = ids.join(',');
   useEffect(() => {
     const list = key.split(',') as EventId[];
-    list.forEach(id => refreshEvent(id));
+    list.forEach(id => refreshEvent(id, !!poll));
     const sub = AppState.addEventListener('change', s => {
       if (s === 'active') list.forEach(id => refreshEvent(id));
     });
@@ -274,8 +298,10 @@ export function useEvent(id: EventId, options: { poll?: boolean } = {}) {
   useRefreshing([id], options.poll);
   const refresh = useCallback(() => refreshEvent(id, true), [id]);
   const state = snap.states[id];
-  const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
-  return { id, state, today, ...view(state, today), devToday: snap.devToday, refresh };
+  const today = eventToday(state, snap.devToday);
+  /** The real calendar day, which prayers are recorded on (differs from `today` while testing a pretend day). */
+  const realToday = eventDayFor(new Date(), deviceTimeZone());
+  return { id, state, today, realToday, ...view(state, today), devToday: snap.devToday, refresh };
 }
 
 export function useWinterEvent(options: { poll?: boolean } = {}) {
@@ -287,7 +313,7 @@ export function useEvents() {
   const snap = useSyncExternalStore(subscribe, () => snapshot);
   useRefreshing(EVENT_IDS);
   const today = (__DEV__ && snap.devToday) || eventDayFor(new Date(), deviceTimeZone());
-  const live = EVENT_IDS.find(id => view(snap.states[id], today).visible) ?? null;
+  const live = EVENT_IDS.find(id => view(snap.states[id], eventToday(snap.states[id], snap.devToday)).visible) ?? null;
   return { states: snap.states, today, devToday: snap.devToday, liveId: live };
 }
 

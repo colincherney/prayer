@@ -930,3 +930,76 @@ companion. A switched-off event now returns your saved progress, without re-chec
 
 **Revert:** re-create `winter_event_state` without the `elsif uid is not null` branch (the version in
 `20261118_long_winter_event.sql`).
+
+## The Beloved: the Valentine event (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_beloved_event.sql`. Tests: `supabase/tests/beloved_event.test.sql` (14/14).
+- `public.events` row `beloved-2027`: Feb 1 to Feb 28, 2027, between the Long Winter and the Swamp King. Companion line
+  `beloved`: the Cherub (first prayer), the Muse (3 challenges) and The Beloved (all 6), plus four keepsakes
+  (`loveLetter`, `roseBouquet`, `goldenLyre`, `marbleHeart`). Shorter and easier than the two-month events: 6 challenges, every
+  one doable on any day (prayers, different requests, journal entries, encouragements). Her Seraph spirit form is only a
+  look in the app (`config.forms`), so the database just needs stage 3.
+- `community_counters` `garden_of_candles` (target 1,500, unlocks `scene:blossom`).
+- `content_windows` `event:beloved`: Feb 1 00:00 ET to Mar 1 00:00 ET (the rose-garden look).
+- `'beloved'` added to the pet-id checks on `group_members`, `pet_xp` and `pet_state`, and to `switch_pet()`.
+
+**Revert:**
+```sql
+delete from public.user_event_progress where event_id = 'beloved-2027';
+delete from public.community_counters where event_id = 'beloved-2027';
+delete from public.events where id = 'beloved-2027';
+delete from public.content_windows where id = 'event:beloved';
+-- then re-add the pet-id checks and switch_pet() without 'beloved' (the versions in 20261119_swamp_king_event.sql)
+```
+
+## Beloved testing mode ON, then OFF (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_beloved_testing_mode_on.sql`. The event and its look start today (2026-11-19)
+instead of Feb 1, so TestFlight builds show it and real prayers count. Everything people see still says Feb 1
+(`config.real_starts_on`). Turn it off before release with `20261119_beloved_testing_mode_off.sql` (run 2026-11-19, testing done): it puts the
+dates back and zeroes the community count.
+
+**Revert:** run `20261119_beloved_testing_mode_off.sql`.
+
+## Beloved intro reset for the dev account (2026-11-19)
+
+Data only, at the owner's request (to see the first-open intro again): on the dev account's `beloved-2027` progress row,
+`intro_seen_at` was set to null and `stage_seen` to 0, so the "Meet the Beloved" clip auto-plays again, then the Cherub
+celebration. The Cherub itself (stage 1) is kept.
+
+**Revert:** nothing to undo; playing the clip marks it seen again.
+
+## Storage bucket for the event intro clips (2026-11-19)
+
+**Applied as:** migration `event_clips_bucket` (via the connector). A public bucket `event-clips` (video/mp4 only, 15 MB per file)
+for the three intro clips, which the app now streams instead of bundling them, saving about 21 MB of download size:
+`face-the-winter-lord.mp4`, `meet-the-beloved.mp4`, `face-the-swamp-king.mp4`. The source files are in
+`design/event-clips/`. They're uploaded by hand in the dashboard (Storage → event-clips → Upload); there's no upload policy, so
+only the dashboard or the service role can add files.
+
+**Revert:** empty the bucket in the dashboard, then `delete from storage.buckets where id = 'event-clips';`, and put the clips
+back as bundled `require()`s in `src/components/winter/winterUi.tsx`.
+
+## Pretend day for testing mode (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_event_test_today.sql`. While an event's `config.allow_test_dates` is on,
+`winter_event_state` checks the event as of `config.test_today` (unless a dev build sends its own date), and the app
+shows that day too. Set to `"2027-02-01"` on `beloved-2027`, so testing on TestFlight looks like Feb 1, while prayers
+prayed now still count. `20261119_beloved_testing_mode_off.sql` now removes `test_today`.
+
+**Revert:** re-create `winter_event_state` from `20261119_keep_what_you_earned.sql`, and
+`update public.events set config = config - 'test_today' where id = 'beloved-2027';`
+
+## Dev account: every event challenge counts as done (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_dev_account_all_challenges.sql`, at the owner's request ("max out my account
+with all quests completed"). It patches the live `private.evaluate_event` in place: one block added before the weekly
+keepsakes. For accounts with an `account_unlocks` `'dev'` row, every challenge counts as done and none as closed, so
+every event shows finished, with its final stage and keepsakes. Then the dev account's events were re-checked: the Beloved
+(6/6, stage 3, 4 keepsakes), the Long Winter (10/10) and the Swamp King (10/10). Everyone else is unaffected.
+
+**Revert:** take the block back out:
+```sql
+do $$ declare src text := pg_get_functiondef('private.evaluate_event(uuid,text,date)'::regprocedure);
+begin execute regexp_replace(src, '  -- dev accounts: every challenge counts as done.*?  end if;\n\n', '', 's'); end $$;
+```

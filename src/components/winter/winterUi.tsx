@@ -7,11 +7,23 @@ import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { FROST_LORD_ART, FROST_LORD_FRAMES, PalFrame, VESPER_ART, VESPER_FRAMES } from '@/components/pets/FrostLordPet';
+import {
+  BELOVED_ART,
+  BELOVED_FRAMES,
+  FROST_LORD_ART,
+  FROST_LORD_FRAMES,
+  PalFrame,
+  SERAPH_ART,
+  SERAPH_FRAME,
+  VESPER_ART,
+  VESPER_FRAMES,
+} from '@/components/pets/FrostLordPet';
 import { DriftLayer, Flake, SnowFall, Star, Twinkles } from '@/components/saint/SceneParticles';
-import { EventId, realStart, shortDate, SWAMP_EVENT_ID, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
+import { BelovedForm, useBelovedForm } from '@/lib/belovedForm';
+import { supabase } from '@/lib/supabase';
+import { BELOVED_EVENT_ID, EventId, realStart, shortDate, SWAMP_EVENT_ID, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
 
 // The look of each seasonal event ("skin"): its colours, backdrop, companion art, intro clip and wording. Every event
 // screen, the intro clip, the celebrations and the home banner draw from the skin of the event they belong to, so a
@@ -34,7 +46,16 @@ export type Palette = {
   faint: string;
   line: string;
   track: string;
+  /** A light theme (the Beloved): dark text on a pale sheet, so the status bar and the glass buttons go dark too. */
+  light?: boolean;
 };
+
+/** The see-through buttons over the sky (back, Play clip, Skip, the banner's close). */
+export function glass(P: Palette) {
+  return P.light
+    ? { bg: 'rgba(255,255,255,0.72)', line: 'rgba(194,84,111,0.28)', edge: 'rgba(194,84,111,0.18)' }
+    : { bg: 'rgba(15,24,52,0.55)', line: 'rgba(255,255,255,0.25)', edge: 'rgba(191,230,255,0.18)' };
+}
 
 /** The Long Winter: navy, gold, aurora teal and cream. */
 export const W: Palette = {
@@ -68,6 +89,24 @@ export const SWAMP_PALETTE: Palette = {
   faint: 'rgba(251,244,230,0.38)',
   line: 'rgba(251,244,230,0.10)',
   track: 'rgba(251,244,230,0.12)',
+};
+
+/** The Beloved: a rose garden by day. Sheet, wine text, rose, blush and gold (from the beloved design pack). */
+export const BELOVED_PALETTE: Palette = {
+  navy: '#FFF5F7',
+  navyDeep: '#F6D3DB',
+  sheet: '#FFF8F5',
+  card: '#F8ECEA',
+  cardOn: '#FCE3E9',
+  gold: '#C2546F',
+  teal: '#E8879B',
+  cream: '#4A2232',
+  ice: '#B14B66',
+  muted: 'rgba(74,34,50,0.62)',
+  faint: 'rgba(74,34,50,0.36)',
+  line: 'rgba(74,34,50,0.08)',
+  track: 'rgba(194,84,111,0.14)',
+  light: true,
 };
 
 export const WF = {
@@ -217,25 +256,97 @@ export function FenBackdrop({ hills = false, animated = true }: BackdropProps) {
   );
 }
 
+/** A small heart, centred on x with its notch at y, `s` wide each side. */
+export function heartPath(x: number, y: number, s: number): string {
+  return `M${x} ${y + s * 0.3} C${x} ${y - s * 0.25} ${x - s} ${y - s * 0.25} ${x - s} ${y + s * 0.3} C${x - s} ${y + s * 0.75} ${x - s * 0.2} ${y + s} ${x} ${y + s * 1.3} C${x + s * 0.2} ${y + s} ${x + s} ${y + s * 0.75} ${x + s} ${y + s * 0.3} C${x + s} ${y - s * 0.25} ${x} ${y - s * 0.25} ${x} ${y + s * 0.3} Z`;
+}
+
+const ROSE_SPARKLES: Star[] = [
+  [40, 60, 1.6, 0], [110, 120, 1.2, 0.35], [300, 50, 1.6, 0.7], [350, 150, 1.3, 0.1], [200, 30, 1.2, 0.5], [70, 220, 1.3, 0.85],
+].map(([x, y, r, phase]) => [x / 390, y / 420, r, phase] as Star);
+const PETALS: Flake[] = [[18, 3, 0], [80, 2.6, 0.2], [150, 3.2, 0.42], [226, 2.6, 0.6], [298, 3, 0.78], [362, 2.6, 0.9]]
+  .map(([x, r, phase]) => [x / 390, r, phase] as Flake);
+
+const RoseSky = React.memo(function RoseSky() {
+  return (
+    <Full>
+      <Defs>
+        <LinearGradient id="rbSky" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#F3C6D1" />
+          <Stop offset="0.6" stopColor="#F8DCE1" />
+          <Stop offset="1" stopColor="#FBEAE5" />
+        </LinearGradient>
+        <RadialGradient id="rbGlow" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.7} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect width={390} height={420} fill="url(#rbSky)" />
+      <Circle cx={195} cy={250} r={170} fill="url(#rbGlow)" />
+      {/* the temple of the rose garden, faint, like a memory */}
+      <G opacity={0.75}>
+        <Polygon points="40,236 195,160 350,236" fill="#F1E6DE" />
+        <Rect x={34} y={236} width={322} height={14} fill="#EDE0D6" />
+        {[60, 116, 172, 228, 284, 330].map(x => (
+          <Rect key={x} x={x - 9} y={250} width={18} height={170} fill="#F3EAE3" />
+        ))}
+      </G>
+      {[[60, 120, 9, '#E8879B'], [330, 96, 7, '#FFFFFF'], [290, 190, 6, '#E8879B'], [96, 300, 6, '#FFFFFF'], [350, 290, 8, '#F4B6C4']].map(([x, y, s, c], i) => (
+        <Path key={i} d={heartPath(x as number, y as number, s as number)} fill={c as string} opacity={0.75} />
+      ))}
+    </Full>
+  );
+});
+
+const RoseHedge = React.memo(function RoseHedge() {
+  return (
+    <Full>
+      <Path d="M-20 420 L-20 352 Q10 326 44 344 Q70 318 104 340 Q132 316 164 338 Q196 318 226 340 Q258 318 290 340 Q322 318 352 342 Q384 324 410 346 L410 420 Z" fill="#8FA872" />
+      <Path d="M-20 420 L-20 380 Q20 362 60 378 Q100 360 140 378 Q180 362 220 378 Q260 360 300 378 Q340 362 410 380 L410 420 Z" fill="#7A9562" />
+      {[[30, 352], [92, 344], [150, 356], [214, 346], [272, 356], [336, 348], [60, 386], [182, 390], [300, 388], [370, 372]].map(([x, y], i) => (
+        <G key={i}>
+          <Circle cx={x} cy={y} r={7} fill="#E07C93" />
+          <Circle cx={x} cy={y} r={3.2} fill="#C2546F" />
+        </G>
+      ))}
+    </Full>
+  );
+});
+
+/** The rose garden by day: a blush sky, a faint marble temple, hearts, sparkles and falling rose petals. */
+export function RoseBackdrop({ hills = false, animated = true }: BackdropProps) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+      <RoseSky />
+      <Twinkles stars={ROSE_SPARKLES} duration={3000} color="#FFFFFF" animated={animated} />
+      {hills ? <View style={StyleSheet.absoluteFill}><RoseHedge /></View> : null}
+      {animated ? <SnowFall flakes={PETALS} duration={11000} color="#E8879B" petal /> : null}
+    </View>
+  );
+}
+
 /* ------------------------------------------------ the skins ------------------------------------------------ */
 
 type Moment = { kicker: string; title: string; body: string; verse: string };
 
 export type EventSkin = {
   id: EventId;
-  route: '/winter' | '/swamp';
+  route: '/winter' | '/beloved' | '/swamp';
   /** "winter prayers", "spring prayers" */
   season: string;
   /** "WINTER EVENT" */
   kicker: string;
-  palLine: 'frostLord' | 'vesper';
+  palLine: 'frostLord' | 'beloved' | 'vesper';
   palette: Palette;
   art: Record<1 | 2 | 3, number>;
   frames: Record<1 | 2 | 3, PalFrame>;
   /** Tint for a stage not reached yet. */
   silhouette: string;
   Backdrop: React.ComponentType<BackdropProps>;
-  clip: number;
+  /** The intro clip's file in the public `event-clips` storage bucket (streamed, then cached; see clipSource). */
+  clip: string;
+  /** When the clip reaches its own title card and the app's end page takes over, in seconds (26.9 by default). */
+  clipEndAt?: number;
   clipTitle: string;
   clipSubtitle: string;
   /** The one button at the end of the clip. */
@@ -258,7 +369,7 @@ export const WINTER_SKIN: EventSkin = {
   frames: FROST_LORD_FRAMES,
   silhouette: 'rgba(191,230,255,0.28)',
   Backdrop: AuroraBackdrop,
-  clip: require('../../../assets/video/face-the-winter-lord.mp4'),
+  clip: 'face-the-winter-lord.mp4',
   clipTitle: 'Face the\nWinter Lord',
   clipSubtitle: 'Complete the winter challenges\nto bring him home.',
   beginLabel: 'Begin the winter',
@@ -283,7 +394,7 @@ export const SWAMP_SKIN: EventSkin = {
   frames: VESPER_FRAMES,
   silhouette: 'rgba(255,226,184,0.26)',
   Backdrop: FenBackdrop,
-  clip: require('../../../assets/video/face-the-swamp-king.mp4'),
+  clip: 'face-the-swamp-king.mp4',
   clipTitle: 'Face the\nSwamp King',
   clipSubtitle: 'Complete the spring challenges\nto bring him home.',
   beginLabel: 'Enter the fen',
@@ -297,7 +408,42 @@ export const SWAMP_SKIN: EventSkin = {
   devDates: ['2027-03-01', '2027-03-15', '2027-03-21', '2027-03-28', '2027-04-01', '2027-04-05', '2027-04-28', '2027-05-01', '2027-05-02'],
 };
 
-export const SKINS: Record<EventId, EventSkin> = { [WINTER_EVENT_ID]: WINTER_SKIN, [SWAMP_EVENT_ID]: SWAMP_SKIN };
+export const BELOVED_SKIN: EventSkin = {
+  id: BELOVED_EVENT_ID,
+  route: '/beloved',
+  season: 'Valentine',
+  kicker: 'VALENTINE EVENT',
+  palLine: 'beloved',
+  palette: BELOVED_PALETTE,
+  art: BELOVED_ART,
+  frames: BELOVED_FRAMES,
+  silhouette: 'rgba(194,84,111,0.24)',
+  Backdrop: RoseBackdrop,
+  clip: 'meet-the-beloved.mp4',
+  clipEndAt: 27.9,
+  clipTitle: 'Meet the\nBeloved',
+  clipSubtitle: 'Complete the Valentine challenges\nto bring her to life.',
+  beginLabel: 'Begin',
+  heroHint: 'Pray to meet your Cherub',
+  moments: {
+    1: { kicker: 'THE BELOVED', title: 'Your Cherub has arrived', body: 'A little marble cherub flutters in to walk with you. Finish the Valentine challenges and she will grow.', verse: 'For, lo, the winter is past, the rain is over and gone. Song of Solomon 2:11' },
+    2: { kicker: 'THREE CHALLENGES DONE', title: 'Your Muse is ready', body: 'The Cherub has grown into the Muse, lyre in hand. Finish all six challenges to awaken The Beloved.', verse: 'The flowers appear on the earth. Song of Solomon 2:12' },
+    3: { kicker: 'ALL SIX CHALLENGES DONE', title: 'The Beloved awakens', body: 'The statue has come to life. She is yours to keep, with her Seraph spirit form to switch to and four keepsakes on your shelf.', verse: 'Many waters cannot quench love. Song of Solomon 8:7' },
+  },
+  summaryTitle: 'Your Valentine season',
+  devDates: ['2027-02-01', '2027-02-10', '2027-02-14', '2027-02-21', '2027-02-28', '2027-03-01'],
+};
+
+export const SKINS: Record<EventId, EventSkin> = { [WINTER_EVENT_ID]: WINTER_SKIN, [BELOVED_EVENT_ID]: BELOVED_SKIN, [SWAMP_EVENT_ID]: SWAMP_SKIN };
+
+/**
+ * Where an intro clip plays from. The clips live in Supabase Storage (bucket `event-clips`) instead of the app, which
+ * keeps about 21 MB out of the download. They're saved for streaming (the index is at the front), and the player
+ * keeps a copy on the phone after the first play, so replays don't download again.
+ */
+export function clipSource(file: string) {
+  return { uri: supabase.storage.from('event-clips').getPublicUrl(file).data.publicUrl, useCaching: true };
+}
 
 /** Which event's skin the components below use. */
 export const SkinContext = createContext<EventSkin>(WINTER_SKIN);
@@ -309,15 +455,19 @@ export const useSkin = () => useContext(SkinContext);
  * The event companion's art for a stage; stage 0 (not met yet) is the first stage as a silhouette. `height` sizes the
  * figure (its original painted frame), so all three stages stand at the same scale; extended hats rise above it.
  */
-export function StageImage({ stage, height, dim }: { stage: number; height: number; dim?: boolean }) {
+export function StageImage({ stage, height, dim, form }: { stage: number; height: number; dim?: boolean; form?: BelovedForm }) {
   const skin = useSkin();
+  const picked = useBelovedForm();
   const s = (Math.min(3, Math.max(1, stage)) as 1 | 2 | 3);
-  const f = skin.frames[s];
+  // The Beloved's final stage in her Seraph spirit form: when asked for by `form`, or when it's the look picked and
+  // she's been earned
+  const spirit = skin.palLine === 'beloved' && s === 3 && (form ? form === 'spirit' : !dim && stage >= 3 && picked === 'spirit');
+  const f = spirit ? SERAPH_FRAME : skin.frames[s];
   const scale = height / f.body;
   const silhouette = stage < 1 || dim;
   return (
     <Image
-      source={skin.art[s]}
+      source={spirit ? SERAPH_ART : skin.art[s]}
       accessibilityIgnoresInvertColors
       style={{ height: f.h * scale, width: f.w * scale, tintColor: silhouette ? skin.silhouette : undefined }}
       resizeMode="contain"
@@ -372,7 +522,7 @@ function EventBanner({ style }: { style?: object }) {
       onPress={() => router.push(skin.route)}
       accessibilityRole="button"
       accessibilityLabel={`${state.event.title}, ${skin.season} event, ${shortDate(realStart(state.event))} to ${shortDate(state.event.ends_on)}. Opens the event.`}
-      style={({ pressed }) => [banner.wrap, style, pressed && { opacity: 0.9 }]}>
+      style={({ pressed }) => [banner.wrap, { borderColor: glass(P).edge }, style, pressed && { opacity: 0.9 }]}>
       {/* still: the home scene behind it already moves */}
       <Backdrop hills animated={false} />
       <View style={banner.text}>
@@ -390,7 +540,7 @@ function EventBanner({ style }: { style?: object }) {
           </View>
         ) : null}
       </View>
-      <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide the event banner for today" style={banner.close}>
+      <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Hide the event banner for today" style={[banner.close, P.light && { backgroundColor: glass(P).bg }]}>
         <Text style={[banner.closeText, { color: P.cream }]}>×</Text>
       </Pressable>
     </Pressable>

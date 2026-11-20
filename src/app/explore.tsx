@@ -35,6 +35,7 @@ import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { refreshAllEvents } from '@/lib/winterEvent';
 
 type PrayerRequest = {
   id: string;
@@ -427,6 +428,8 @@ export default function PrayForOthersScreen() {
       user_id: session.user.id,
       action: 'prayed',
     });
+    // the event challenges count prayers: show the new count straight away
+    if (!error) refreshAllEvents(true).catch(() => {});
     if (error) {
       // Roll back on failure, and let them try again
       praying.current.delete(req.id);

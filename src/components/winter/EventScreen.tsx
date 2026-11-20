@@ -3,12 +3,15 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SERAPH_FRAME } from '@/components/pets/FrostLordPet';
 import { TrinketArt } from '@/components/pets/Trinket';
 import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { EvolutionMoment } from './EvolutionMoment';
 import { IntroClip } from './IntroClip';
-import { EventSkin, Palette, ProgressBar, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
+import { BelovedFormSwitch } from './BelovedFormSwitch';
+import { EventSkin, glass, Palette, ProgressBar, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
 import { useAuth } from '@/lib/auth';
+import { useBelovedForm } from '@/lib/belovedForm';
 import { resetDropsSeen } from '@/lib/drops';
 import {
   addDays,
@@ -36,19 +39,20 @@ export function EventScreen() {
   const Backdrop = skin.Backdrop;
   const fontsLoaded = useWinterFonts();
   const insets = useSafeAreaInsets();
-  const { state, today, phase, devToday } = useEvent(skin.id, { poll: true });
+  const { state, today, realToday, phase, devToday } = useEvent(skin.id, { poll: true });
   const { session } = useAuth();
+  const belovedForm = useBelovedForm();
   const [challengesOpen, setChallengesOpen] = useState(true);
   const [replay, setReplay] = useState(false);
   const [moment, setMoment] = useState<number | null>(null);
 
   if (!fontsLoaded || !state) {
-    return <View style={[styles.root, { justifyContent: 'center' }]}><StatusBar barStyle="light-content" /></View>;
+    return <View style={[styles.root, { justifyContent: 'center' }]}><StatusBar barStyle={W.light ? 'dark-content' : 'light-content'} /></View>;
   }
   if (!state.event.is_active) {
     return (
       <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={W.light ? 'dark-content' : 'light-content'} />
         <Text style={styles.title}>{state.event.title}</Text>
         <Text style={styles.muted}>This event isn&apos;t running right now.</Text>
         <Pressable onPress={() => router.back()} style={[styles.cta, { alignSelf: 'stretch', marginTop: 24 }]}>
@@ -63,15 +67,18 @@ export function EventScreen() {
   const stage = progress?.stage_unlocked ?? 0;
   const done = progress?.challenges_completed ?? [];
   const closed = progress?.challenges_closed ?? [];
-  const prayedToday = !!progress?.prayer_days.includes(today);
+  // (while testing a pretend day, a prayer prayed today is recorded on the real day)
+  const prayedToday = !!progress?.prayer_days.includes(today) || (today !== realToday && !!progress?.prayer_days.includes(realToday));
   const chapterNow = chapterFor(c, today);
   // Finishing all 10 challenges is the whole reward, received straight away: the Frost Lord and these keepsakes.
   const keepsakes = (c.completion_rewards ?? []) as TrinketId[];
   const allDone = stage >= 3;
   const STAGE_NAMES = [1, 2, 3].map(n => c.evolutions.find(e => e.stage === n)?.name ?? '');
   const Season = skin.season.charAt(0).toUpperCase() + skin.season.slice(1);
+  const pronoun = skin.palLine === 'beloved' ? 'her' : 'his';
+  const countWord = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] ?? String(n);
   // As big as fits under the top row: the whole picture, including the Frost Mage's and Frost Lord's tall hats.
-  const heroFrame = skin.frames[(Math.min(3, Math.max(1, stage)) as 1 | 2 | 3)];
+  const heroFrame = skin.palLine === 'beloved' && stage >= 3 && belovedForm === 'spirit' ? SERAPH_FRAME : skin.frames[(Math.min(3, Math.max(1, stage)) as 1 | 2 | 3)];
   const heroH = Math.min(240, Math.round((250 * heroFrame.body) / heroFrame.h));
 
   const caption =
@@ -81,7 +88,7 @@ export function EventScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={W.light ? 'dark-content' : 'light-content'} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         {/* Header: the sky, and the companion as it is now */}
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -125,6 +132,10 @@ export function EventScreen() {
               );
             })}
           </View>
+          {/* The Beloved: her final stage has two looks to switch between (marble, or the Seraph spirit form) */}
+          {skin.palLine === 'beloved' ? (
+            <BelovedFormSwitch unlocked={stage >= 3} lockedText={`Finish all ${c.challenges.length} challenges`} />
+          ) : null}
           {/* Once it ends the event is in the vault: only a look back at how it went, nothing left to do or play. */}
           {phase === 'ended' || phase === 'grace' ? (
             <Summary state={state} skin={skin} styles={styles} stageNames={STAGE_NAMES} />
@@ -191,19 +202,19 @@ export function EventScreen() {
                   <StageImage stage={3} height={64} dim={!allDone} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.rowTitle, !allDone && { color: W.muted }]}>{STAGE_NAMES[2]}</Text>
-                    <Text style={styles.rowSub}>{allDone ? 'Walking with you' : `${STAGE_NAMES[0]} grows into his final form`}</Text>
+                    <Text style={styles.rowSub}>{allDone ? 'Walking with you' : `${STAGE_NAMES[0]} grows into ${pronoun} final form`}</Text>
                   </View>
                 </View>
                 <View style={styles.keepsakeRow}>
                   {keepsakes.map(id => (
-                    <View key={id} style={styles.keepsake}>
+                    <View key={id} style={[styles.keepsake, { width: `${Math.floor(96 / Math.max(1, keepsakes.length))}%` }]}>
                       <TrinketArt id={id} size={48} animated={false} dim={!allDone} />
                       <Text numberOfLines={2} style={[styles.keepsakeName, allDone && { color: W.cream }]}>{TRINKET_INFO[id]?.name ?? id}</Text>
                     </View>
                   ))}
                 </View>
                 <Text style={styles.rowSub}>
-                  {allDone ? `All five ${skin.season} keepsakes are on your shelf.` : `Plus all five ${skin.season} keepsakes, straight onto your shelf. Nothing to claim.`}
+                  {allDone ? `All ${countWord(keepsakes.length)} ${skin.season} keepsakes are on your shelf.` : `Plus all ${countWord(keepsakes.length)} ${skin.season} keepsakes, straight onto your shelf. Nothing to claim.`}
                 </Text>
               </View>
             </>
@@ -342,14 +353,14 @@ const makeStyles = (W: Palette) => StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
   header: { height: 400, overflow: 'hidden' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(251,244,230,0.12)', alignItems: 'center', justifyContent: 'center' },
+  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: W.light ? glass(W).bg : 'rgba(251,244,230,0.12)', alignItems: 'center', justifyContent: 'center' },
   backText: { color: W.cream, fontSize: 28, lineHeight: 30, marginTop: -3, fontFamily: WF.medium },
   caption: { flex: 1, fontFamily: WF.semi, fontSize: 11, letterSpacing: 2, color: W.ice },
-  clipPill: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(15,24,52,0.55)', justifyContent: 'center' },
+  clipPill: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: glass(W).line, backgroundColor: glass(W).bg, justifyContent: 'center' },
   clipText: { fontFamily: WF.semi, fontSize: 12, color: W.cream },
   heroArt: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 34 },
   heroHint: { position: 'absolute', bottom: 120, fontFamily: WF.semi, fontSize: 15, color: W.cream },
-  sheet: { marginTop: -28, borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: W.sheet, paddingHorizontal: 20, paddingTop: 22, borderTopWidth: 1, borderColor: 'rgba(191,230,255,0.12)' },
+  sheet: { marginTop: -28, borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: W.sheet, paddingHorizontal: 20, paddingTop: 22, borderTopWidth: 1, borderColor: W.light ? 'rgba(194,84,111,0.12)' : 'rgba(191,230,255,0.12)' },
   title: { fontFamily: WF.bold, fontSize: 34, lineHeight: 40, color: W.cream },
   muted: { fontFamily: WF.regular, fontSize: 15, color: W.muted, textAlign: 'center' },
   sectionLabel: { fontFamily: WF.semi, fontSize: 11, letterSpacing: 2, color: W.ice, marginTop: 16, marginBottom: 8 },
@@ -390,7 +401,7 @@ const makeStyles = (W: Palette) => StyleSheet.create({
   keepsakeName: { fontFamily: WF.regular, fontSize: 10.5, lineHeight: 13, color: W.muted, textAlign: 'center', marginTop: 2 },
   communityTitle: { fontFamily: WF.bold, fontSize: 20, color: W.cream },
   cta: { height: 56, borderRadius: 28, backgroundColor: W.gold, alignItems: 'center', justifyContent: 'center', marginTop: 22 },
-  ctaOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(251,244,230,0.35)' },
+  ctaOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: W.light ? 'rgba(74,34,50,0.25)' : 'rgba(251,244,230,0.35)' },
   ctaText: { fontFamily: WF.bold, fontSize: 20, color: W.navy },
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22 },
   summary: { marginTop: 22, padding: 16, borderRadius: 18, backgroundColor: W.card },

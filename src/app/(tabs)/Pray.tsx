@@ -628,6 +628,9 @@ export default function PrayLauncherScreen() {
               <Svg width={16} height={16} viewBox="0 0 24 24">
                 {liveEvent.skin.palLine === 'frostLord' ? (
                   <Path d="M12 2v20 M3.3 7l17.4 10 M20.7 7L3.3 17 M12 2l-2.5 2.5 M12 2l2.5 2.5 M12 22l-2.5-2.5 M12 22l2.5-2.5" stroke={liveEvent.skin.palette.ice} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+                ) : liveEvent.skin.palLine === 'beloved' ? (
+                  // a heart for the Beloved
+                  <Path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill={liveEvent.skin.palette.gold} />
                 ) : (
                   // a crown for the Swamp King
                   <Path d="M4 18h16 M4 18L3 7l5 4 4-6 4 6 5-4-1 11" stroke={liveEvent.skin.palette.gold} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />

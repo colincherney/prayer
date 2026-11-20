@@ -40,6 +40,8 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   winter: { size: 96, x: 0.744, feetY: 184 },
   // The Swamp King: on the mossy stump, at the same spot.
   swamp: { size: 96, x: 0.744, feetY: 184 },
+  // The Beloved: on top of the marble column, at the same spot.
+  beloved: { size: 96, x: 0.744, feetY: 184 },
   // 2027 monthly rooms: every design stands its companion on a perch at the same spot (a 150-wide box at 226, 196).
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(n => [n, { size: 116, x: 0.772, feetY: 202 }])) as Record<MonthlyRoomName, Spot>),
   theme: { size: 72, x: 0.644, feetY: 192 },
@@ -56,6 +58,7 @@ const SCENE_FEET: Record<HomePetVariant, number> = {
   christmas: 318,
   winter: 318,
   swamp: 318,
+  beloved: 318,
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(name => [name, 330])) as Record<MonthlyRoomName, number>),
   theme: 195,
 };

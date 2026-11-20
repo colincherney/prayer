@@ -38,26 +38,35 @@ function useBox() {
 /** x (0..1 of the width), radius in dp, and where in the fall it starts (0..1). */
 export type Flake = [x: number, r: number, phase: number];
 
-function FallingFlake({ flake, clock, height, color }: { flake: Flake; clock: SharedValue<number>; height: number; color: string }) {
+function FallingFlake({ flake, clock, height, color, petal }: { flake: Flake; clock: SharedValue<number>; height: number; color: string; petal?: boolean }) {
   const [, r, phase] = flake;
   const style = useAnimatedStyle(() => {
     const p = (clock.get() + phase) % 1;
     const edges = Math.min(1, p / 0.06, (1 - p) / 0.06);
     return {
       opacity: 0.95 * edges,
-      transform: [{ translateY: -12 + p * (height + 24) }, { translateX: Math.sin(p * Math.PI * 4 + phase * 6) * 7 }],
+      transform: petal
+        ? [{ translateY: -12 + p * (height + 24) }, { translateX: Math.sin(p * Math.PI * 4 + phase * 6) * 14 }, { rotate: `${(p * 540 + phase * 360) % 360}deg` }]
+        : [{ translateY: -12 + p * (height + 24) }, { translateX: Math.sin(p * Math.PI * 4 + phase * 6) * 7 }],
     };
   });
-  return <Animated.View style={[styles.dot, { left: `${flake[0] * 100}%`, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: color }, style]} />;
+  // a rose petal: a leaf shape, two round corners and two pointed ones
+  const shape = petal
+    ? { width: r * 2.2, height: r * 1.6, borderTopLeftRadius: r * 1.6, borderBottomRightRadius: r * 1.6, borderTopRightRadius: r * 0.2, borderBottomLeftRadius: r * 0.2 }
+    : { width: r * 2, height: r * 2, borderRadius: r };
+  return <Animated.View style={[styles.dot, { left: `${flake[0] * 100}%`, backgroundColor: color }, shape, style]} />;
 }
 
-/** Snow falling over the whole parent. One clock drives every flake; each starts at its own point in the fall. */
-export function SnowFall({ flakes, duration = 10000, color = '#FFFFFF', animated = true }: { flakes: Flake[]; duration?: number; color?: string; animated?: boolean }) {
+/**
+ * Snow falling over the whole parent (or rose petals, with `petal`). One clock drives every flake; each starts at its
+ * own point in the fall.
+ */
+export function SnowFall({ flakes, duration = 10000, color = '#FFFFFF', animated = true, petal }: { flakes: Flake[]; duration?: number; color?: string; animated?: boolean; petal?: boolean }) {
   const [box, onLayout] = useBox();
   const clock = useClock(duration, animated, 0.35);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout}>
-      {box.height > 0 ? flakes.map((f, i) => <FallingFlake key={i} flake={f} clock={clock} height={box.height} color={color} />) : null}
+      {box.height > 0 ? flakes.map((f, i) => <FallingFlake key={i} flake={f} clock={clock} height={box.height} color={color} petal={petal} />) : null}
     </View>
   );
 }

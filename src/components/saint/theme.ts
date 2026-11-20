@@ -313,6 +313,17 @@ export const WINTER_VERSES = [
   { text: 'Where two or three are gathered, there am I', ref: 'Matthew 18:20' },
 ];
 
+/** Verses for the Beloved room (KJV, the Song of Songs and 1 Corinthians 13), laid out the same way. */
+export const BELOVED_VERSES = [
+  { text: 'Many waters cannot quench love, neither can the floods drown it', ref: 'Song of Solomon 8:7' },
+  { text: 'For, lo, the winter is past, the rain is over and gone', ref: 'Song of Solomon 2:11' },
+  { text: 'The flowers appear on the earth', ref: 'Song of Solomon 2:12' },
+  { text: 'Charity suffereth long, and is kind', ref: '1 Corinthians 13:4' },
+  { text: 'Charity never faileth', ref: '1 Corinthians 13:8' },
+  { text: 'We love him, because he first loved us', ref: '1 John 4:19' },
+  { text: 'I am my beloved’s, and my beloved is mine', ref: 'Song of Solomon 6:3' },
+];
+
 /** Verses for the Swamp King room (KJV, Psalm 40 and the spring, Lent to Easter), laid out the same way. */
 export const SWAMP_VERSES = [
   { text: 'He brought me up also out of an horrible pit, out of the miry clay', ref: 'Psalm 40:2' },

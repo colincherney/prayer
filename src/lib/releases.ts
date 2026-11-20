@@ -84,6 +84,8 @@ const BUNDLED_WINDOWS: Record<string, [string, string][]> = {
   'pet:donkey': [['2026-12-01T05:00:00Z', '2027-01-07T05:00:00Z'], ['2027-12-01T05:00:00Z', '2028-01-01T05:00:00Z']],
   // The Winter Lord look: midnight US Eastern Dec 1, 2026 through the end of Jan 31, 2027.
   'event:winterLord': [['2026-12-01T05:00:00Z', '2027-02-01T05:00:00Z']],
+  // The Beloved look: midnight US Eastern Feb 1, 2027 through the end of Feb 28.
+  'event:beloved': [['2027-02-01T05:00:00Z', '2027-03-01T05:00:00Z']],
   // The Swamp King look: midnight US Eastern Mar 1, 2027 through the end of May 1.
   'event:swampKing': [['2027-03-01T05:00:00Z', '2027-05-02T04:00:00Z']],
 };

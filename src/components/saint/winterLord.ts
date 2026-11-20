@@ -1,9 +1,10 @@
 // Event looks: while an event's look window is open, every screen uses that event's room (the Long Winter's aurora,
-// the Swamp King's fen) by default, set in Playfair Display. It's a default, not a lock: picking any other wallpaper or
-// theme in Customization turns that look off for the person, and picking the event's room turns it back on.
+// the Beloved's rose garden, the Swamp King's fen) by default, set in Playfair Display. It's a default, not a lock:
+// picking any other wallpaper or theme in Customization turns that look off for the person, and picking the event's
+// room turns it back on.
 //
 // The dates live in the database (public.content_windows): `event:winterLord` (midnight US Eastern Dec 1, 2026 to
-// Feb 1, 2027) and `event:swampKing` (Mar 1 to May 2, 2027). src/lib/releases.ts has the same dates as a fallback for a
+// Feb 1, 2027), `event:beloved` (Feb 1 to Mar 1, 2027) and `event:swampKing` (Mar 1 to May 2, 2027). src/lib/releases.ts has the same dates as a fallback for a
 // phone that has never reached the database.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,11 +13,13 @@ import { useSyncExternalStore } from 'react';
 import { isEventOnAtLaunch, useReleases } from '@/lib/releases';
 
 export const WINTER_LORD_EVENT = 'event:winterLord';
+export const BELOVED_EVENT = 'event:beloved';
 export const SWAMP_KING_EVENT = 'event:swampKing';
 
 /** Each event's look: its content window and its room (see prayerRoom.ts). */
 export const EVENT_LOOKS = [
   { window: WINTER_LORD_EVENT, room: 'winter' },
+  { window: BELOVED_EVENT, room: 'beloved' },
   { window: SWAMP_KING_EVENT, room: 'swamp' },
 ] as const;
 export type EventLookRoom = (typeof EVENT_LOOKS)[number]['room'];

@@ -20,7 +20,7 @@ const levelKey = (id: string) => `pet.lastSeenLevel.${id}`;
 const acceptedKey = (day: string) => `quests.accepted.${day}`;
 const rerollKey = (day: string) => `quests.rerolls.${day}`;
 /** The look of the app: these keys must match theme.ts, prayerRoom.ts and appearanceMode.ts. */
-const APPEARANCE_KEYS = { theme: 'saint.theme', room: 'saint.prayerRoom', mode: 'saint.appearanceMode' } as const;
+const APPEARANCE_KEYS = { theme: 'saint.theme', room: 'saint.prayerRoom', mode: 'saint.appearanceMode', belovedForm: 'pet.form.beloved' } as const;
 
 /** The last copy the account had, so a merged field (names, levels) adds to it instead of replacing it. */
 let known: Row = {};

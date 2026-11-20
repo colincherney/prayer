@@ -5,6 +5,7 @@ import { DashFlow, Fx } from './Fx';
 
 import { COLLECTION_KEEPSAKE_INFO } from './collectionData';
 import { COLLECTION_KEEPSAKE_ART } from './collectionKeepsakes';
+import { BELOVED_KEEPSAKE_ART, BELOVED_KEEPSAKE_INFO } from './belovedKeepsakes';
 import { SWAMP_KEEPSAKE_ART, SWAMP_KEEPSAKE_INFO } from './swampKeepsakes';
 import { WINTER_KEEPSAKE_ART, WINTER_KEEPSAKE_INFO } from './winterKeepsakes';
 
@@ -918,6 +919,7 @@ export const TRINKET_ART = {
   pearlOfGreatPrice: PearlOfGreatPrice,
   ...COLLECTION_KEEPSAKE_ART,
   ...WINTER_KEEPSAKE_ART,
+  ...BELOVED_KEEPSAKE_ART,
   ...SWAMP_KEEPSAKE_ART,
 } as const;
 
@@ -951,5 +953,6 @@ export const TRINKET_INFO: Record<TrinketId, { name: string; rarity: 'common' | 
   pearlOfGreatPrice: { name: "Pearl of Great Price", rarity: "legendary", goal: "Finish 6 weekly journeys", sound: "Priceless!" },
   ...COLLECTION_KEEPSAKE_INFO,
   ...WINTER_KEEPSAKE_INFO,
+  ...BELOVED_KEEPSAKE_INFO,
   ...SWAMP_KEEPSAKE_INFO,
 };

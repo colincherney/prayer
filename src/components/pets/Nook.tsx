@@ -23,6 +23,7 @@ import { FONTS } from '@/components/saint/theme';
 import { Fx, PetMotion, SmoothMotion } from './Fx';
 import { PipStage } from './PipLamb';
 import { Acting } from './petActing';
+import { FullSizePals } from './FrostLordPet';
 import { Pet, PetId } from './registry';
 import { useLoop, useMotionEnabled } from './anim';
 import {
@@ -441,7 +442,10 @@ export const NookView = memo(function NookView({
               <SleepingPet awake={awake} eyesUp={hangUp} warm={warm} size={petSize} />
             ) : (
               <Acting petId={petId} size={petSize}>
-                <Pet id={petId} stage={stage} size={petSize} animated={motionAround} />
+                {/* event companions at full size here, like the rest (they're drawn a little smaller elsewhere) */}
+                <FullSizePals.Provider value>
+                  <Pet id={petId} stage={stage} size={petSize} animated={motionAround} />
+                </FullSizePals.Provider>
               </Acting>
             )}
             </SmoothMotion.Provider>

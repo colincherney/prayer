@@ -7,16 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pauseBackgroundMotion } from '@/components/pets/anim';
 import { realStart, shortDate, useEvent } from '@/lib/winterEvent';
 
-import { Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
+import { clipSource, glass, Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
 
-// An event's 29-second intro clip ("Face the Winter Lord", "Face the Swamp King"), from the skin of the event it's
+// An event's ~30-second intro clip, streamed from the event-clips storage bucket ("Face the Winter Lord", "Face the Swamp King"), from the skin of the event it's
 // shown for (no audio track, so it never stops someone's music). Full screen, Skip after 1.5 s, and the moment the clip
 // reaches its own title card (27 s) it fades into a page the app draws itself: the event's sky, its first and final
 // stages, and one option ("Begin the winter", "Enter the fen"; replayed from the event screen, it just closes).
 // Reduce Motion stops it playing by itself; a failed or slow load goes straight to that page.
 
 const END_AT = 26.9;
-const LOAD_LIMIT_MS = 2000;
+/** Streamed from storage now, so a little longer than a bundled file needed before giving up on a slow connection. */
+const LOAD_LIMIT_MS = 6000;
 
 export type IntroMode = 'auto' | 'replay';
 
@@ -51,8 +52,10 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
   const [ready, setReady] = useState(false);
   const [showSkip, setShowSkip] = useState(false);
   const started = useRef(false);
+  const loadFailed = useRef(false);
 
-  const player = useVideoPlayer(skin.clip, p => {
+  const source = useMemo(() => clipSource(skin.clip), [skin.clip]);
+  const player = useVideoPlayer(source, p => {
     p.muted = true;
     p.loop = false;
     p.audioMixingMode = 'mixWithOthers';
@@ -71,21 +74,27 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
     const subs = [
       player.addListener('statusChange', ({ status }) => {
         if (status === 'readyToPlay') setReady(true);
-        if (status === 'error') setStill(true);
+        if (status === 'error' && !started.current) {
+          loadFailed.current = true;
+          setStill(true);
+        }
       }),
       player.addListener('timeUpdate', ({ currentTime }) => {
         if (currentTime > 0 && !started.current) {
           started.current = true;
           onStarted?.();
         }
-        if (currentTime >= END_AT) setEnded(true);
+        if (currentTime >= (skin.clipEndAt ?? END_AT)) setEnded(true);
       }),
       player.addListener('playToEnd', () => setEnded(true)),
     ];
     player.play();
-    // Never a spinner for more than 2 s: show the end page instead.
+    // Never a long spinner: on a slow or failed load, show the end page instead.
     const slow = setTimeout(() => {
-      if (player.status !== 'readyToPlay') setStill(true);
+      if (player.status !== 'readyToPlay') {
+        loadFailed.current = true;
+        setStill(true);
+      }
     }, LOAD_LIMIT_MS);
     const skip = setTimeout(() => setShowSkip(true), 1500);
     return () => {
@@ -97,9 +106,10 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player, reduceMotion, mode]);
 
-  // The still counts as seen too (Reduce Motion or a failed load), so it never auto-plays later.
+  // The still counts as seen too with Reduce Motion or Skip, so it never auto-plays later. A clip that couldn't load
+  // (it streams from storage, so no signal or a slow connection) doesn't: it tries again on the next open.
   useEffect(() => {
-    if (still && !started.current) {
+    if (still && !started.current && !loadFailed.current) {
       started.current = true;
       onStarted?.();
     }
@@ -192,7 +202,7 @@ const makeStyles = (W: Palette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: W.navyDeep },
   spinner: { position: 'absolute', alignSelf: 'center', top: '50%' },
   skipWrap: { position: 'absolute', right: 16 },
-  skip: { height: 34, paddingHorizontal: 16, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(7,11,30,0.45)', alignItems: 'center', justifyContent: 'center' },
+  skip: { height: 34, paddingHorizontal: 16, borderRadius: 17, borderWidth: 1, borderColor: glass(W).line, backgroundColor: W.light ? glass(W).bg : 'rgba(7,11,30,0.45)', alignItems: 'center', justifyContent: 'center' },
   skipText: { fontFamily: WF.semi, fontSize: 13, color: W.cream },
   page: { backgroundColor: W.navyDeep, justifyContent: 'space-between' },
   copy: { alignItems: 'center', paddingHorizontal: 24, gap: 10 },

@@ -93,6 +93,11 @@ export function realStart(event: Pick<WinterEventRow, 'starts_on' | 'config'>): 
   return event.config.real_starts_on ?? event.starts_on;
 }
 
+/** What an event's prayers are called: "winter prayers", "Valentine prayers", "spring prayers". */
+export function seasonNoun(palLine: string): string {
+  return palLine === 'frostLord' ? 'winter' : palLine === 'beloved' ? 'Valentine' : 'spring';
+}
+
 /** The line under the challenge bar: what to do next for the Frost Lord. */
 export function nextStep(state: WinterState, day: string): string {
   const { event, progress } = state;
@@ -107,10 +112,11 @@ export function nextStep(state: WinterState, day: string): string {
   const mage = c.evolutions.find(e => e.stage === 2);
   const mageFrom = mage?.unlock.not_before;
   const mageNeeds = mage?.unlock.min_challenges ?? 4;
-  const noun = c.pal_line === 'frostLord' ? 'winter' : 'spring';
+  const noun = seasonNoun(c.pal_line);
+  const all = total === 10 ? 'ten' : total === 6 ? 'six' : String(total);
 
   if (stage >= 3) return `${lastName.charAt(0).toUpperCase()}${lastName.slice(1)} walks with you`;
-  if (progress?.frost_lord_ready) return `All ten done. Crown your ${last.replace(/^The /, '')}`;
+  if (progress?.frost_lord_ready) return `All ${all} done. Crown your ${last.replace(/^The /, '')}`;
   if (stage === 0) return `Pray your first ${noun} prayer to meet ${first}`;
   if ((progress?.challenges_closed.length ?? 0) > 0) {
     return stage >= 2 ? `Your ${middle} is yours to keep` : `Keep praying to grow ${first}`;

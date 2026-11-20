@@ -3,7 +3,7 @@ import React from 'react';
 import { useReleases } from '@/lib/releases';
 import { usePalStages } from '@/lib/winterEvent';
 
-import { FrostLordBear, VesperPal } from './FrostLordPet';
+import { BelovedPal, FrostLordBear, VesperPal } from './FrostLordPet';
 
 import { OliveDove } from './Dove';
 import { SelahDragon } from './Dragon';
@@ -38,7 +38,8 @@ export type PetId =
   | 'dog'
   | 'pig'
   | 'frostLord'
-  | 'vesper';
+  | 'vesper'
+  | 'beloved';
 
 export type PetDef = {
   id: PetId;
@@ -262,6 +263,18 @@ export const PETS: PetDef[] = [
     season: 'The Long Winter',
     eventLine: true,
     Art: FrostLordBear,
+  },
+  // The Beloved (the Valentine event): the Cherub arrives with the first Valentine prayer, the Muse with three
+  // challenges, and The Beloved when all six are done, with a second look to switch to, her Seraph spirit form.
+  {
+    id: 'beloved',
+    name: 'Cherub',
+    species: 'Marble cherub',
+    tagline: 'From a little cherub to The Beloved, with a Seraph spirit form.',
+    stages: ['Cherub', 'Muse', 'The Beloved'],
+    season: 'The Beloved',
+    eventLine: true,
+    Art: BelovedPal,
   },
   // The Swamp King event's companion: Vesper arrives with the first spring prayer, the Fen Warden with four challenges,
   // and the Old King when all ten are done (src/lib/winterEvent.ts).

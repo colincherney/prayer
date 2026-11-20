@@ -30,6 +30,7 @@ import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
+import { refreshAllEvents } from '@/lib/winterEvent';
 import { useAuth } from '@/lib/auth';
 
 type BibleVersion = 'KJV' | 'CPVD';
@@ -960,7 +961,9 @@ function CalendarView({
 export default function BiographyScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
-  const { session, isGuest } = useAuth();
+  // Guests have a real (anonymous) account too, so their journal is saved like anyone's, and comes with them if they
+  // create an account later.
+  const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const [view, setView] = useState<'list' | 'detail' | 'new' | 'edit'>('list');
@@ -977,7 +980,7 @@ export default function BiographyScreen() {
   const [bibleVersion, setBibleVersion] = useState<BibleVersion>('KJV');
 
   useFocusEffect(useCallback(() => {
-    if (!session || isGuest) return;
+    if (!session) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -1006,7 +1009,7 @@ export default function BiographyScreen() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [session, isGuest]));
+  }, [session]));
 
   const allEntries = entries;
 
@@ -1032,7 +1035,7 @@ export default function BiographyScreen() {
       setEntries(prev => prev.map(e => e.id === editId ? { ...e, ...updated } : e));
       setOpenEntry(prev => prev?.id === editId ? { ...prev, ...updated } as Entry : prev);
       setView('detail');
-      if (session && !isGuest) {
+      if (session) {
         await supabase.from('biography_entries').update({
           title: data.title || 'Untitled entry',
           body: data.body,
@@ -1059,8 +1062,8 @@ export default function BiographyScreen() {
     setEntries(prev => [optimistic, ...prev]);
     setView('list');
 
-    if (session && !isGuest) {
-      const { data: row } = await supabase.from('biography_entries').insert({
+    if (session) {
+      const { data: row, error } = await supabase.from('biography_entries').insert({
         user_id: session.user.id,
         title: data.title || 'Untitled entry',
         body: data.body,
@@ -1069,6 +1072,14 @@ export default function BiographyScreen() {
         shared: false,
       }).select('id, created_at').single();
 
+      if (error || !row) {
+        // Don't let it look saved and then vanish: take it back off the list and say so.
+        setEntries(prev => prev.filter(e => e.id !== optimistic.id));
+        Alert.alert('Couldn’t save your entry', 'Check your connection and try again.');
+        return;
+      }
+      // Journal entries count toward event challenges: show it on the event straight away.
+      refreshAllEvents(true).catch(() => {});
       if (row) {
         setEntries(prev => prev.map(e =>
           e.id === optimistic.id
@@ -1082,7 +1093,7 @@ export default function BiographyScreen() {
   const handleDelete = async (entryId: string) => {
     setEntries(prev => prev.filter(e => e.id !== entryId));
     setView('list');
-    if (session && !isGuest) {
+    if (session) {
       const numericId = entryId.replace('bio-', '');
       await supabase.from('biography_entries').delete().eq('id', numericId);
     }

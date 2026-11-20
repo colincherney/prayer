@@ -14,6 +14,8 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useClaimNotes } from '@/lib/claimNotes';
 import { metDates, petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
+import { usePalStage } from '@/lib/winterEvent';
+import { BelovedFormSwitch } from '@/components/winter/BelovedFormSwitch';
 
 type Tab = 'about' | 'evolution' | 'together';
 const TABS: { id: Tab; label: string }[] = [
@@ -58,7 +60,7 @@ function EvolutionTab({ id, stage, name, styles }: { id: PetId; stage: 1 | 2 | 3
               <View style={{ height: (EVO * 260) / 240, opacity: st > stage ? 0.45 : 1 }}>
                 {st <= mounted ? <Pet id={id} stage={st} size={EVO} /> : null}
               </View>
-              <Text style={styles.evoLevel}>LV {STAGE_LEVELS[st - 1]}</Text>
+              <Text style={styles.evoLevel}>{def.eventLine ? `STAGE ${st}` : `LV ${STAGE_LEVELS[st - 1]}`}</Text>
               <Text numberOfLines={2} style={styles.evoName}>{def.stages[st - 1]}</Text>
             </View>
           </React.Fragment>
@@ -67,7 +69,9 @@ function EvolutionTab({ id, stage, name, styles }: { id: PetId; stage: 1 | 2 | 3
       <Text style={styles.body}>
         {stage === 3
           ? <><Text style={styles.bold}>Radiant.</Text> {name} has reached their final form.</>
-          : <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> at level {STAGE_LEVELS[stage]}.</>}
+          : def.eventLine
+            ? <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> through {def.season ?? 'the event'}&apos;s challenges.</>
+            : <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> at level {STAGE_LEVELS[stage]}.</>}
       </Text>
     </View>
   );
@@ -93,6 +97,9 @@ export default function CompanionScreen() {
   const info = COMPANION_INFO[id];
   const xp = xpByPet[id] ?? 0;
   const own = petProgressFromXp(xp);
+  // An event companion's stage comes from its event (Snowcap to the Frost Lord, the Cherub to The Beloved), not XP.
+  const eventStage = usePalStage(id);
+  const stage = (eventStage !== null ? Math.min(3, Math.max(1, eventStage)) : own.stage) as 1 | 2 | 3;
   const isCurrent = id === petId;
   const name = isCurrent ? currentName : def.name;
   const metOn = metDates()[id];
@@ -139,7 +146,7 @@ export default function CompanionScreen() {
           </View>
           <View style={[styles.heroPet, { top: insets.top + heroH - 52 - (HERO_PET * 260) / 240 }]}>
             <Acting petId={id} size={HERO_PET}>
-              <Pet id={id} stage={own.stage} size={HERO_PET} />
+              <Pet id={id} stage={stage} size={HERO_PET} />
             </Acting>
           </View>
           {out.length > 1 ? (
@@ -161,7 +168,7 @@ export default function CompanionScreen() {
             <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{name}</Text>
             <View style={styles.badges}>
               <Text style={styles.badge}>{GROUP_BADGE[group]}</Text>
-              {own.stage === 3 ? <Text style={[styles.badge, styles.badgeGold]}>✦ RADIANT</Text> : null}
+              {stage === 3 ? <Text style={[styles.badge, styles.badgeGold]}>✦ RADIANT</Text> : null}
             </View>
           </View>
           <Text style={styles.species}>{def.species.toUpperCase()}</Text>
@@ -170,6 +177,10 @@ export default function CompanionScreen() {
               <Text style={styles.claimNoteTitle}>{claimNote.short.toUpperCase()}</Text>
               <Text style={styles.claimNoteBody}>{claimNote.long}</Text>
             </View>
+          ) : null}
+          {/* The Beloved's final stage: switch between marble and her Seraph spirit form */}
+          {id === 'beloved' && claimed ? (
+            <BelovedFormSwitch unlocked={(eventStage ?? 0) >= 3} lockedText="Awaken The Beloved first" />
           ) : null}
 
           <View style={styles.tabs} accessibilityRole="tablist">
@@ -201,7 +212,7 @@ export default function CompanionScreen() {
               </View>
             </View>
           ) : tab === 'evolution' ? (
-            <EvolutionTab key={id} id={id} stage={own.stage} name={name} styles={styles} />
+            <EvolutionTab key={id} id={id} stage={stage} name={name} styles={styles} />
           ) : (
             <View style={{ gap: 14 }}>
               <View style={styles.pair}>

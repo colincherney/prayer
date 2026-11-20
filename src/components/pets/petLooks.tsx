@@ -54,6 +54,7 @@ export const LOOKS: Record<LookPetId, Look> = {
   rooster: { fur: '#F7F5F0', light: '#E6E1D7', dark: '#C9433A', ears: 'comb', snout: 'beak', tail: 'fan', bed: ['#C9433A', '#F2934A'], sounds: ['Cheep!', 'Cock-a-doodle!', 'Rise and pray!'], mote: '#F2934A', movesLike: 'dove' },
   dog: { fur: '#E3B57A', light: '#F3E2C8', dark: '#8A5A3C', ears: 'floppy', snout: 'nose', tail: 'wag', bed: ['#2F4B8A', '#6E9BEA'], sounds: ['Yip!', 'Woof!', 'Faithful friend!'], mote: '#6E9BEA', movesLike: 'lamb' },
   frostLord: { fur: '#F4F2EC', light: '#E2DED6', dark: '#22306A', ears: 'round', snout: 'nose', tail: 'puff', bed: ['#22306A', '#9FDDF8'], sounds: ['Snowflake!', 'He giveth snow like wool!', 'The Word melts the frost!'], mote: '#BFE6FF', movesLike: 'lion', belly: '#FFFFFF' },
+  beloved: { fur: '#F5F0E8', light: '#EAE3D8', dark: '#C2546F', ears: 'none', snout: 'nose', tail: 'puff', bed: ['#C2546F', '#F4B6C4'], sounds: ['Hello, beloved!', 'Love never fails!', 'Many waters!'], mote: '#E8879B', movesLike: 'dove', belly: '#FFFFFF' },
   vesper: { fur: '#3E6B4A', light: '#2A2433', dark: '#1B1622', ears: 'none', snout: 'nose', tail: 'puff', bed: ['#2E4A3A', '#6FC3FF'], sounds: ['Hello, wanderer!', 'Courage!', 'Out of the mire!'], mote: '#6FC3FF', movesLike: 'dove', belly: '#2A2433' },
   pig: { fur: '#E89A9E', light: '#F5C2C4', dark: '#C97F84', ears: 'pointy', snout: 'pig', tail: 'curl', bed: ['#B5476E', '#F08CA6'], sounds: ['Oink!', 'Oink oink!', 'Abundant joy!'], mote: '#F08CA6', movesLike: 'pumpkin' },
 };

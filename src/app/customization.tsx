@@ -416,6 +416,21 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'beloved') {
+    // The Beloved — a blush sky, a marble temple, a hedge of roses and a heart.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F7D6DD' }}>
+        <View style={{ position: 'absolute', left: '22%', right: '22%', top: 14, height: 8, backgroundColor: '#F1E6DE' }} />
+        {[0.26, 0.4, 0.54, 0.68].map(x => (
+          <View key={x} style={{ position: 'absolute', left: `${x * 100}%`, top: 22, width: 6, height: 30, backgroundColor: '#F4EBE4' }} />
+        ))}
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 28, borderRadius: 28, backgroundColor: '#8FA872' }} />
+        <View style={{ position: 'absolute', left: 22, bottom: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E07C93' }} />
+        <View style={{ position: 'absolute', right: 30, bottom: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E07C93' }} />
+        <Text style={{ position: 'absolute', right: 14, top: 6, fontSize: 12, color: '#E8879B' }}>♥</Text>
+      </View>
+    );
+  }
   if (room === 'swamp') {
     // The Swamp King — dusk violet sky, a low sun, dark water, a mossy stump and a blue wisp.
     return (

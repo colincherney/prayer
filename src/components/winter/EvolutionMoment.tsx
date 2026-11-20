@@ -47,7 +47,7 @@ function MomentBody({ stage, onDone }: { stage: 1 | 2 | 3; onDone: () => void })
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={skin.palette.light ? 'dark-content' : 'light-content'} />
       <Backdrop hills />
       <View style={[styles.center, { paddingTop: insets.top + 40 }]}>
         <View style={styles.artWrap}>

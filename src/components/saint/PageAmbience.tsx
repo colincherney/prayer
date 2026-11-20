@@ -81,6 +81,12 @@ const AMBIENCE: Record<PrayerRoomName | ThemeName, Layer[]> = {
     layer('star', 'twinkle', ['#E9C46A'], 4, [7, 11], [4, 7], 0.85),
   ],
 
+  beloved: [ // The Beloved: rose petals drifting down, little white sparkles and a warm glow rising.
+    layer('glow', 'wander', ['#E8879B'], 4, [5, 8], [10, 15], 0.4),
+    layer('star', 'twinkle', ['#FFFFFF', '#F4B6C4'], 5, [6, 9], [4, 7], 0.85),
+    layer('glow', 'rise', ['#F4B6C4'], 3, [10, 16], [14, 20], 0.3),
+  ],
+
   swamp: [ // The Swamp King: blue wisps over the fen, gold fireflies and a little rising mist.
     layer('glow', 'wander', ['#6FC3FF'], 4, [5, 8], [10, 15], 0.5),
     layer('star', 'twinkle', ['#F2D27A'], 5, [6, 9], [4, 7], 0.8),

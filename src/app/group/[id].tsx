@@ -35,6 +35,7 @@ import { useAuth } from '@/lib/auth';
 import { usePetProgress } from '@/lib/pet';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
+import { refreshAllEvents } from '@/lib/winterEvent';
 
 type GroupInfo = {
   id: string;
@@ -246,6 +247,8 @@ export default function GroupScreen() {
       user_id: session.user.id,
       action: 'prayed',
     });
+    // the event challenges count prayers: show the new count straight away
+    if (!e) refreshAllEvents(true).catch(() => {});
     if (e) {
       praying.current.delete(prayer.id);
       setPrayers(prev =>

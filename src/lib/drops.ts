@@ -49,7 +49,7 @@ async function releaseTimes(previewDay: string | null): Promise<[string, string]
 /** The events' states, any order; missing ones are skipped. */
 export type EventStates = readonly (WinterState | null | undefined)[];
 /** Each event companion line's wallpaper. */
-const EVENT_ROOMS: Record<string, string> = { frostLord: 'winter', vesper: 'swamp' };
+const EVENT_ROOMS: Record<string, string> = { frostLord: 'winter', beloved: 'beloved', vesper: 'swamp' };
 
 /** Everything that has dropped up to `today` (and after `from`, if given), oldest first. */
 async function dropsUpTo(today: string, events: EventStates, previewDay: string | null, from?: string): Promise<DropItem[]> {

@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 
+import { DEFAULT_CHAPEL_COLORS, type ChapelColorKey, type ChapelColors } from './authChapelColors';
 import { CHAPEL_CAMERA_ASPECT, type ChapelOrbit } from './authChapelOrbit';
 
 type ChapelStone = THREE.MeshStandardMaterial | THREE.MeshLambertMaterial;
 type ChapelMaterial = ChapelStone | THREE.MeshPhongMaterial | THREE.MeshBasicMaterial;
-type StoneFactory = (color: string) => ChapelStone;
+/** Makes a stone material painted with one of the chapel's colours (and remembers it, so it can be repainted). */
+type StoneFactory = (key: ChapelColorKey) => ChapelStone;
+/** A flat, unlit material in one of the chapel's colours. */
+type GlowFactory = (key: ChapelColorKey, extra?: THREE.MeshBasicMaterialParameters) => THREE.MeshBasicMaterial;
 
 const TURN = Math.PI * 2;
 
@@ -40,8 +44,8 @@ function seedRandom(seed: number) {
 }
 
 function buildIsland(world: THREE.Group, stone: StoneFactory) {
-  const rock = [stone('#263B5B'), stone('#485675'), stone('#172A45'), stone('#324664')];
-  const earth = stone('#677568');
+  const rock = [stone('rock0'), stone('rock1'), stone('rock2'), stone('rock3')];
+  const earth = stone('earth');
   const radius = 2.81;
   const layers = [
     { radius, y: -0.08 }, { radius: 2.94, y: -0.36 }, { radius: 2.50, y: -0.68 },
@@ -85,7 +89,7 @@ function buildIsland(world: THREE.Group, stone: StoneFactory) {
   walls.computeVertexNormals();
   world.add(new THREE.Mesh(walls, rock));
 
-  const pathColors = [stone('#B9A18A'), stone('#847F78'), stone('#C9B29D')];
+  const pathColors = [stone('path0'), stone('path1'), stone('path2')];
   const paving = new THREE.CylinderGeometry(1, 1.04, 0.056, 6);
   for (let index = 0; index < 7; index++) {
     const z = 0.76 + index * 0.286;
@@ -104,15 +108,15 @@ function windowFrame(parent: THREE.Group, material: ChapelMaterial, glass: Chape
   box(parent, material, [width - 0.034, 0.024, 0.017], x, y + height * 0.57, z + 0.044);
 }
 
-function buildChapel(world: THREE.Group, stone: StoneFactory, gold: ChapelMaterial) {
-  const wall = stone('#A19487');
-  const pale = stone('#C6B8A3');
-  const wood = stone('#343650');
-  const slate = stone('#414865');
-  const nextSlate = stone('#505573');
-  const trim = stone('#52556F');
-  const glass = new THREE.MeshBasicMaterial({ color: '#FFC764' });
-  const violetGlass = new THREE.MeshBasicMaterial({ color: '#F0A16D' });
+function buildChapel(world: THREE.Group, stone: StoneFactory, glow: GlowFactory, gold: ChapelMaterial) {
+  const wall = stone('wall');
+  const pale = stone('pale');
+  const wood = stone('door');
+  const slate = stone('roof');
+  const nextSlate = stone('roof2');
+  const trim = stone('trim');
+  const glass = glow('glass');
+  const violetGlass = glow('glass2');
   const chapel = new THREE.Group();
   chapel.position.set(0, 0, -0.28);
   world.add(chapel);
@@ -186,10 +190,10 @@ function buildChapel(world: THREE.Group, stone: StoneFactory, gold: ChapelMateri
   box(tower, gold, [0.29, 0.053, 0.055], 0, 3.88, 0);
 }
 
-function buildGarden(world: THREE.Group, stone: StoneFactory) {
-  const fern = [stone('#5D8979'), stone('#799A7C'), stone('#3E6C65')];
-  const bark = stone('#665951');
-  const rock = stone('#718392');
+function buildGarden(world: THREE.Group, stone: StoneFactory, glow: GlowFactory) {
+  const fern = [stone('leaves0'), stone('leaves1'), stone('leaves2')];
+  const bark = stone('bark');
+  const rock = stone('boulder');
   const canopy = new THREE.IcosahedronGeometry(1, 0);
   const treeLocations = [[-1.67, -1.04, 1.07], [1.61, -0.81, 0.82], [-1.91, 0.07, 0.67]];
   for (const [x, z, height] of treeLocations) {
@@ -214,7 +218,7 @@ function buildGarden(world: THREE.Group, stone: StoneFactory) {
     bush.rotation.y = angle;
   }
 
-  const flame = new THREE.MeshBasicMaterial({ color: '#FFD993' });
+  const flame = glow('flame');
   const flames = new THREE.Group();
   world.add(flames);
   for (const x of [-0.74, 0.91]) {
@@ -227,11 +231,11 @@ function buildGarden(world: THREE.Group, stone: StoneFactory) {
   return flames;
 }
 
-function addAtmosphere(world: THREE.Group) {
-  const material = new THREE.MeshBasicMaterial({ color: '#EEC38B', transparent: true, opacity: 0.31 });
+function addAtmosphere(world: THREE.Group, glow: GlowFactory, paint: (key: ChapelColorKey, material: { color: THREE.Color }) => void) {
+  const material = glow('ring', { transparent: true, opacity: 0.31 });
   const outer = mesh(world, new THREE.TorusGeometry(3.28, 0.012, 5, 88), material, 0, -0.35, 0);
   outer.rotation.set(Math.PI / 2 + 0.14, 0.12, 0);
-  const inner = mesh(world, new THREE.TorusGeometry(2.97, 0.009, 5, 80), material.clone(), 0, -0.55, 0);
+  const inner = mesh(world, new THREE.TorusGeometry(2.97, 0.009, 5, 80), glow('ring', { transparent: true }), 0, -0.55, 0);
   inner.material.opacity = 0.20;
   inner.rotation.copy(outer.rotation);
 
@@ -245,12 +249,14 @@ function addAtmosphere(world: THREE.Group) {
     positions[index + 2] = Math.sin(angle) * radius;
   }
   const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const motes = new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#FCE3AF', size: 0.043, transparent: true, opacity: 0.56, depthWrite: false }));
+  const moteMaterial = new THREE.PointsMaterial({ color: DEFAULT_CHAPEL_COLORS.motes, size: 0.043, transparent: true, opacity: 0.56, depthWrite: false });
+  paint('motes', moteMaterial);
+  const motes = new THREE.Points(geometry, moteMaterial);
   world.add(motes);
   return motes;
 }
 
-export function createAuthChapelWorld(options: THREE.WebGLRendererParameters, { portableMaterials = false } = {}) {
+export function createAuthChapelWorld(options: THREE.WebGLRendererParameters, { portableMaterials = false, colors = DEFAULT_CHAPEL_COLORS }: { portableMaterials?: boolean; colors?: ChapelColors } = {}) {
   const renderer = new THREE.WebGLRenderer({ ...options, alpha: true, antialias: true });
   renderer.debug.onShaderError = (gl, program) => {
     throw new Error(gl.getProgramInfoLog(program) || 'The chapel shaders could not be linked.');
@@ -261,28 +267,58 @@ export function createAuthChapelWorld(options: THREE.WebGLRendererParameters, { 
   const scene = new THREE.Scene();
   const world = new THREE.Group();
   scene.add(world);
-  scene.add(new THREE.HemisphereLight('#ABC9F7', '#89644F', 1.65));
-  const key = new THREE.DirectionalLight('#FFE1AE', 3.1);
+  // Every coloured thing is listed under its colour, so the whole chapel can be repainted for another wallpaper.
+  const painted = new Map<ChapelColorKey, { color: THREE.Color }[]>();
+  const paint = (key: ChapelColorKey, target: { color: THREE.Color }) => {
+    const list = painted.get(key) ?? [];
+    list.push(target);
+    painted.set(key, list);
+    target.color.set(colors[key]);
+  };
+  const sky = new THREE.HemisphereLight(colors.sky, colors.ground, 1.65);
+  scene.add(sky);
+  const key = new THREE.DirectionalLight(colors.key, 3.1);
   key.position.set(-4, 6, 5);
   scene.add(key);
-  const edge = new THREE.DirectionalLight('#87B4FF', 2.2);
+  const edge = new THREE.DirectionalLight(colors.edge, 2.2);
   edge.position.set(4, 3, -5);
   scene.add(edge);
+  paint('sky', sky);
+  paint('key', key);
+  paint('edge', edge);
   // Expo GL does not expose float color buffers on every device. Lambert and Phong avoid Three's half-float lighting texture.
-  const stone: StoneFactory = portableMaterials
-    ? color => new THREE.MeshLambertMaterial({ color, flatShading: true })
-    : color => new THREE.MeshStandardMaterial({ color, roughness: 0.92, flatShading: true });
-  const goldColor = { color: '#E7B875', emissive: '#825527', emissiveIntensity: 0.35 };
+  const stone: StoneFactory = name => {
+    const material = portableMaterials
+      ? new THREE.MeshLambertMaterial({ flatShading: true })
+      : new THREE.MeshStandardMaterial({ roughness: 0.92, flatShading: true });
+    paint(name, material);
+    return material;
+  };
+  const glow: GlowFactory = (name, extra) => {
+    const material = new THREE.MeshBasicMaterial(extra);
+    paint(name, material);
+    return material;
+  };
+  const goldColor = { emissiveIntensity: 0.35 };
   const gold = portableMaterials
     ? new THREE.MeshPhongMaterial({ ...goldColor, shininess: 24 })
     : new THREE.MeshStandardMaterial({ ...goldColor, metalness: 0.3, roughness: 0.34 });
+  paint('gold', gold);
+  const setGlow = (value: string) => gold.emissive.set(value);
+  setGlow(colors.goldGlow);
   buildIsland(world, stone);
-  buildChapel(world, stone, gold);
-  const flames = buildGarden(world, stone);
-  const motes = addAtmosphere(world);
+  buildChapel(world, stone, glow, gold);
+  const flames = buildGarden(world, stone, glow);
+  const motes = addAtmosphere(world, glow, paint);
   const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 36);
 
   return {
+    /** Repaints the chapel for another wallpaper (shows on the next frame). */
+    setColors(next: ChapelColors) {
+      for (const [name, targets] of painted) for (const target of targets) target.color.set(next[name]);
+      sky.groundColor.set(next.ground);
+      setGlow(next.goldGlow);
+    },
     resize(width: number, height: number, pixelRatio: number) {
       camera.aspect = width / height;
       camera.zoom = Math.min(1, camera.aspect / CHAPEL_CAMERA_ASPECT);
