@@ -6,6 +6,7 @@ import { MONTHLY_ROOM_NAMES, MonthlyRoomName } from '@/components/saint/monthlyR
 import { PrayerRoomName } from '@/components/saint/prayerRoom';
 import { usePetProgress } from '@/lib/pet';
 
+import { FullSizePals } from './FrostLordPet';
 import { Pet } from './registry';
 
 export type HomePetVariant = PrayerRoomName | 'theme';
@@ -159,7 +160,10 @@ export function HomePet({ variant, accent = '#8FC6A9', sceneSize }: {
       <View pointerEvents="none" style={{ position: 'absolute', top: feetInPet - 14 }}>
         <Perch variant={variant} width={perchW} accent={accent} />
       </View>
-      <Pet id={petId} stage={progress.stage} size={size} interactive />
+      {/* Event companions (the bear, The Beloved) at the nook's size, so they match Selah and the others here. */}
+      <FullSizePals.Provider value>
+        <Pet id={petId} stage={progress.stage} size={size} interactive />
+      </FullSizePals.Provider>
     </View>
   );
 }
