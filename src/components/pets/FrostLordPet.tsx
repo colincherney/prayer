@@ -71,7 +71,7 @@ export const BELOVED_FRAMES: Stages<PalFrame> = {
 
 /** The Seraph, The Beloved's spirit form: a bigger canvas (her neon halo and glow), the figure at the same scale. */
 export const SERAPH_ART: number = require('../../../assets/images/beloved/beloved-4-seraph.png');
-export const SERAPH_FRAME: PalFrame = { w: 1120, h: 1360, body: 1120, top: 46, feet: 1215, cx: 560, solid: [315, 112, 1007] };
+export const SERAPH_FRAME: PalFrame = { w: 1120, h: 1360, body: 1120, top: 289, feet: 1215, cx: 560, solid: [315, 112, 1007] };
 
 export const BELOVED_STAGE_LABELS: Stages<string> = {
   1: 'the Cherub, a little winged marble cherub holding a heart',
