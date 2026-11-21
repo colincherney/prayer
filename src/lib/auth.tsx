@@ -54,19 +54,22 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
 };
 
-/**
- * The password rule set in Supabase (Authentication → Sign In / Providers → Email): at least 12 characters with a
- * lowercase letter, an uppercase letter, a digit and a symbol. Keep the two in step. Returns what's still missing,
- * or null when the password is fine. Only new passwords are checked; logging in accepts older, shorter ones.
- */
-export const PASSWORD_MIN = 12;
+const PASSWORD_MIN = 8;
+// Match the symbols in Supabase Auth's required character set.
+const PASSWORD_SYMBOLS = "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+
+export const PASSWORD_REQUIREMENTS = `Use at least ${PASSWORD_MIN} characters, including uppercase and lowercase letters, a digit, and a symbol.`;
+
+/** Validate new passwords. Existing credentials still go through the regular sign-in flow. */
 export function passwordProblem(pw: string): string | null {
+  const characters = Array.from(pw);
+  const shortBy = PASSWORD_MIN - characters.length;
   const missing: string[] = [];
-  if (pw.length < PASSWORD_MIN) missing.push(`${PASSWORD_MIN - pw.length} more character${PASSWORD_MIN - pw.length === 1 ? '' : 's'}`);
+  if (shortBy > 0) missing.push(`${shortBy} more character${shortBy === 1 ? '' : 's'}`);
   if (!/[a-z]/.test(pw)) missing.push('a lowercase letter');
   if (!/[A-Z]/.test(pw)) missing.push('an uppercase letter');
-  if (!/\d/.test(pw)) missing.push('a number');
-  if (!/[^A-Za-z0-9]/.test(pw)) missing.push('a symbol');
+  if (!/[0-9]/.test(pw)) missing.push('a digit');
+  if (!characters.some(character => PASSWORD_SYMBOLS.includes(character))) missing.push('a symbol');
   return missing.length ? `Still needs ${missing.join(', ')}.` : null;
 }
 
@@ -82,9 +85,6 @@ function friendlyError(message: string | undefined | null): string | null {
   const wait = emailCooldown(message);
   if (wait !== null) {
     return `A code was just sent to this account. You can ask for another in ${wait} second${wait === 1 ? '' : 's'}.`;
-  }
-  if (/weak|password should|password is known/i.test(message)) {
-    return `Pick a stronger password: at least ${PASSWORD_MIN} characters with upper and lower case letters, a number and a symbol.`;
   }
   if (/rate limit/i.test(message)) return 'Too many emails have gone out in the last hour. Please try again a bit later.';
   return message;

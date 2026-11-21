@@ -67,6 +67,7 @@ function setup({ enabledAt, passwordError, stored, guest = false, verifyError = 
   };
   new Function('require', 'exports', source)(name => imports[name], exports);
   return {
+    passwordProblem: exports.passwordProblem,
     render: () => {
       cursor = 0;
       return exports.AuthProvider({});
@@ -76,6 +77,16 @@ function setup({ enabledAt, passwordError, stored, guest = false, verifyError = 
     savedTours: () => cache.get(tourKey),
   };
 }
+
+test('new passwords need eight characters with lowercase, uppercase, a digit, and a symbol', () => {
+  const { passwordProblem } = setup();
+  assert.equal(passwordProblem('Abcde1!'), 'Still needs 1 more character.');
+  assert.equal(passwordProblem('Abcdef1!'), null);
+  assert.equal(passwordProblem('ABCDEF1!'), 'Still needs a lowercase letter.');
+  assert.equal(passwordProblem('abcdef1!'), 'Still needs an uppercase letter.');
+  assert.equal(passwordProblem('Abcdefg!'), 'Still needs a digit.');
+  assert.equal(passwordProblem('Abcdef1 '), 'Still needs a symbol.');
+});
 
 test('a confirmed account signs in with just its password by default', async () => {
   const { render, calls } = setup();

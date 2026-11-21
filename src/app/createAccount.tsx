@@ -12,7 +12,7 @@ import {
 import { authHaptic } from '@/components/saint/authHaptics';
 import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
 import { LegalLinks } from '@/components/saint/LegalLinks';
-import { passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
+import { passwordProblem, PASSWORD_REQUIREMENTS, useAuth } from '@/lib/auth';
 
 /**
  * Turns an anonymous session into a real account without starting over: the same user, now with an email and
@@ -94,7 +94,7 @@ export default function CreateAccountScreen() {
       {password ? (
         pwProblem ? <AuthMessage>{pwProblem}</AuthMessage> : null
       ) : (
-        <AuthMessage>Use {PASSWORD_MIN}+ characters with uppercase and lowercase letters, a number, and a symbol.</AuthMessage>
+        <AuthMessage>{PASSWORD_REQUIREMENTS}</AuthMessage>
       )}
       {error ? <AuthMessage error>{error}</AuthMessage> : null}
       <AuthButton

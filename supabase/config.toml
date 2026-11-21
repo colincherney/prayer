@@ -1,3 +1,8 @@
+# Match the minimum length and character rules in the app.
+[auth]
+minimum_password_length = 8
+password_requirements = "lower_upper_letters_digits_symbols"
+
 # RevenueCat authenticates with REVENUECAT_WEBHOOK_AUTH rather than a Supabase JWT.
 [functions.revenuecat-webhook]
 verify_jwt = false
