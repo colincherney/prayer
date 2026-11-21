@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
+import type { Session } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -35,15 +35,9 @@ import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
+import { fetchPrayerFeedPage, startPrayerFeed, type PrayerRequest } from '@/lib/prayerFeed';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
-
-type PrayerRequest = {
-  id: string;
-  category: string;
-  prayedCount: number;
-  text: string;
-};
 
 type NightPalette = {
   bg: string;
@@ -74,8 +68,6 @@ function nightPaletteFromTheme(THEME: Theme): NightPalette {
     ember: THEME.accentSoft,
   };
 }
-
-const SCREEN = Dimensions.get('window');
 
 /* -------------------- Vigil background (radial glow) -------------------- */
 const VigilBackdrop: React.FC<{ night: NightPalette; glowIntensity: SharedValue<number> }> = ({
@@ -241,18 +233,24 @@ const WallOfLights: React.FC<{
 
 /* -------------------- Screen -------------------- */
 export default function PrayForOthersScreen() {
+  const { session } = useAuth();
+  return <PrayForOthersFeed key={session?.user.id} session={session} />;
+}
+
+function PrayForOthersFeed({ session }: { session: Session | null }) {
   const fontsLoaded = useSaintFonts();
   const { simple } = useAppDisplay();
   const { theme: THEME } = useTheme();
   const NIGHT = useMemo(() => nightPaletteFromTheme(THEME), [THEME]);
   const styles = useMemo(() => makeStyles(NIGHT), [NIGHT]);
-  const { session } = useAuth();
+  const userId = session?.user.id;
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
-  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const [exhausted, setExhausted] = useState(false);
+  const nextFeedPage = useRef<ReturnType<typeof startPrayerFeed> | null>(null);
+  const activeFeedLoad = useRef<AbortController | null>(null);
 
   const [index, setIndex] = useState(0);
   const [prayedIds, setPrayedIds] = useState<Set<string>>(new Set());
@@ -276,87 +274,52 @@ export default function PrayForOthersScreen() {
     transform: [{ translateY: cardLift.get() }],
   }));
 
-  // Fetch the feed of approved prayers, excluding my own, any I've already
-  // prayed for, and any IDs already shown earlier this session.
   const loadFeed = useCallback(
-    async (excludeIds: Set<string>) => {
-      setLoadingFeed(true);
-      setFeedError(null);
-      const me = session?.user?.id;
-      let query = supabase
-        .from('prayers')
-        .select('id, body, category, created_at, user_id, prayer_interactions(action, user_id)')
-        .eq('approved', 'y')
-        .is('group_id', null)
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (me) query = query.neq('user_id', me);
-
-      const startedAt = Date.now();
-      const { data, error } = await query;
-      if (__DEV__) {
-        console.log(`[explore] feed query ${Date.now() - startedAt}ms, ${data?.length ?? 0} prayers`);
-      }
-      if (error) {
-        setFeedError(error.message);
-        setRequests([]);
-        setLoadingFeed(false);
-        return;
-      }
-
-      const mapped = (data ?? [])
-        .map(p => {
-          const interactions =
-            (p.prayer_interactions as { action: string; user_id: string }[] | null) ?? [];
-          const alreadyPrayed = me
-            ? interactions.some(i => i.user_id === me && i.action === 'prayed')
-            : false;
-          return {
-            id: p.id as string,
-            text: (p.body as string) ?? '',
-            category: (p.category as string | null) ?? 'Other',
-            prayedCount: interactions.filter(i => i.action === 'prayed').length,
-            alreadyPrayed,
-          };
+    (cursor: ReturnType<typeof startPrayerFeed>) => {
+      const controller = new AbortController();
+      activeFeedLoad.current = controller;
+      fetchPrayerFeedPage(cursor, userId, controller.signal)
+        .then(({ requests, next }) => {
+          if (controller.signal.aborted) return;
+          nextFeedPage.current = next;
+          setFeedError(null);
+          setRequests(requests);
+          setIndex(0);
+          setPrayedIds(new Set());
+          setNotesSent(new Set());
+          setNoteOpen(false);
+          setNote('');
+          setExhausted(next === null);
         })
-        .filter(p => !p.alreadyPrayed && !excludeIds.has(p.id))
-        .map(({ alreadyPrayed: _alreadyPrayed, ...rest }) => rest)
-        .slice(0, 10);
-
-      setRequests(mapped);
-      setIndex(0);
-      setPrayedIds(new Set());
-      setNotesSent(new Set());
-      setNoteOpen(false);
-      setNote('');
-      setSeenIds(prev => {
-        const next = new Set(prev);
-        mapped.forEach(p => next.add(p.id));
-        return next;
-      });
-      setExhausted(mapped.length === 0);
-      setLoadingFeed(false);
+        .catch(error => {
+          if (controller.signal.aborted) return;
+          setFeedError(error instanceof Error ? error.message : 'Please try again.');
+          setRequests([]);
+        })
+        .finally(() => {
+          if (activeFeedLoad.current === controller) {
+            activeFeedLoad.current = null;
+            setLoadingFeed(false);
+          }
+        });
     },
-    [session?.user?.id],
+    [userId],
   );
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (cancelled) return;
-      setSeenIds(new Set());
-      setExhausted(false);
-      await loadFeed(new Set());
-    })();
+    const cursor = startPrayerFeed();
+    nextFeedPage.current = cursor;
+    loadFeed(cursor);
     return () => {
-      cancelled = true;
+      activeFeedLoad.current?.abort();
+      activeFeedLoad.current = null;
     };
-    // loadFeed intentionally omitted: re-running on identity change would loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
+  }, [loadFeed]);
 
   const onLoadMore = () => {
-    loadFeed(seenIds);
+    if (!nextFeedPage.current || activeFeedLoad.current) return;
+    setLoadingFeed(true);
+    loadFeed(nextFeedPage.current);
   };
 
   const req = requests[index];
@@ -547,9 +510,9 @@ export default function PrayForOthersScreen() {
                 ? feedError
                 : 'No requests are waiting right now. Be the first to share what weighs on your heart.'}
             </Text>}
-            {simple && feedError && (
+            {feedError && (
               <Pressable accessibilityRole="button" onPress={onLoadMore} style={styles.continueBtn}>
-                <Text style={styles.simpleLink}>Try again</Text>
+                <Text style={simple ? styles.simpleLink : styles.continueBtnText}>Try again</Text>
               </Pressable>
             )}
           </View>
@@ -719,9 +682,11 @@ export default function PrayForOthersScreen() {
                 <Text style={styles.simpleLink}>Previous</Text>
               </Pressable>
             )}
-            <Pressable accessibilityRole="button" onPress={isLast ? onLoadMore : onContinue} disabled={noteSending} style={styles.continueBtn}>
-              <Text style={styles.simpleLink}>{isLast ? 'More requests' : 'Next request'}</Text>
-            </Pressable>
+            {(!isLast || !exhausted) && (
+              <Pressable accessibilityRole="button" onPress={isLast ? onLoadMore : onContinue} disabled={noteSending} style={styles.continueBtn}>
+                <Text style={styles.simpleLink}>{isLast ? 'More requests' : 'Next request'}</Text>
+              </Pressable>
+            )}
           </View>
         ) : <WallOfLights
           night={NIGHT}
