@@ -12,7 +12,11 @@ function navigation() {
   const hooks = [];
   const effects = [];
   const redirects = [];
-  const router = { replace: route => redirects.push(route), push: route => redirects.push(route) };
+  const router = {
+    replace: route => redirects.push(route),
+    push: route => redirects.push(route),
+    dismissTo: route => redirects.push(route),
+  };
   const react = {
     useRef(initial) {
       const index = cursor++;
@@ -28,6 +32,7 @@ function navigation() {
     },
   };
   const noop = () => {};
+  const AccountTour = () => {};
   const defaultModule = new Proxy({}, { get: () => noop });
   const dependencies = {
     react,
@@ -43,6 +48,7 @@ function navigation() {
     'expo-system-ui': { setBackgroundColorAsync: async () => {} },
     '@/lib/auth': { useAuth: () => state.auth },
     '@/lib/notifications': { registerForPushNotifications: async () => null },
+    '@/components/saint/AccountTour': { AccountTour },
     '@/components/saint/useFonts': { useSaintFonts: () => true },
     '@/components/saint/appDisplay': { useAppDisplay: () => ({ simple: state.simple }) },
     '@/components/saint/theme': { useTheme: () => ({ theme: {} }) },
@@ -59,15 +65,36 @@ function navigation() {
   );
 
   const session = { user: { id: 'widget-user' } };
+  const guestSession = { user: { id: 'guest-user', is_anonymous: true } };
+  let tour;
+  let stack;
   return {
-    render(screen, { signedIn = false, loading = false, simple = false, notification = null } = {}) {
-      state = { segments: [screen], auth: { session: signedIn ? session : null, loading }, simple, notification };
+    render(screen, { signedIn = false, guest = false, loading = false, simple = false, notification = null, accountTourPending = false } = {}) {
+      state = {
+        segments: [screen],
+        auth: {
+          session: guest ? guestSession : signedIn ? session : null,
+          loading,
+          accountTourPending,
+          finishAccountTour: () => redirects.push('finish account tour'),
+        },
+        simple,
+        notification,
+      };
       cursor = 0;
       redirects.length = 0;
-      module.exports.renderRootStack();
+      const view = module.exports.renderRootStack();
+      stack = view.props.children[0];
+      tour = view.props.children.find(child => child?.type === AccountTour);
       for (const effect of effects.splice(0)) effect();
       return [...redirects];
     },
+    tourVisible: () => Boolean(tour),
+    openPlus() {
+      tour.props.onGetPlus();
+      return [...redirects];
+    },
+    storeAvailableInSimpleMode: () => stack.props.children.some(child => child.props.name === 'store'),
   };
 }
 
@@ -109,4 +136,44 @@ test('Simple mode keeps the widget route and prayer notifications available whil
   assert.deepEqual(nav.render('(tabs)', { ...simple, notification: '/winter' }), []);
   assert.deepEqual(nav.render('(tabs)', { ...simple, notification: '/myPrayers' }), ['/myPrayers']);
   assert.deepEqual(nav.render('(tabs)', { signedIn: true, notification: '/winter' }), ['/winter']);
+});
+
+test('the account tour waits for the linked prayer request and opens on returning home', () => {
+  const nav = navigation();
+  const newAccount = { signedIn: true, accountTourPending: true };
+  assert.deepEqual(nav.render('prayerRequest'), ['/auth']);
+  assert.deepEqual(nav.render('auth', newAccount), ['/prayerRequest']);
+  assert.equal(nav.tourVisible(), false);
+  assert.deepEqual(nav.render('prayerRequest', newAccount), []);
+  assert.equal(nav.tourVisible(), false);
+  nav.render('(tabs)', newAccount);
+  assert.equal(nav.tourVisible(), true);
+  nav.render('(tabs)', { signedIn: true });
+  assert.equal(nav.tourVisible(), false);
+});
+
+test('the account tour also opens on a completed guest upgrade in Simple mode', () => {
+  const nav = navigation();
+  nav.render('createAccount', { signedIn: true, simple: true, accountTourPending: true });
+  assert.equal(nav.tourVisible(), true);
+});
+
+test('a guest sees the tour after leaving the welcome screen', () => {
+  const nav = navigation();
+  const newGuest = { guest: true, accountTourPending: true };
+  assert.deepEqual(nav.render('auth', newGuest), ['/']);
+  assert.equal(nav.tourVisible(), false);
+  nav.render('(tabs)', newGuest);
+  assert.equal(nav.tourVisible(), true);
+  assert.deepEqual(nav.openPlus(), ['finish account tour', '/store']);
+});
+
+test('the tour can finish and open the store in Simple mode, including after a guest upgrade', () => {
+  const nav = navigation();
+  const newAccount = { signedIn: true, simple: true, accountTourPending: true };
+  nav.render('(tabs)', newAccount);
+  assert.equal(nav.storeAvailableInSimpleMode(), true);
+  assert.deepEqual(nav.openPlus(), ['finish account tour', '/store']);
+  nav.render('createAccount', newAccount);
+  assert.deepEqual(nav.openPlus(), ['finish account tour', '/store']);
 });

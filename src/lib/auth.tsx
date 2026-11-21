@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { LOCAL_KEYS, readLocal, writeLocal } from './localCache';
 import { initializePurchases, purchasesAvailable, signOutOfPurchases } from './purchases';
 import { clearWinter, refreshAllEvents } from './winterEvent';
 import { passwordCheckClient, supabase } from './supabase';
@@ -14,6 +15,8 @@ type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   isGuest: boolean;
+  accountTourPending: boolean;
+  finishAccountTour: () => void;
   emailSignInCodes: boolean;
   setEmailSignInCodes: (enabled: boolean) => Promise<{ error: string | null }>;
   /** Signs in with a password or reports which email code the app needs next. */
@@ -22,7 +25,7 @@ type AuthContextValue = {
     password: string,
   ) => Promise<{ error: string | null; kind?: EmailCodeKind; signedIn?: boolean }>;
   /** Creates the account; Supabase emails a code that confirms it. */
-  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; signedIn: boolean }>;
   /** Step two: the emailed code signs the person in. `remember` skips the code on this phone for a while. */
   verifyEmailCode: (
     email: string,
@@ -127,20 +130,41 @@ export async function forgetPhone(email: string | null | undefined) {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+type AccountTourStatus = 'pending' | 'finished';
+type AccountTours = Partial<Record<string, AccountTourStatus>>;
+
+function readAccountTours(): AccountTours {
+  const saved = readLocal<AccountTours | string[]>(LOCAL_KEYS.accountTours);
+  // Earlier versions kept only the IDs with a pending tour.
+  return Array.isArray(saved) ? Object.fromEntries(saved.map(id => [id, 'pending'])) : saved ?? {};
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountTours, setAccountTours] = useState(readAccountTours);
 
-  const purchasingUserId = session?.user.is_anonymous ? undefined : session?.user.id;
+  const sessionUserId = session?.user.id;
+  const isGuest = session?.user.is_anonymous === true;
+  const accountUserId = isGuest ? undefined : sessionUserId;
+
+  function updateAccountTour(userId: string, status: AccountTourStatus) {
+    const current = readAccountTours();
+    if (current[userId] === status || current[userId] === 'finished') return;
+    const next = { ...current, [userId]: status };
+    writeLocal(LOCAL_KEYS.accountTours, next).catch(() => {});
+    setAccountTours(next);
+  }
+
   useEffect(() => {
-    if (!purchasingUserId || !purchasesAvailable) return;
-    const refresh = () => initializePurchases(purchasingUserId).catch(() => {});
+    if (!accountUserId || !purchasesAvailable) return;
+    const refresh = () => initializePurchases(accountUserId).catch(() => {});
     refresh();
     const listener = AppState.addEventListener('change', state => {
       if (state === 'active') refresh();
     });
     return () => listener.remove();
-  }, [purchasingUserId]);
+  }, [accountUserId]);
 
   useEffect(() => {
     let userId: string | null | undefined;
@@ -214,12 +238,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUpWithPassword: AuthContextValue['signUpWithPassword'] = async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: friendlyError(error?.message) };
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (!error && data.session) updateAccountTour(data.session.user.id, 'pending');
+    return { error: friendlyError(error?.message), signedIn: Boolean(data.session) };
   };
 
   const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind, remember) => {
     const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
+    if (!error && data.user) {
+      const guestUpgrade = kind === 'email_change' && session?.user.is_anonymous && session.user.id === data.user.id;
+      if (kind === 'signup' || guestUpgrade) updateAccountTour(data.user.id, 'pending');
+    }
     if (!error && remember && kind === 'email') {
       const enrollment = emailCodeEnrollment(data.user);
       if (enrollment) await rememberPhone(email, enrollment);
@@ -272,7 +301,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
-  const isGuest = session?.user?.is_anonymous === true;
+  const tourStatus = sessionUserId ? accountTours[sessionUserId] : undefined;
 
   return (
     <AuthContext.Provider
@@ -280,6 +309,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         loading,
         isGuest,
+        accountTourPending: tourStatus === 'pending' || (isGuest && tourStatus !== 'finished'),
+        finishAccountTour: () => {
+          if (sessionUserId) updateAccountTour(sessionUserId, 'finished');
+        },
         emailSignInCodes: emailCodeEnrollment(session?.user) !== null,
         setEmailSignInCodes,
         signInWithPassword,

@@ -6,7 +6,7 @@ import { ArrowIcon, HeartIcon, PenIcon, PrayingIcon } from './Icons';
 import { SafeAreaView } from './SafeArea';
 import { FONTS, type Theme, useTheme, useThemedStyles } from './theme';
 
-const actions = [
+export const SIMPLE_PRAYER_ACTIONS = [
   { title: 'Request prayer', detail: 'Share an anonymous request', href: '/prayerRequest', Icon: HeartIcon },
   { title: 'Pray for others', detail: 'Read requests from the community', href: '/explore', Icon: PrayingIcon },
   { title: 'Journal', detail: 'Write and revisit your reflections', href: '/biography', Icon: PenIcon },
@@ -41,7 +41,7 @@ export function SimpleHome() {
       <Text accessibilityRole="header" style={styles.heading}>Prayer</Text>
 
       <View style={styles.actions}>
-        {actions.map(({ title, detail, href, Icon }) => (
+        {SIMPLE_PRAYER_ACTIONS.map(({ title, detail, href, Icon }) => (
           <Pressable key={title} accessibilityRole="button" onPress={() => router.push(href)}
             style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
             <View style={styles.actionIcon}><Icon size={22} color={theme.pillInk} /></View>

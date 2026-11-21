@@ -71,7 +71,7 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
     setBusy(true);
     setError(null);
     const result = newAccount
-      ? { ...await signUpWithPassword(cleanEmail, password), kind: 'signup' as const, signedIn: false }
+      ? { ...await signUpWithPassword(cleanEmail, password), kind: 'signup' as const }
       : await signInWithPassword(cleanEmail, password);
     setBusy(false);
 

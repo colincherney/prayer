@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AccountTour } from '@/components/saint/AccountTour';
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
 import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
@@ -39,7 +40,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 SystemUI.setBackgroundColorAsync(SPLASH_BG).catch(() => {});
 
 function RootStack() {
-  const { session, loading } = useAuth();
+  const { session, loading, accountTourPending, finishAccountTour } = useAuth();
   const { simple } = useAppDisplay();
   const { theme } = useTheme();
   const colorScheme = useColorScheme();
@@ -54,6 +55,9 @@ function RootStack() {
   const inAuth = currentScreen === 'auth';
   // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
   const navSettled = !loading && !session === inAuth;
+  // Let a linked prayer request open first. The tour can wait until the user returns to the tabs.
+  const showAccountTour = navSettled && fontsLoaded && accountTourPending &&
+    (currentScreen === '(tabs)' || currentScreen === 'createAccount');
 
   useEffect(() => {
     if (loading) return;
@@ -92,7 +96,7 @@ function RootStack() {
   // Register the device for push notifications once we have a session.
   const signedInId = session?.user?.id;
   useEffect(() => {
-    if (!signedInId) return;
+    if (!signedInId || !navSettled || accountTourPending) return;
     let cancelled = false;
     (async () => {
       const token = await registerForPushNotifications();
@@ -102,11 +106,11 @@ function RootStack() {
     return () => {
       cancelled = true;
     };
-  }, [signedInId]);
+  }, [signedInId, navSettled, accountTourPending]);
 
   // The last response includes taps that launch the app. Wait for sign-in and navigation.
   useEffect(() => {
-    if (!notificationResponse || !signedInId || !navSettled) return;
+    if (!notificationResponse || !signedInId || !navSettled || showAccountTour) return;
     const request = notificationResponse.notification.request;
     if (handledNotification.current === request.identifier) return;
     handledNotification.current = request.identifier;
@@ -115,7 +119,7 @@ function RootStack() {
       router.push(destination);
     }
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
-  }, [notificationResponse, signedInId, navSettled, router, simple]);
+  }, [notificationResponse, signedInId, navSettled, showAccountTour, router, simple]);
 
   return (
     <ThemeProvider value={(simple ? theme.isDark : colorScheme === 'dark') ? DarkTheme : DefaultTheme}>
@@ -134,13 +138,13 @@ function RootStack() {
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="changeEmail" options={{ presentation: 'card' }} />
       <Stack.Screen name="deleteAccount" options={{ presentation: 'card' }} />
+      <Stack.Screen name="store" options={{ presentation: 'card' }} />
       <Stack.Protected guard={!simple}>
         <Stack.Screen name="pair" options={{ presentation: 'card' }} />
         <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
         <Stack.Screen name="customization" options={{ presentation: 'card' }} />
         <Stack.Screen name="pets" options={{ presentation: 'card' }} />
         <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="store" options={{ presentation: 'card' }} />
         <Stack.Screen name="groups" options={{ presentation: 'card' }} />
         <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
@@ -153,10 +157,21 @@ function RootStack() {
         <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
       </Stack.Protected>
     </Stack>
+    {showAccountTour ? (
+      <AccountTour
+        key={signedInId}
+        onDone={finishAccountTour}
+        onGetPlus={() => {
+          finishAccountTour();
+          if (currentScreen === 'createAccount') router.dismissTo('/store');
+          else router.push('/store');
+        }}
+      />
+    ) : null}
     {/* The running event's intro clip and evolution moments, over whatever screen is showing (home only). */}
-    {!simple && navSettled && session ? <WinterGate /> : null}
+    {!showAccountTour && !simple && navSettled && session ? <WinterGate /> : null}
     {/* "What's new": companions and wallpapers that just dropped, shown once each. */}
-    {!simple && navSettled && session ? <DropGate /> : null}
+    {!showAccountTour && !simple && navSettled && session ? <DropGate /> : null}
     </ThemeProvider>
   );
 }
