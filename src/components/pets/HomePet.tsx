@@ -6,6 +6,7 @@ import { MONTHLY_ROOM_NAMES, MonthlyRoomName } from '@/components/saint/monthlyR
 import { PrayerRoomName } from '@/components/saint/prayerRoom';
 import { usePetProgress } from '@/lib/pet';
 
+import { FullSizePals } from './FrostLordPet';
 import { Pet } from './registry';
 
 export type HomePetVariant = PrayerRoomName | 'theme';
@@ -36,6 +37,12 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   // Give Thanks: on the hay bale; God With Us: on the snowy stump (both where the design's mascot sits).
   thanksgiving: { size: 96, x: 0.744, feetY: 184 },
   christmas: { size: 96, x: 0.744, feetY: 184 },
+  // The Long Winter: on the ice rock, at the same spot as the Christmas stump.
+  winter: { size: 96, x: 0.744, feetY: 184 },
+  // The Swamp King: on the mossy stump, at the same spot.
+  swamp: { size: 96, x: 0.744, feetY: 184 },
+  // The Beloved: on top of the marble column, at the same spot.
+  beloved: { size: 96, x: 0.744, feetY: 184 },
   // 2027 monthly rooms: every design stands its companion on a perch at the same spot (a 150-wide box at 226, 196).
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(n => [n, { size: 116, x: 0.772, feetY: 202 }])) as Record<MonthlyRoomName, Spot>),
   theme: { size: 72, x: 0.644, feetY: 192 },
@@ -50,6 +57,9 @@ const SCENE_FEET: Record<HomePetVariant, number> = {
   halloween: 318,
   thanksgiving: 318,
   christmas: 318,
+  winter: 318,
+  swamp: 318,
+  beloved: 318,
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(name => [name, 330])) as Record<MonthlyRoomName, number>),
   theme: 195,
 };
@@ -150,7 +160,10 @@ export function HomePet({ variant, accent = '#8FC6A9', sceneSize }: {
       <View pointerEvents="none" style={{ position: 'absolute', top: feetInPet - 14 }}>
         <Perch variant={variant} width={perchW} accent={accent} />
       </View>
-      <Pet id={petId} stage={progress.stage} size={size} interactive />
+      {/* Event companions (the bear, The Beloved) at the nook's size, so they match Selah and the others here. */}
+      <FullSizePals.Provider value>
+        <Pet id={petId} stage={progress.stage} size={size} interactive />
+      </FullSizePals.Provider>
     </View>
   );
 }

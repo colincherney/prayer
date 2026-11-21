@@ -3,14 +3,17 @@ import React from 'react';
 import { useColorScheme } from 'react-native';
 
 import { FONTS } from '@/components/saint/theme';
+import { useAppDisplay } from '@/components/saint/appDisplay';
 import { Colors } from '@/constants/theme';
 
 export default function AppTabs() {
+  const { simple } = useAppDisplay();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   return (
     <NativeTabs
+      hidden={simple}
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       iconColor={{ default: '#FFFFFF', selected: '#FFFFFF' }}

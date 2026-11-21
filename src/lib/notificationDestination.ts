@@ -7,5 +7,7 @@ export function notificationDestination(data: Record<string, unknown> = {}) {
     return '/myPrayers' as const;
   }
   if (data.type === 'daily_reminder') return '/' as const;
+  // Seasonal event reminders open their own event (the Long Winter's came before event_id was sent).
+  if (data.type === 'winter_event') return data.event_id === 'swamp-king-2027' ? ('/swamp' as const) : data.event_id === 'beloved-2027' ? ('/beloved' as const) : ('/winter' as const);
   return null;
 }

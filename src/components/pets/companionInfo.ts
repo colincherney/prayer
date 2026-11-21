@@ -1,7 +1,7 @@
 // The Companion Dex's details for each companion: where it lives, what it loves, its verse, and the colour of its
 // page. Kept apart from the registry so the art files stay about art.
 
-import type { PetId } from './registry';
+import { getPet, type PetId } from './registry';
 
 export type CompanionInfo = {
   habitat: string;
@@ -31,22 +31,28 @@ export const COMPANION_INFO: Record<PetId, CompanionInfo> = {
   monkey: { habitat: 'Peach orchards', loves: 'Sweet surprises', verse: { text: 'Taste and see that the Lord is good.', ref: 'Psalm 34:8' }, hue: '#8A4A5A' },
   rooster: { habitat: 'The morning fence', loves: 'First light', verse: { text: 'His mercies are new every morning.', ref: 'Lamentations 3:23' }, hue: '#8A3A1E' },
   dog: { habitat: 'By your side', loves: 'Faithful friends', verse: { text: 'A friend loves at all times.', ref: 'Proverbs 17:17' }, hue: '#2E4A8A' },
+  frostLord: { habitat: 'Under the aurora', loves: 'Snowy vigils', verse: { text: 'He giveth snow like wool: he scattereth the hoarfrost like ashes.', ref: 'Psalm 147:16' }, hue: '#22306A' },
+  beloved: { habitat: 'The rose garden', loves: 'Love letters to God', verse: { text: 'Many waters cannot quench love, neither can the floods drown it.', ref: 'Song of Solomon 8:7' }, hue: '#8A3A52' },
+  vesper: { habitat: 'The fen at dawn', loves: 'Patient prayers', verse: { text: 'He brought me up also out of an horrible pit, out of the miry clay, and set my feet upon a rock.', ref: 'Psalm 40:2' }, hue: '#2E4A3A' },
   pig: { habitat: 'Blossom farms', loves: 'Full hearts', verse: { text: 'My cup overflows.', ref: 'Psalm 23:5' }, hue: '#8A4A6A' },
 };
 
-export type CompanionGroup = 'core' | 'seasonal' | 'monthly';
+export type CompanionGroup = 'core' | 'legendary' | 'seasonal' | 'monthly';
 
 const SEASONAL: PetId[] = ['pumpkin', 'turkey', 'donkey'];
 const CORE: PetId[] = ['lamb', 'dove', 'lion', 'ember', 'dragon'];
 
+/** Legendary companions are event exclusives: only earned in their event (every `eventLine` pet, e.g. Snowcap, Vesper). */
 export function companionGroup(id: PetId): CompanionGroup {
   if (CORE.includes(id)) return 'core';
+  if (getPet(id).eventLine) return 'legendary';
   if (SEASONAL.includes(id)) return 'seasonal';
   return 'monthly';
 }
 
 export const GROUP_LABELS: Record<CompanionGroup, string> = {
   core: 'Core companions',
+  legendary: 'Legendary · Event exclusive',
   seasonal: 'Seasonal',
   monthly: 'Upcoming monthly releases',
 };

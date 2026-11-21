@@ -35,6 +35,7 @@ import { useAuth } from '@/lib/auth';
 import { usePetProgress } from '@/lib/pet';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
+import { refreshAllEvents } from '@/lib/winterEvent';
 
 type GroupInfo = {
   id: string;
@@ -94,6 +95,7 @@ export default function GroupScreen() {
   const [flare, setFlare] = useState(0);
   // When a page was last opened from here, so a fast double tap doesn't stack the same page twice.
   const lastOpen = useRef(0);
+  const praying = useRef(new Set<string>());
 
   // Anonymous encouragement notes — one open composer at a time.
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -229,7 +231,9 @@ export default function GroupScreen() {
   };
 
   const onPray = async (prayer: GroupPrayer) => {
-    if (!session || prayer.prayedByMe || prayer.mine) return;
+    // praying.current: two taps in the same frame can't record the same prayer twice
+    if (!session || prayer.prayedByMe || prayer.mine || praying.current.has(prayer.id)) return;
+    praying.current.add(prayer.id);
     // Optimistic
     setPrayers(prev =>
       prev.map(p =>
@@ -243,7 +247,10 @@ export default function GroupScreen() {
       user_id: session.user.id,
       action: 'prayed',
     });
+    // the event challenges count prayers: show the new count straight away
+    if (!e) refreshAllEvents(true).catch(() => {});
     if (e) {
+      praying.current.delete(prayer.id);
       setPrayers(prev =>
         prev.map(p =>
           p.id === prayer.id

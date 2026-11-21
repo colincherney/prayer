@@ -4,6 +4,8 @@ import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { useAppearanceMode } from '@/components/saint/appearanceMode';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { SimpleHome } from '@/components/saint/SimpleHome';
 import { DustMotes } from '@/components/saint/DustMotes';
 import { HeroIllustration } from '@/components/saint/Hero';
 import {
@@ -24,6 +26,10 @@ import { RainforestVigilScene } from '@/components/saint/RainforestVigilScene';
 import { StarlitGardenScene } from '@/components/saint/StarlitGardenScene';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
+import { BelovedScene } from '@/components/saint/BelovedScene';
+import { SwampKingScene } from '@/components/saint/SwampKingScene';
+import { WinterLordScene } from '@/components/saint/WinterLordScene';
+import { WinterBanner } from '@/components/winter/winterUi';
 import {
   Pill,
   RoundIcon,
@@ -38,13 +44,18 @@ import {
   CHRISTMAS_VERSES,
   HALLOWEEN_VERSES,
   THANKSGIVING_VERSES,
+  BELOVED_VERSES,
+  SWAMP_VERSES,
   VERSES,
+  WINTER_VERSES,
 } from '@/components/saint/theme';
 import { PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 export default function HomeScreen() {
+  const { simple } = useAppDisplay();
   const { mode } = useAppearanceMode();
+  if (simple) return <SimpleHome />;
   return mode === 'theme' ? <ThemeHomeScreen /> : <RoomHomeScreen />;
 }
 
@@ -159,8 +170,12 @@ function ThemeHomeScreen() {
             icon={<SparkleIcon size={10} color={THEME.pillInk} />}
             bg={THEME.pillBg}
             fg={THEME.pillInk}
-            style={{ alignSelf: 'center' }}>
-            Paired anonymously
+            lines={2}
+            // The half-width card is narrower than the label: two lines ("PAIRED" over "ANONYMOUSLY"), and the pill
+            // reaches into the card's padding so "ANONYMOUSLY" fits on its line.
+            style={styles.pairedPill}
+            textStyle={styles.pairedPillText}>
+            {'Paired\nanonymously'}
           </Pill>
         </Pressable>
       </View>
@@ -222,6 +237,8 @@ const makeThemeStyles = (THEME: Theme) => StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  pairedPill: { alignSelf: 'center', marginHorizontal: -10, paddingHorizontal: 10 },
+  pairedPillText: { textAlign: 'left', lineHeight: 14 },
   card: {
     flex: 1,
     borderRadius: 22,
@@ -313,7 +330,13 @@ function RoomHomeScreen() {
               ? ThanksgivingScene
               : roomName === 'christmas'
                 ? ChristmasScene
-                : roomName in MONTHLY_SCENES
+                : roomName === 'winter'
+                  ? WinterLordScene
+                  : roomName === 'beloved'
+                  ? BelovedScene
+                  : roomName === 'swamp'
+                  ? SwampKingScene
+                  : roomName in MONTHLY_SCENES
                   ? MONTHLY_SCENES[roomName as MonthlyRoomName]
                   : LamplitScene;
   // Seasonal and monthly rooms have their own verses, pill and tagline word.
@@ -325,7 +348,8 @@ function RoomHomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
       <SceneComponent />
-      <DustMotes count={26} />
+      {/* The event scenes have their own snow, mist and wisps, so they skip the warm dust (less to animate). */}
+      {roomName === 'winter' || roomName === 'swamp' || roomName === 'beloved' ? null : <DustMotes count={26} />}
 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar barStyle={ROOM.statusBar} />
@@ -390,6 +414,9 @@ function RoomHomeScreen() {
           />
         </View>
 
+        {/* The Long Winter: only while the event is on (and switched on in the database), dismissible for the day. */}
+        <WinterBanner style={{ marginHorizontal: 22, marginTop: 12 }} />
+
         {/* Two cards */}
         <View style={styles.cardsRow}>
           <Pressable
@@ -447,8 +474,10 @@ function RoomHomeScreen() {
               icon={<SparkleIcon size={10} color={ROOM.cardLightPillInk} />}
               bg={ROOM.cardLightPillBg}
               fg={ROOM.cardLightPillInk}
-              style={{ alignSelf: 'center' }}>
-              Paired anonymously
+              lines={2}
+              style={styles.pairedPill}
+              textStyle={styles.pairedPillText}>
+              {'Paired\nanonymously'}
             </Pill>
           </Pressable>
         </View>
@@ -477,6 +506,9 @@ const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
   halloween: { ...split(HALLOWEEN_VERSES), pill: "All Hallows' Eve", word: 'light' },
   thanksgiving: { ...split(THANKSGIVING_VERSES), pill: 'Give Thanks', word: 'gratitude' },
   christmas: { ...split(CHRISTMAS_VERSES), pill: 'God With Us', word: 'joy' },
+  winter: { ...split(WINTER_VERSES), pill: 'The Long Winter', word: 'light' },
+  beloved: { ...split(BELOVED_VERSES), pill: 'The Beloved', word: 'love' },
+  swamp: { ...split(SWAMP_VERSES), pill: 'The Swamp King', word: 'hope' },
 };
 
 function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {
@@ -553,6 +585,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  pairedPill: { alignSelf: 'center', marginHorizontal: -10, paddingHorizontal: 10 },
+  pairedPillText: { textAlign: 'left', lineHeight: 14 },
   card: {
     flex: 1,
     borderRadius: 26,

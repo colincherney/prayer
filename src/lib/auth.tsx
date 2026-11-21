@@ -3,7 +3,9 @@ import type { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { LOCAL_KEYS, readLocal, writeLocal } from './localCache';
 import { initializePurchases, purchasesAvailable, signOutOfPurchases } from './purchases';
+import { clearWinter, refreshAllEvents } from './winterEvent';
 import { passwordCheckClient, supabase } from './supabase';
 
 /** Which emailed code is being entered: sign-in, a new sign-up, or a guest adding an email to their account. */
@@ -13,6 +15,8 @@ type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   isGuest: boolean;
+  accountTourPending: boolean;
+  finishAccountTour: () => void;
   emailSignInCodes: boolean;
   setEmailSignInCodes: (enabled: boolean) => Promise<{ error: string | null }>;
   /** Signs in with a password or reports which email code the app needs next. */
@@ -21,7 +25,7 @@ type AuthContextValue = {
     password: string,
   ) => Promise<{ error: string | null; kind?: EmailCodeKind; signedIn?: boolean }>;
   /** Creates the account; Supabase emails a code that confirms it. */
-  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; signedIn: boolean }>;
   /** Step two: the emailed code signs the person in. `remember` skips the code on this phone for a while. */
   verifyEmailCode: (
     email: string,
@@ -50,19 +54,22 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
 };
 
-/**
- * The password rule set in Supabase (Authentication → Sign In / Providers → Email): at least 12 characters with a
- * lowercase letter, an uppercase letter, a digit and a symbol. Keep the two in step. Returns what's still missing,
- * or null when the password is fine. Only new passwords are checked; logging in accepts older, shorter ones.
- */
-export const PASSWORD_MIN = 12;
+const PASSWORD_MIN = 8;
+// Match the symbols in Supabase Auth's required character set.
+const PASSWORD_SYMBOLS = "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+
+export const PASSWORD_REQUIREMENTS = `Use at least ${PASSWORD_MIN} characters, including uppercase and lowercase letters, a digit, and a symbol.`;
+
+/** Validate new passwords. Existing credentials still go through the regular sign-in flow. */
 export function passwordProblem(pw: string): string | null {
+  const characters = Array.from(pw);
+  const shortBy = PASSWORD_MIN - characters.length;
   const missing: string[] = [];
-  if (pw.length < PASSWORD_MIN) missing.push(`${PASSWORD_MIN - pw.length} more character${PASSWORD_MIN - pw.length === 1 ? '' : 's'}`);
+  if (shortBy > 0) missing.push(`${shortBy} more character${shortBy === 1 ? '' : 's'}`);
   if (!/[a-z]/.test(pw)) missing.push('a lowercase letter');
   if (!/[A-Z]/.test(pw)) missing.push('an uppercase letter');
-  if (!/\d/.test(pw)) missing.push('a number');
-  if (!/[^A-Za-z0-9]/.test(pw)) missing.push('a symbol');
+  if (!/[0-9]/.test(pw)) missing.push('a digit');
+  if (!characters.some(character => PASSWORD_SYMBOLS.includes(character))) missing.push('a symbol');
   return missing.length ? `Still needs ${missing.join(', ')}.` : null;
 }
 
@@ -78,9 +85,6 @@ function friendlyError(message: string | undefined | null): string | null {
   const wait = emailCooldown(message);
   if (wait !== null) {
     return `A code was just sent to this account. You can ask for another in ${wait} second${wait === 1 ? '' : 's'}.`;
-  }
-  if (/weak|password should|password is known/i.test(message)) {
-    return `Pick a stronger password: at least ${PASSWORD_MIN} characters with upper and lower case letters, a number and a symbol.`;
   }
   if (/rate limit/i.test(message)) return 'Too many emails have gone out in the last hour. Please try again a bit later.';
   return message;
@@ -126,29 +130,61 @@ export async function forgetPhone(email: string | null | undefined) {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+type AccountTourStatus = 'pending' | 'finished';
+type AccountTours = Partial<Record<string, AccountTourStatus>>;
+
+function readAccountTours(): AccountTours {
+  const saved = readLocal<AccountTours | string[]>(LOCAL_KEYS.accountTours);
+  // Earlier versions kept only the IDs with a pending tour.
+  return Array.isArray(saved) ? Object.fromEntries(saved.map(id => [id, 'pending'])) : saved ?? {};
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountTours, setAccountTours] = useState(readAccountTours);
 
-  const purchasingUserId = session?.user.is_anonymous ? undefined : session?.user.id;
+  const sessionUserId = session?.user.id;
+  const isGuest = session?.user.is_anonymous === true;
+  const accountUserId = isGuest ? undefined : sessionUserId;
+
+  function updateAccountTour(userId: string, status: AccountTourStatus) {
+    const current = readAccountTours();
+    if (current[userId] === status || current[userId] === 'finished') return;
+    const next = { ...current, [userId]: status };
+    writeLocal(LOCAL_KEYS.accountTours, next).catch(() => {});
+    setAccountTours(next);
+  }
+
   useEffect(() => {
-    if (!purchasingUserId || !purchasesAvailable) return;
-    const refresh = () => initializePurchases(purchasingUserId).catch(() => {});
+    if (!accountUserId || !purchasesAvailable) return;
+    const refresh = () => initializePurchases(accountUserId).catch(() => {});
     refresh();
     const listener = AppState.addEventListener('change', state => {
       if (state === 'active') refresh();
     });
     return () => listener.remove();
-  }, [purchasingUserId]);
+  }, [accountUserId]);
 
   useEffect(() => {
+    let userId: string | null | undefined;
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+      userId ??= data.session?.user.id ?? null;
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      // Another account now (signed out, a guest, someone else logging in): the last account's event progress (its
+      // companions, its stages) must not carry over. Then load the new account's, outside this callback (Supabase
+      // calls made inside it can stall).
+      const nextId = next?.user.id ?? null;
+      if (userId !== undefined && nextId !== userId) {
+        clearWinter();
+        if (nextId) setTimeout(() => refreshAllEvents(true).catch(() => {}), 0);
+      }
+      userId = nextId;
     });
 
     return () => {
@@ -202,12 +238,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUpWithPassword: AuthContextValue['signUpWithPassword'] = async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: friendlyError(error?.message) };
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (!error && data.session) updateAccountTour(data.session.user.id, 'pending');
+    return { error: friendlyError(error?.message), signedIn: Boolean(data.session) };
   };
 
   const verifyEmailCode: AuthContextValue['verifyEmailCode'] = async (email, code, kind, remember) => {
     const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: kind });
+    if (!error && data.user) {
+      const guestUpgrade = kind === 'email_change' && session?.user.is_anonymous && session.user.id === data.user.id;
+      if (kind === 'signup' || guestUpgrade) updateAccountTour(data.user.id, 'pending');
+    }
     if (!error && remember && kind === 'email') {
       const enrollment = emailCodeEnrollment(data.user);
       if (enrollment) await rememberPhone(email, enrollment);
@@ -260,7 +301,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
-  const isGuest = session?.user?.is_anonymous === true;
+  const tourStatus = sessionUserId ? accountTours[sessionUserId] : undefined;
 
   return (
     <AuthContext.Provider
@@ -268,6 +309,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         loading,
         isGuest,
+        accountTourPending: tourStatus === 'pending' || (isGuest && tourStatus !== 'finished'),
+        finishAccountTour: () => {
+          if (sessionUserId) updateAccountTour(sessionUserId, 'finished');
+        },
         emailSignInCodes: emailCodeEnrollment(session?.user) !== null,
         setEmailSignInCodes,
         signInWithPassword,

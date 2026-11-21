@@ -12,7 +12,7 @@ import {
 } from '@/components/saint/AuthScreen';
 import { authHaptic } from '@/components/saint/authHaptics';
 import { CODE_LENGTH } from '@/components/saint/EmailCodeStep';
-import { emailCooldown, passwordProblem, PASSWORD_MIN, useAuth } from '@/lib/auth';
+import { emailCooldown, passwordProblem, PASSWORD_REQUIREMENTS, useAuth } from '@/lib/auth';
 
 type Step = 'email' | 'reset' | 'done';
 
@@ -143,11 +143,11 @@ export default function ForgotPasswordScreen() {
             onChangeText={setPassword}
             onSubmitEditing={onReset}
             editable={!busy}
-            placeholder={`At least ${PASSWORD_MIN} characters`}
+            placeholder="Choose a password"
             autoComplete="new-password"
             returnKeyType="done"
           />
-          {password && pwProblem ? <AuthMessage>{pwProblem}</AuthMessage> : null}
+          {!password ? <AuthMessage>{PASSWORD_REQUIREMENTS}</AuthMessage> : pwProblem ? <AuthMessage>{pwProblem}</AuthMessage> : null}
         </>
       )}
 

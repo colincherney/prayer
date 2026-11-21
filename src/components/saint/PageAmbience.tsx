@@ -75,6 +75,24 @@ const AMBIENCE: Record<PrayerRoomName | ThemeName, Layer[]> = {
     layer('star', 'twinkle', ['#F2C462'], 6, [7, 11], [4, 7], 0.85),
   ],
 
+  winter: [ // The Long Winter: snow under the aurora, with gold starlight.
+    layer('flake', 'fall', ['#FFFFFF', '#DCEBFA'], 10, [8, 13], [12, 18], 0.8),
+    layer('glow', 'wander', ['#5FE3C0'], 3, [5, 8], [10, 15], 0.45),
+    layer('star', 'twinkle', ['#E9C46A'], 4, [7, 11], [4, 7], 0.85),
+  ],
+
+  beloved: [ // The Beloved: rose petals drifting down, little white sparkles and a warm glow rising.
+    layer('glow', 'wander', ['#E8879B'], 4, [5, 8], [10, 15], 0.4),
+    layer('star', 'twinkle', ['#FFFFFF', '#F4B6C4'], 5, [6, 9], [4, 7], 0.85),
+    layer('glow', 'rise', ['#F4B6C4'], 3, [10, 16], [14, 20], 0.3),
+  ],
+
+  swamp: [ // The Swamp King: blue wisps over the fen, gold fireflies and a little rising mist.
+    layer('glow', 'wander', ['#6FC3FF'], 4, [5, 8], [10, 15], 0.5),
+    layer('star', 'twinkle', ['#F2D27A'], 5, [6, 9], [4, 7], 0.8),
+    layer('glow', 'rise', ['#C9B8D8'], 3, [10, 16], [14, 20], 0.25),
+  ],
+
   // Monthly rooms, 2027
   m2027jan: [ // New year, new mercies: fresh snow and clear winter light.
     layer('flake', 'fall', ['#FFFFFF', '#8EC9F0'], 12, [8, 12], [13, 20], 0.75),

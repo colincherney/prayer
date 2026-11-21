@@ -2,7 +2,7 @@
   "expo": {
     "name": "Saint Central",
     "slug": "saint-central",
-    "version": "7.0.0",
+    "version": "7.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "prayer",
@@ -72,14 +72,17 @@
               "displayName": "Share a prayer request",
               "description": "Share what's on your heart with Saint Central.",
               "ios": {
-                "supportedFamilies": ["systemSmall"],
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
                 "initialLayout": "src/widgets/SharePrayerRequest.tsx"
               },
               "android": null
             }
           ]
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

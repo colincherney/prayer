@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   PressableProps,
   ScrollView,
@@ -25,6 +26,8 @@ import Animated, {
 import Svg, { Circle, Defs, LinearGradient, Mask, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { NookDecorator } from '@/components/pets/NookDecorator';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { SimpleHome } from '@/components/saint/SimpleHome';
 import { Nook } from '@/components/pets/Nook';
 import { prefetchNookImages } from '@/components/pets/NookImages';
 import { KeepsakeShelf } from '@/components/pets/KeepsakeShelf';
@@ -42,7 +45,6 @@ import {
   ShieldIcon,
   SparkleIcon,
   StarIcon,
-  UserIcon,
 } from '@/components/saint/Icons';
 import { Squiggle } from '@/components/saint/Common';
 import { LegalLinks } from '@/components/saint/LegalLinks';
@@ -57,6 +59,8 @@ import { supabase } from '@/lib/supabase';
 import { usePetProgress } from '@/lib/pet';
 import { stripUnowned, useOwned } from '@/lib/store';
 import { useTrinkets } from '@/lib/trinkets';
+import { latestDropDay, patchNotesSeenDay } from '@/lib/drops';
+import { useEvents } from '@/lib/winterEvent';
 
 const TAB_BAR_SPACE = 92;
 /** Space between the header and the top of the medallion. */
@@ -161,8 +165,9 @@ type Stats = {
 
 /** Starts the screen over when progress (the nook, shelf picks) arrives from the account, e.g. on a new phone. */
 export default function MeScreen() {
+  const { simple } = useAppDisplay();
   const cloudVersion = useCloudVersion();
-  return <MeContent key={cloudVersion} />;
+  return simple ? <SimpleHome /> : <MeContent key={cloudVersion} />;
 }
 
 function MeContent() {
@@ -171,9 +176,12 @@ function MeContent() {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { session, isGuest, emailSignInCodes, setEmailSignInCodes, signOut } = useAuth();
-  useEffect(() => afterLaunch(() => {
-    void prefetchNookImages().catch(() => {});
-  }), []);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    return afterLaunch(() => {
+      void prefetchNookImages().catch(() => {});
+    });
+  }, []);
   // Stats still feed the nook scene (web level) and the decorator.
   const [stats, setStats] = useState<Stats>(
     () => readForUser<Stats>(LOCAL_KEYS.nookStats, session?.user.id) ?? { offered: 0, shared: 0, sent: 0, received: 0 },
@@ -229,7 +237,6 @@ function MeContent() {
   const { petId, name: petName, progress: petProgress } = usePetProgress();
   const { width: screenW, height: screenH, fontScale } = useWindowDimensions();
   const { trinkets, currentStreak } = useTrinkets();
-  const keepsakes = useMemo(() => trinkets.filter(t => t.earned).map(t => t.id), [trinkets]);
   const pageW = Math.min(screenW, 500);
   const actionSizing = { flexBasis: ACTION_MIN_WIDTH * fontScale };
   const frameW = pageW - ARCH_MARGIN * 2;
@@ -254,6 +261,23 @@ function MeContent() {
   );
   const [decorating, setDecorating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // "NEW" on Patch notes when something has dropped since this phone last opened it.
+  const { states: eventStates, today, devToday } = useEvents();
+  const [patchNew, setPatchNew] = useState(false);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    let cancelled = false;
+    Promise.all([latestDropDay(today, Object.values(eventStates), __DEV__ ? devToday : null), patchNotesSeenDay()])
+      .then(([latest, seen]) => {
+        if (!cancelled) setPatchNew(!!latest && (!seen || latest > seen));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // the events are read for their start dates only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsOpen, today, devToday]);
   const [savingSignInCodes, setSavingSignInCodes] = useState(false);
   const [signInCodeError, setSignInCodeError] = useState<string | null>(null);
   const signInCodeSaveInFlight = useRef(false);
@@ -370,6 +394,31 @@ function MeContent() {
             </NookButton>
           </View>
           <ScrollView style={styles.sheetContent} showsVerticalScrollIndicator={false}>
+            {/* The store, up top and impossible to miss. */}
+            <NookButton onPress={() => go('/store')} accessibilityRole="link" accessibilityLabel="Open the store: new scenes, decor and more"
+              style={styles.storeCard}>
+              <View style={styles.storeIcon}>
+                <SparkleIcon size={22} color={theme.accent} />
+              </View>
+              <View style={styles.linkCopy}>
+                <Text style={styles.storeKicker}>STORE</Text>
+                <Text style={styles.storeTitle}>New scenes & decor</Text>
+                <Text style={styles.storeNote}>Make your Prayer Nook your own. New pieces arrive every week.</Text>
+              </View>
+              <ArrowIcon size={18} color={theme.accentInk} />
+            </NookButton>
+            <NookButton onPress={() => go('/patchNotes')} accessibilityRole="link"
+              accessibilityLabel={patchNew ? 'Patch notes, something new has dropped' : 'Patch notes'} style={styles.settingsRow}>
+              <StarIcon size={18} color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <View style={styles.rowTitleLine}>
+                  <Text style={styles.rowTitle}>Patch notes</Text>
+                  {patchNew ? <View style={styles.newPill}><Text style={styles.newPillText}>NEW</Text></View> : null}
+                </View>
+                <Text style={styles.rowNote}>Everything that&apos;s dropped, week by week.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
             <NookButton onPress={() => go('/notificationSettings')} accessibilityRole="link" style={styles.settingsRow}>
               <BellIcon size={18} color={theme.inkSoft} />
               <View style={styles.linkCopy}>
@@ -378,35 +427,11 @@ function MeContent() {
               </View>
               <ArrowIcon size={15} color={theme.inkSoft} />
             </NookButton>
-            <NookButton onPress={() => go('/customization')} accessibilityRole="link" style={styles.settingsRow}>
-              <SparkleIcon size={18} color={theme.inkSoft} />
+            <NookButton onPress={() => go('/appMode')} accessibilityRole="link" style={styles.settingsRow}>
+              <GearIcon color={theme.inkSoft} />
               <View style={styles.linkCopy}>
-                <Text style={styles.rowTitle}>Appearance</Text>
-                <Text style={styles.rowNote}>Your theme and app icon.</Text>
-              </View>
-              <ArrowIcon size={15} color={theme.inkSoft} />
-            </NookButton>
-            <NookButton onPress={() => go('/pets')} accessibilityRole="link" style={styles.settingsRow}>
-              <UserIcon size={18} color={theme.inkSoft} />
-              <View style={styles.linkCopy}>
-                <Text style={styles.rowTitle}>Companions</Text>
-                <Text style={styles.rowNote}>Choose who walks with you and see how they grow.</Text>
-              </View>
-              <ArrowIcon size={15} color={theme.inkSoft} />
-            </NookButton>
-            <NookButton onPress={() => go('/trinkets')} accessibilityRole="link" style={styles.settingsRow}>
-              <StarIcon size={18} color={theme.inkSoft} />
-              <View style={styles.linkCopy}>
-                <Text style={styles.rowTitle}>Keepsakes</Text>
-                <Text style={styles.rowNote}>{keepsakes.length} collected · your trinket shelf</Text>
-              </View>
-              <ArrowIcon size={15} color={theme.inkSoft} />
-            </NookButton>
-            <NookButton onPress={() => go('/store')} accessibilityRole="link" style={styles.settingsRow}>
-              <SparkleIcon size={18} color={theme.inkSoft} />
-              <View style={styles.linkCopy}>
-                <Text style={styles.rowTitle}>Store</Text>
-                <Text style={styles.rowNote}>New scenes and decor for your Prayer Nook.</Text>
+                <Text style={styles.rowTitle}>Display</Text>
+                <Text style={styles.rowNote}>Simple mode and appearance</Text>
               </View>
               <ArrowIcon size={15} color={theme.inkSoft} />
             </NookButton>
@@ -499,6 +524,14 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   sheetClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft },
   sheetCloseText: { fontSize: 14, color: theme.ink },
   settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line },
+  storeCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginTop: 4, marginBottom: 6, borderRadius: 20, backgroundColor: theme.accent },
+  storeIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface },
+  storeKicker: { fontFamily: FONTS.bodyBold, fontSize: 10.5, letterSpacing: 1.6, color: theme.accentInk, opacity: 0.8 },
+  storeTitle: { fontFamily: FONTS.displaySemi, fontSize: 19, lineHeight: 24, color: theme.accentInk },
+  storeNote: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, color: theme.accentInk, opacity: 0.85, marginTop: 2 },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  newPill: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, backgroundColor: theme.accent },
+  newPillText: { fontFamily: FONTS.bodyBold, fontSize: 9.5, letterSpacing: 1, color: theme.accentInk },
   linkCopy: { flex: 1 },
   rowTitle: { fontFamily: FONTS.bodySemi, fontSize: 13, lineHeight: 20, color: theme.ink },
   rowNote: { fontFamily: FONTS.body, fontSize: 11, lineHeight: 17, color: theme.inkSoft, marginTop: 3 },

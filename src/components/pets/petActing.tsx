@@ -50,10 +50,11 @@ const OWN_PERSONALITY: Record<Exclude<PetId, LookPetId>, Personality> = {
     main: { dur: 1800, stops: [0, 0.3, 0.6, 1], sy: [1, 1.05, 0.97, 1], sx: [1, 0.98, 1.02, 1], rot: [0, -1.5, 1.5, 0] },
     action: { dur: 8500, stops: [0, 0.8, 0.86, 0.94, 1], sy: [1, 1, 1.22, 1.05, 1], sx: [1, 1, 0.92, 0.98, 1], ty: [0, 0, -4, -1, 0] },
   },
-  // Sea dragon: swims. Rocks side to side, and splashes in a spin.
+  // Sea dragon: swims. Rocks gently side to side, and now and then leaps out of the water and leans back down.
+  // (The leap used to snap from -14° to +14° with a squash in under a second, which read as a glitch.)
   dragon: {
-    main: { dur: 5000, stops: [0, 0.25, 0.5, 0.75, 1], tx: [0, 5, 0, -5, 0], rot: [0, 3, 0, -3, 0], ty: [0, -3, 0, -3, 0] },
-    action: { dur: 11500, stops: [0, 0.8, 0.86, 0.92, 1], ty: [0, 0, -20, 0, 0], rot: [0, 0, -14, 14, 0], sx: [1, 1, 1.08, 0.95, 1] },
+    main: { dur: 5000, stops: [0, 0.25, 0.5, 0.75, 1], tx: [0, 4, 0, -4, 0], rot: [0, 2, 0, -2, 0] },
+    action: { dur: 11500, stops: [0, 0.78, 0.85, 0.92, 1], ty: [0, 0, -14, 0, 0], rot: [0, 0, -6, 4, 0] },
   },
   // Pumpkin: wobbly. Rocks like a round gourd, and rolls a full turn.
   pumpkin: {

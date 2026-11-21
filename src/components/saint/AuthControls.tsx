@@ -1,16 +1,18 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState, type ComponentType } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { ArrowIcon } from './Icons';
 import { useAuthTheme } from './authAppearance';
 import { authHaptic } from './authHaptics';
 import { FONTS, mixColors } from './theme';
 
-const BUTTON_DEPTH = 6;
 const RELEASE_SPRING = { damping: 15, stiffness: 265, mass: 0.65, overshootClamping: true };
 
+/**
+ * A flat button in the active theme's colours: the main action filled with the accent, the secondary one outlined on
+ * the page's surface. No raised edge or gradient; a press just dims it.
+ */
 export function AuthButton({ label, busyLabel, busy, disabled, secondary, compact, icon: Icon, onPress }: {
   label: string;
   busyLabel?: string;
@@ -22,25 +24,13 @@ export function AuthButton({ label, busyLabel, busy, disabled, secondary, compac
   onPress: () => void;
 }) {
   const theme = useAuthTheme();
-  const reducedMotion = useReducedMotion();
-  const press = useSharedValue(0);
   const unavailable = disabled && !busy;
-  const lifted = !disabled && !busy;
-  const ink = unavailable ? theme.inkSoft : secondary ? theme.ink : '#362522';
-  const top = secondary ? mixColors(theme.surface, theme.ink, 0.08) : '#FFE8B4';
-  const face = secondary ? theme.surface : '#EFB975';
-  const edge = secondary ? mixColors(theme.surface, '#241F27', 0.28) : '#A3663D';
-  const faceStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: lifted ? press.get() * (BUTTON_DEPTH - 1) : 0 }],
-  }));
-  const arrowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: lifted && !reducedMotion ? press.get() * 3 : 0 }],
-  }));
+  const ink = unavailable ? theme.inkSoft : secondary ? theme.ink : theme.accentInk;
+  const fill = unavailable ? theme.bgSoft : secondary ? theme.surface : theme.accent;
+  const border = unavailable || secondary ? theme.line : theme.accent;
 
   return (
     <Pressable
-      onPressIn={() => press.set(reducedMotion ? 1 : withTiming(1, { duration: 80 }))}
-      onPressOut={() => press.set(reducedMotion ? 0 : withSpring(0, RELEASE_SPRING))}
       onPress={() => {
         authHaptic(secondary ? 'select' : 'press');
         onPress();
@@ -48,33 +38,23 @@ export function AuthButton({ label, busyLabel, busy, disabled, secondary, compac
       disabled={disabled || busy}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || busy, busy }}
-      style={[styles.button, compact && styles.compactButton]}>
-      {lifted ? <View pointerEvents="none" style={[styles.edge, { backgroundColor: edge }]} /> : null}
-      <Animated.View
-        pointerEvents="none"
-        testID="auth-button-face"
-        style={[
-          styles.face,
-          compact && styles.compactFace,
-          faceStyle,
-          {
-            backgroundColor: unavailable ? theme.bgSoft : face,
-            borderColor: unavailable || secondary ? theme.line : '#FFF0CB9E',
-          },
-        ]}>
-        {!unavailable ? (
-          <LinearGradient colors={[top, face]} style={StyleSheet.absoluteFill} />
-        ) : null}
-        {Icon && !compact ? (
-          <View style={[styles.icon, { backgroundColor: secondary ? theme.bgSoft : '#AD6E3D22' }]}>
-            <Icon size={19} color={ink} />
-          </View>
-        ) : null}
-        <Text style={[styles.buttonText, compact && styles.compactButtonText, { color: ink }]}>{busy ? busyLabel ?? label : label}</Text>
-        {busy ? <ActivityIndicator size="small" color={ink} /> : (
-          !compact && <Animated.View style={arrowStyle}><ArrowIcon size={18} color={ink} /></Animated.View>
-        )}
-      </Animated.View>
+      testID="auth-button-face"
+      style={({ pressed }) => [
+        styles.face,
+        compact && styles.compactButton,
+        compact && styles.compactFace,
+        { backgroundColor: fill, borderColor: border },
+        pressed && styles.pressed,
+      ]}>
+      {Icon && !compact ? (
+        <View style={[styles.icon, { backgroundColor: secondary ? theme.bgSoft : mixColors(theme.accent, theme.accentInk, 0.14) }]}>
+          <Icon size={19} color={ink} />
+        </View>
+      ) : null}
+      <Text style={[styles.buttonText, compact && styles.compactButtonText, { color: ink }]}>{busy ? busyLabel ?? label : label}</Text>
+      {busy ? <ActivityIndicator size="small" color={ink} /> : (
+        !compact && <ArrowIcon size={18} color={ink} />
+      )}
     </Pressable>
   );
 }
@@ -130,17 +110,8 @@ export function AuthModeSwitch({ active, onSelect, disabled }: {
 }
 
 const styles = StyleSheet.create({
-  button: { borderRadius: 19, paddingBottom: BUTTON_DEPTH },
   compactButton: { flex: 1, minWidth: 0 },
-  edge: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: BUTTON_DEPTH,
-    bottom: 0,
-    borderRadius: 19,
-    boxShadow: '0 5px 13px #100B2226',
-  },
+  pressed: { opacity: 0.8 },
   face: {
     minHeight: 56,
     borderRadius: 19,

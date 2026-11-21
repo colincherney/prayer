@@ -1,13 +1,15 @@
 import { Image } from 'expo-image';
 import { useIsFocused } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { AuthChapelCanvas } from './AuthChapelCanvas';
+import { chapelColorsFor } from './authChapelColors';
 import { CHAPEL_CAMERA_ASPECT, DEFAULT_CHAPEL_ORBIT, dragChapelOrbit } from './authChapelOrbit';
-import { FONTS } from './theme';
+import { usePrayerRoom } from './prayerRoom';
+import { FONTS, useTheme } from './theme';
 
 // Both transparent stills come from the default orbit and the first frame of the scene.
 const CHAPEL_POSTER = Platform.OS === 'web'
@@ -16,6 +18,10 @@ const CHAPEL_POSTER = Platform.OS === 'web'
 const CHAPEL_POSTER_ASPECT = 1440 / 600;
 
 export function AuthChapel({ height }: { height: number }) {
+  const { theme } = useTheme();
+  // The chapel wears the colours of the home wallpaper that's picked (or the event look that's on).
+  const { name: room, palette } = usePrayerRoom();
+  const colors = useMemo(() => chapelColorsFor(room, palette), [room, palette]);
   const [width, setWidth] = useState(0);
   const [ready, setReady] = useState(false);
   const [foreground, setForeground] = useState(AppState.currentState !== 'background');
@@ -50,8 +56,8 @@ export function AuthChapel({ height }: { height: number }) {
       onLayout={event => setWidth(event.nativeEvent.layout.width)}
       style={[styles.stage, { height }]}>
       <View pointerEvents="none" style={styles.center}>
-        <View style={[styles.halo, { width: height * 0.67, height: height * 0.67 }]} />
-        <AuthChapelCanvas active={active} reducedMotion={reducedMotion} width={width} height={height} orbit={orbit} ready={ready} onReady={setReady} />
+        <View style={[styles.halo, { width: height * 0.67, height: height * 0.67, borderColor: `${colors.ring}30`, backgroundColor: `${colors.sky}10` }]} />
+        <AuthChapelCanvas active={active} reducedMotion={reducedMotion} width={width} height={height} orbit={orbit} ready={ready} onReady={setReady} colors={colors} />
         <Image
           testID="auth-chapel-poster"
           source={CHAPEL_POSTER}
@@ -69,7 +75,7 @@ export function AuthChapel({ height }: { height: number }) {
             },
           ]}
         />
-        <Text style={[styles.hint, { opacity: interactive ? 1 : 0 }]}>Drag to look around</Text>
+        <Text style={[styles.hint, { color: theme.inkSoft, opacity: interactive ? 1 : 0 }]}>Drag to look around</Text>
       </View>
       <GestureDetector gesture={pan} touchAction="none">
         <View collapsable={false} style={StyleSheet.absoluteFill} />

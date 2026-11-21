@@ -6,6 +6,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
@@ -47,7 +48,11 @@ export const Pill: React.FC<{
   icon?: React.ReactNode;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-}> = ({ bg = THEME.pillBg, fg = THEME.pillInk, icon, children, style }) => (
+  /** Overrides for the label (e.g. smaller or sentence case in a narrow spot). */
+  textStyle?: StyleProp<TextStyle>;
+  /** At most this many lines, shrinking the label a little if it would otherwise need more. */
+  lines?: number;
+}> = ({ bg = THEME.pillBg, fg = THEME.pillInk, icon, children, style, textStyle, lines }) => (
   <View
     style={[
       {
@@ -63,13 +68,20 @@ export const Pill: React.FC<{
     ]}>
     {icon ? <View style={{ marginRight: 6 }}>{icon}</View> : null}
     <Text
-      style={{
-        color: fg,
-        fontSize: 11,
-        letterSpacing: 1.5,
-        fontFamily: FONTS.bodySemi,
-        textTransform: 'uppercase',
-      }}>
+      numberOfLines={lines}
+      adjustsFontSizeToFit={!!lines}
+      minimumFontScale={lines ? 0.75 : undefined}
+      style={[
+        {
+          color: fg,
+          fontSize: 11,
+          letterSpacing: 1.5,
+          fontFamily: FONTS.bodySemi,
+          textTransform: 'uppercase',
+        },
+        lines ? { flexShrink: 1 } : null,
+        textStyle,
+      ]}>
       {children}
     </Text>
   </View>

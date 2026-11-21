@@ -1,6 +1,9 @@
 import React from 'react';
 
 import { useReleases } from '@/lib/releases';
+import { usePalStages } from '@/lib/winterEvent';
+
+import { BelovedPal, FrostLordBear, VesperPal } from './FrostLordPet';
 
 import { OliveDove } from './Dove';
 import { SelahDragon } from './Dragon';
@@ -33,7 +36,10 @@ export type PetId =
   | 'monkey'
   | 'rooster'
   | 'dog'
-  | 'pig';
+  | 'pig'
+  | 'frostLord'
+  | 'vesper'
+  | 'beloved';
 
 export type PetDef = {
   id: PetId;
@@ -50,6 +56,8 @@ export type PetDef = {
    * everywhere; see src/lib/releases.ts.
    */
   scheduled?: boolean;
+  /** Earned in an event rather than picked; its stage comes from the event too. */
+  eventLine?: boolean;
   Art: React.ComponentType<PetProps>;
 };
 
@@ -244,6 +252,42 @@ export const PETS: PetDef[] = [
     scheduled: true,
     Art: ZODIAC_PETS.pig,
   },
+  // The Long Winter event's companion. You can't pick it: Snowcap arrives with your first winter prayer, the Frost
+  // Mage with four challenges from Christmas Day, and the Frost Lord when you finish all ten (src/lib/winterEvent.ts).
+  {
+    id: 'frostLord',
+    name: 'Snowcap',
+    species: 'Polar bear wizard',
+    tagline: 'From an apprentice cub to the Frost Lord.',
+    stages: ['Snowcap', 'Frost Mage', 'Frost Lord'],
+    season: 'The Long Winter',
+    eventLine: true,
+    Art: FrostLordBear,
+  },
+  // The Beloved (the Valentine event): the Cherub arrives with the first Valentine prayer, the Muse with three
+  // challenges, and The Beloved when all six are done, with a second look to switch to, her Seraph spirit form.
+  {
+    id: 'beloved',
+    name: 'Cherub',
+    species: 'Marble cherub',
+    tagline: 'From a little cherub to The Beloved, with a Seraph spirit form.',
+    stages: ['Cherub', 'Muse', 'The Beloved'],
+    season: 'The Beloved',
+    eventLine: true,
+    Art: BelovedPal,
+  },
+  // The Swamp King event's companion: Vesper arrives with the first spring prayer, the Fen Warden with four challenges,
+  // and the Old King when all ten are done (src/lib/winterEvent.ts).
+  {
+    id: 'vesper',
+    name: 'Vesper',
+    species: 'Fen wanderer',
+    tagline: 'From a little wanderer to the Old King of the fen.',
+    stages: ['Vesper', 'Fen Warden', 'The Old King'],
+    season: 'The Swamp King',
+    eventLine: true,
+    Art: VesperPal,
+  },
 ];
 
 export const DEFAULT_PET: PetId = 'lamb';
@@ -251,7 +295,9 @@ export const DEFAULT_PET: PetId = 'lamb';
 /** The companions that can be picked right now: scheduled ones appear once the database releases them. */
 export function useAvailablePets(): PetDef[] {
   const { isReleased } = useReleases();
-  return PETS.filter(p => !p.scheduled || isReleased(`pet:${p.id}`));
+  const palStages = usePalStages();
+  // An event companion can be picked once its first stage has been met in its event.
+  return PETS.filter(p => (p.eventLine ? (palStages[p.id] ?? 0) >= 1 : !p.scheduled || isReleased(`pet:${p.id}`)));
 }
 
 export function getPet(id: PetId): PetDef {

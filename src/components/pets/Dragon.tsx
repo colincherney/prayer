@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { Circle, Ellipse, G, Path, Polygon, Polyline } from 'react-native-svg';
 
-import { Fx } from './Fx';
+import { keyframe, useLoop, useMotionEnabled } from './anim';
+import { Fx, PetMotion } from './Fx';
 import { PetFrame, PetProps } from './PetFrame';
 import { DragonExtras } from './PetExtras';
+import type { PipStage } from './PipLamb';
 
 const LABELS = {
   1: 'Selah as a hatchling peeking out of an egg',
@@ -24,7 +27,7 @@ const BODY_PATH =
 
 function Hatchling() {
   return (
-    <Fx kind="wobble" ox={120} oy={238}>
+    <>
       <Ellipse cx={120} cy={240} rx={62} ry={9} fill="#000" opacity={0.35} />
       <Polygon points="96,52 120,36 144,52 142,82 98,82" fill={TEAL} />
       <Polygon points="120,36 144,52 142,82 128,60" fill={DEEP} />
@@ -49,7 +52,7 @@ function Hatchling() {
         strokeWidth={7}
         strokeLinejoin="round"
       />
-    </Fx>
+    </>
   );
 }
 
@@ -83,7 +86,7 @@ function Coil({ wide, bands }: { wide: number; bands: [string, string] }) {
 
 function YoungSelah() {
   return (
-    <Fx kind="bob7" delay={600}>
+    <>
       <Ellipse cx={120} cy={240} rx={80} ry={10} fill="#000" opacity={0.35} />
       <Fx kind="flick" ox={198} oy={227}>
         <Polygon points="198,226 226,216 214,238" fill={GOLD} />
@@ -106,7 +109,7 @@ function YoungSelah() {
           <Polygon points="113,49 117,48 116,61 112,61" fill={PUPIL} />
         </Fx>
       </Fx>
-    </Fx>
+    </>
   );
 }
 
@@ -116,7 +119,7 @@ function Guardian() {
       <Fx kind="glowDragon">
         <Circle cx={120} cy={140} r={108} fill="#7FE3D6" />
       </Fx>
-      <Fx kind="bob7" delay={1200}>
+      <G>
         <Ellipse cx={120} cy={240} rx={86} ry={10} fill="#000" opacity={0.35} />
         <Fx kind="flick" ox={196} oy={230}>
           <Polygon points="196,226 230,212 216,236 234,248 200,240" fill={GOLD} />
@@ -150,17 +153,38 @@ function Guardian() {
           </Fx>
         </Fx>
         <Polygon points="134,84 160,88 160,100 132,96" fill={GOLD} />
-      </Fx>
+      </G>
     </>
   );
+}
+
+// The whole-body moves (the young and grown dragon bobbing on the water, the egg wobbling) used to be animated inside
+// the SVG. That redrew the entire drawing every frame, made the gold bands on the coil shimmer as they were redrawn at
+// fractional positions, and let the head jitter against a body that was updating on its own clock. They are now
+// native transforms on the whole picture, which never redraws it.
+const BOB = { dur: 3200, stops: [0, 0.5, 1], ty: [0, -5, 0] };
+const EGG_WOBBLE = { dur: 2800, stops: [0, 0.8, 0.85, 0.9, 0.95, 1], rot: [0, 0, -5, 5, -3, 0] };
+
+function BodyMotion({ stage, size, animated, children }: { stage: PipStage; size: number; animated: boolean; children: React.ReactNode }) {
+  const allowed = useContext(PetMotion);
+  const enabled = useMotionEnabled(animated && allowed);
+  const egg = stage === 1;
+  const p = useLoop(egg ? EGG_WOBBLE.dur : BOB.dur, stage === 3 ? 1200 : 600, enabled, 0);
+  const scale = size / 240;
+  const style = useAnimatedStyle(() => (egg
+    ? { transform: [{ rotate: `${keyframe(p.get(), EGG_WOBBLE.stops, EGG_WOBBLE.rot)}deg` }], transformOrigin: '50% 92%' }
+    : { transform: [{ translateY: keyframe(p.get(), BOB.stops, BOB.ty) * scale }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
 }
 
 /** Selah the Sea Dragon: hatchling in an egg, young coil, grown guardian. */
 export function SelahDragon({ stage, size = 220, animated = true }: PetProps) {
   return (
-    <PetFrame size={size} animated={animated} label={LABELS[stage]}>
-      {stage === 1 ? <Hatchling /> : stage === 2 ? <YoungSelah /> : <Guardian />}
-      <DragonExtras stage={stage} />
-    </PetFrame>
+    <BodyMotion stage={stage} size={size} animated={animated}>
+      <PetFrame size={size} animated={animated} label={LABELS[stage]}>
+        {stage === 1 ? <Hatchling /> : stage === 2 ? <YoungSelah /> : <Guardian />}
+        <DragonExtras stage={stage} />
+      </PetFrame>
+    </BodyMotion>
   );
 }

@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { BackHandler, Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { passwordProblem, PASSWORD_MIN, type EmailCodeKind, useAuth } from '@/lib/auth';
+import { passwordProblem, PASSWORD_REQUIREMENTS, type EmailCodeKind, useAuth } from '@/lib/auth';
 
 import { AuthButton, AuthModeSwitch, type AuthMode } from './AuthControls';
 import { AuthCredentials } from './AuthField';
@@ -71,7 +71,7 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
     setBusy(true);
     setError(null);
     const result = newAccount
-      ? { ...await signUpWithPassword(cleanEmail, password), kind: 'signup' as const, signedIn: false }
+      ? { ...await signUpWithPassword(cleanEmail, password), kind: 'signup' as const }
       : await signInWithPassword(cleanEmail, password);
     setBusy(false);
 
@@ -86,7 +86,7 @@ export function AuthEntry({ initialMode = null }: { initialMode?: AuthMode | nul
   };
 
   const step = codeKind ? 'code' : mode === null ? 'welcome' : 'credentials';
-  const passwordHint = password ? passwordIssue : `Use ${PASSWORD_MIN}+ characters, upper and lowercase letters, a number, and a symbol.`;
+  const passwordHint = password ? passwordIssue : PASSWORD_REQUIREMENTS;
 
   return (
     <AuthScreen immersive step={step} onBack={mode ? goBack : undefined}>

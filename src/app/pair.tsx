@@ -120,6 +120,13 @@ export default function PairingScreen() {
       });
       setSubmitting(false);
       setPhase('paired');
+    }).catch(() => {
+      // The request itself failed (offline, timed out): back to the intention instead of searching forever.
+      if (cancelled) return;
+      clearInterval(tick);
+      setIntentError('Could not reach the server. Check your connection and try again.');
+      setSubmitting(false);
+      setPhase('intent');
     });
 
     return () => {

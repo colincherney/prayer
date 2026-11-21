@@ -23,6 +23,9 @@ export const AUTH_SCENE_THEME: Theme = {
 
 export const AuthAppearance = createContext<Theme | null>(null);
 
+/** Whether the screen is the full-bleed sign-in scene (the welcome, log in, sign up and recovery screens). */
+export const AuthImmersive = createContext(false);
+
 export function useAuthTheme() {
   const authTheme = useContext(AuthAppearance);
   const { theme } = useTheme();

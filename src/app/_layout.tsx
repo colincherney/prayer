@@ -7,9 +7,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AccountTour } from '@/components/saint/AccountTour';
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
+import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
-import { SaintThemeProvider } from '@/components/saint/theme';
+import { SaintThemeProvider, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { syncCloudProgress } from '@/lib/cloudProgress';
@@ -21,6 +23,10 @@ import { preloadPet } from '@/lib/pet';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
+import { preloadWinter } from '@/lib/winterEvent';
+import { preloadWinterLook } from '@/components/saint/winterLord';
+import { WinterGate } from '@/components/winter/WinterGate';
+import { DropGate } from '@/components/drops/DropGate';
 
 const SPLASH_BG = '#0F1A33';
 const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
@@ -34,7 +40,10 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 SystemUI.setBackgroundColorAsync(SPLASH_BG).catch(() => {});
 
 function RootStack() {
-  const { session, loading } = useAuth();
+  const { session, loading, accountTourPending, finishAccountTour } = useAuth();
+  const { simple } = useAppDisplay();
+  const { theme } = useTheme();
+  const colorScheme = useColorScheme();
   const segments = useSegments();
   const router = useRouter();
   const fontsLoaded = useSaintFonts();
@@ -46,6 +55,9 @@ function RootStack() {
   const inAuth = currentScreen === 'auth';
   // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
   const navSettled = !loading && !session === inAuth;
+  // Let a linked prayer request open first. The tour can wait until the user returns to the tabs.
+  const showAccountTour = navSettled && fontsLoaded && accountTourPending &&
+    (currentScreen === '(tabs)' || currentScreen === 'createAccount');
 
   useEffect(() => {
     if (loading) return;
@@ -84,7 +96,7 @@ function RootStack() {
   // Register the device for push notifications once we have a session.
   const signedInId = session?.user?.id;
   useEffect(() => {
-    if (!signedInId) return;
+    if (!signedInId || !navSettled || accountTourPending) return;
     let cancelled = false;
     (async () => {
       const token = await registerForPushNotifications();
@@ -94,61 +106,87 @@ function RootStack() {
     return () => {
       cancelled = true;
     };
-  }, [signedInId]);
+  }, [signedInId, navSettled, accountTourPending]);
 
   // The last response includes taps that launch the app. Wait for sign-in and navigation.
   useEffect(() => {
-    if (!notificationResponse || !signedInId || !navSettled) return;
+    if (!notificationResponse || !signedInId || !navSettled || showAccountTour) return;
     const request = notificationResponse.notification.request;
     if (handledNotification.current === request.identifier) return;
     handledNotification.current = request.identifier;
     const destination = notificationDestination(request.content.data);
-    if (destination) router.push(destination);
+    if (destination && (!simple || destination === '/' || destination === '/myPrayers')) {
+      router.push(destination);
+    }
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
-  }, [notificationResponse, signedInId, navSettled, router]);
+  }, [notificationResponse, signedInId, navSettled, showAccountTour, router, simple]);
 
   return (
+    <ThemeProvider value={(simple ? theme.isDark : colorScheme === 'dark') ? DarkTheme : DefaultTheme}>
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: SPLASH_BG },
+        contentStyle: { backgroundColor: simple ? theme.bg : SPLASH_BG },
       }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
       <Stack.Screen name="explore" options={{ presentation: 'card' }} />
       <Stack.Screen name="prayerRequest" options={{ presentation: 'card' }} />
-      <Stack.Screen name="pair" options={{ presentation: 'card' }} />
       <Stack.Screen name="myPrayers" options={{ presentation: 'card' }} />
-      <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
-      <Stack.Screen name="customization" options={{ presentation: 'card' }} />
-      <Stack.Screen name="pets" options={{ presentation: 'card' }} />
-      <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="store" options={{ presentation: 'card' }} />
+      <Stack.Screen name="biography" options={{ presentation: 'card' }} />
+      <Stack.Screen name="appMode" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="changeEmail" options={{ presentation: 'card' }} />
       <Stack.Screen name="deleteAccount" options={{ presentation: 'card' }} />
-      <Stack.Screen name="groups" options={{ presentation: 'card' }} />
-      <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
-      <Stack.Screen name="quests" options={{ presentation: 'card' }} />
-      <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
-      <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
+      <Stack.Screen name="store" options={{ presentation: 'card' }} />
+      <Stack.Protected guard={!simple}>
+        <Stack.Screen name="pair" options={{ presentation: 'card' }} />
+        <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="customization" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pets" options={{ presentation: 'card' }} />
+        <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="groups" options={{ presentation: 'card' }} />
+        <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
+        <Stack.Screen name="quests" options={{ presentation: 'card' }} />
+        <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
+        <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
+        <Stack.Screen name="winter" options={{ presentation: 'card' }} />
+        <Stack.Screen name="beloved" options={{ presentation: 'card' }} />
+        <Stack.Screen name="swamp" options={{ presentation: 'card' }} />
+        <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
+      </Stack.Protected>
     </Stack>
+    {showAccountTour ? (
+      <AccountTour
+        key={signedInId}
+        onDone={finishAccountTour}
+        onGetPlus={() => {
+          finishAccountTour();
+          if (currentScreen === 'createAccount') router.dismissTo('/store');
+          else router.push('/store');
+        }}
+      />
+    ) : null}
+    {/* The running event's intro clip and evolution moments, over whatever screen is showing (home only). */}
+    {!showAccountTour && !simple && navSettled && session ? <WinterGate /> : null}
+    {/* "What's new": companions and wallpapers that just dropped, shown once each. */}
+    {!showAccountTour && !simple && navSettled && session ? <DropGate /> : null}
+    </ThemeProvider>
   );
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   // The splash stays up during these quick reads, so no screen ever draws the default pet first.
   const [preloaded, setPreloaded] = useState(false);
   useEffect(() => {
-    Promise.all([preloadPet(), preloadReleases(), preloadLocal()]).finally(() => setPreloaded(true));
+    Promise.all([preloadPet(), preloadReleases(), preloadLocal(), preloadWinter(), preloadWinterLook()]).finally(() => setPreloaded(true));
   }, []);
   if (!preloaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AppDisplayProvider>
         <ReleasesProvider>
         <SaintThemeProvider>
           <PrayerRoomProvider>
@@ -160,7 +198,7 @@ export default function RootLayout() {
           </PrayerRoomProvider>
         </SaintThemeProvider>
         </ReleasesProvider>
-      </ThemeProvider>
+      </AppDisplayProvider>
     </GestureHandlerRootView>
   );
 }

@@ -14,6 +14,7 @@ import React, {
 } from 'react';
 
 import { useAppearanceMode } from './appearanceMode';
+import { useAppDisplay } from './appDisplay';
 import {
   PRAYER_ROOM_LABELS,
   PrayerRoomName,
@@ -134,6 +135,25 @@ const PINK: Theme = {
   pillInk: '#8E2A4A',
 };
 
+const SIMPLE_THEMES = {
+  light: {
+    name: 'Light', isDark: false,
+    bg: '#F7F6F1', bgSoft: '#EDEEE7', surface: '#FDFCFA',
+    ink: '#222921', inkSoft: '#485248', muted: '#626B60', line: '#D9DED4',
+    cardDark: '#304839', cardDarkInk: '#F7FAF6',
+    accent: '#365B46', accentInk: '#FFFFFF', accentSoft: '#AAC2AD',
+    pillBg: '#E6EEE4', pillInk: '#365B46',
+  },
+  dark: {
+    name: 'Dark', isDark: true,
+    bg: '#181C19', bgSoft: '#222923', surface: '#202621',
+    ink: '#EFF2EA', inkSoft: '#CCD5C9', muted: '#A7B2A6', line: '#39443B',
+    cardDark: '#2E4134', cardDarkInk: '#EFF2EA',
+    accent: '#A8CBB3', accentInk: '#192D21', accentSoft: '#6D9579',
+    pillBg: '#293A2E', pillInk: '#B8D5BF',
+  },
+} satisfies Record<'light' | 'dark', Theme>;
+
 export const THEMES = {
   cream: CREAM,
   navy: NAVY,
@@ -234,11 +254,12 @@ function roomToTheme(name: PrayerRoomName, p: PrayerRoomPalette): Theme {
 
 export const useTheme = (): { name: string; theme: Theme; setTheme: (name: ThemeName) => void } => {
   const ctx = useContext(ThemeContext);
+  const { simple, simpleColor } = useAppDisplay();
   const { mode } = useAppearanceMode();
   const { name: roomName, palette } = usePrayerRoom();
 
-  const effectiveName = mode === 'room' ? roomName : ctx.name;
-  const effectiveTheme = mode === 'room' ? roomToTheme(roomName, palette) : ctx.theme;
+  const effectiveName = simple ? simpleColor : mode === 'room' ? roomName : ctx.name;
+  const effectiveTheme = simple ? SIMPLE_THEMES[simpleColor] : mode === 'room' ? roomToTheme(roomName, palette) : ctx.theme;
 
   // Keep the legacy mutable singleton in sync so components that read THEME
   // directly (rather than via this hook) still match the active room/theme.
@@ -255,15 +276,18 @@ export function useThemedStyles<T>(factory: (theme: Theme) => T): T {
   return useMemo(() => factory(theme), [theme, factory]);
 }
 
-/** One Inter family throughout the app; each role uses its actual font weight. */
+/**
+ * One font family throughout the app; each role uses its actual font weight. The names point at Inter most of the
+ * year and at Playfair Display (set upright, no italics) during the Winter Lord event; see useFonts.ts.
+ */
 export const FONTS = {
-  display: 'Inter_500Medium',
-  displaySemi: 'Inter_600SemiBold',
-  displayItalic: 'Inter_500Medium_Italic',
-  body: 'Inter_400Regular',
-  bodyMed: 'Inter_500Medium',
-  bodySemi: 'Inter_600SemiBold',
-  bodyBold: 'Inter_700Bold',
+  display: 'Saint_500',
+  displaySemi: 'Saint_600',
+  displayItalic: 'Saint_500Italic',
+  body: 'Saint_400',
+  bodyMed: 'Saint_500',
+  bodySemi: 'Saint_600',
+  bodyBold: 'Saint_700',
 } as const;
 
 /** Light-themed verses for the All Hallows' Eve room's scripture tickers. */
@@ -297,6 +321,39 @@ export const CHRISTMAS_VERSES = [
   { text: 'The Word became flesh', ref: 'John 1:14' },
   { text: 'Sing to the Lord a new song', ref: 'Psalm 98:1' },
   { text: 'Where two or three gather, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the Long Winter room (KJV, from the "Face the Winter Lord" clip and the season), laid out the same way. */
+export const WINTER_VERSES = [
+  { text: 'He giveth snow like wool', ref: 'Psalm 147:16' },
+  { text: 'He sendeth out his word, and melteth them', ref: 'Psalm 147:18' },
+  { text: 'Wash me, and I shall be whiter than snow', ref: 'Psalm 51:7' },
+  { text: 'The people that walked in darkness have seen a great light', ref: 'Isaiah 9:2' },
+  { text: 'A light to lighten the Gentiles', ref: 'Luke 2:32' },
+  { text: 'Hast thou entered into the treasures of the snow?', ref: 'Job 38:22' },
+  { text: 'Where two or three are gathered, there am I', ref: 'Matthew 18:20' },
+];
+
+/** Verses for the Beloved room (KJV, the Song of Songs and 1 Corinthians 13), laid out the same way. */
+export const BELOVED_VERSES = [
+  { text: 'Many waters cannot quench love, neither can the floods drown it', ref: 'Song of Solomon 8:7' },
+  { text: 'For, lo, the winter is past, the rain is over and gone', ref: 'Song of Solomon 2:11' },
+  { text: 'The flowers appear on the earth', ref: 'Song of Solomon 2:12' },
+  { text: 'Charity suffereth long, and is kind', ref: '1 Corinthians 13:4' },
+  { text: 'Charity never faileth', ref: '1 Corinthians 13:8' },
+  { text: 'We love him, because he first loved us', ref: '1 John 4:19' },
+  { text: 'I am my beloved’s, and my beloved is mine', ref: 'Song of Solomon 6:3' },
+];
+
+/** Verses for the Swamp King room (KJV, Psalm 40 and the spring, Lent to Easter), laid out the same way. */
+export const SWAMP_VERSES = [
+  { text: 'He brought me up also out of an horrible pit, out of the miry clay', ref: 'Psalm 40:2' },
+  { text: 'And set my feet upon a rock', ref: 'Psalm 40:2' },
+  { text: 'I waited patiently for the LORD', ref: 'Psalm 40:1' },
+  { text: 'He hath put a new song in my mouth', ref: 'Psalm 40:3' },
+  { text: 'He is not here: for he is risen', ref: 'Matthew 28:6' },
+  { text: 'Weeping may endure for a night, but joy cometh in the morning', ref: 'Psalm 30:5' },
+  { text: 'I will make a way in the wilderness, and rivers in the desert', ref: 'Isaiah 43:19' },
 ];
 
 export const VERSES = [

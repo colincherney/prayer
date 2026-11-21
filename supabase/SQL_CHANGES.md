@@ -601,3 +601,405 @@ select cron.unschedule('notification_log_maintenance');
 drop function private.dispatch_notifications_if_due(text);
 drop function private.notification_work_due(text, timestamptz);
 ```
+
+## The Long Winter event (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_long_winter_event.sql`. Applied to the live project on 2026-11-18 through
+the Supabase connector. Checked with `supabase/tests/long_winter_event.test.sql`: 29 checks passed, all inside one
+rolled-back block. Afterwards the counter was 0 and no test accounts or progress rows were left.
+
+**What it adds:**
+
+- **`public.events`:** one row, `long-winter-2026`. Its `config` jsonb holds the chapters, evolutions, Advent wreath,
+  weeks, weekly keepsakes, community goal and the 10 challenges. Anyone can read it; nobody can write it from the app.
+  `is_active` is the kill switch.
+- **`public.user_event_progress`:** each person's progress. Users read only their own row, and nobody writes it from
+  the app.
+- **`public.community_counters`:** the `winter_lights` count. It's read only through `winter_event_state`.
+- **Private functions:** `private.evaluate_event(user, event, today)` works out progress from `prayer_interactions`
+  ('prayed' rows; each one is a Vigil candle) and `pair_intents`, by local day in the person's timezone.
+  `private.grant_community_reward(event)` and `private.safe_tz(text)` support it.
+- **Triggers:** `event_activity_on_prayer` on `prayer_interactions` and `event_activity_on_pair` on `pair_intents`
+  update progress and the community count as rows are saved. Any failure is logged as a warning and never blocks the
+  prayer.
+- **App RPCs:** `winter_event_state`, `claim_event_reward`, `mark_event_seen` and `set_event_notifications`. They're
+  for signed-in users only.
+- **Rewards:** claimed keepsakes go into `public.user_trinkets`. The community reward is a `scene:aurora` grant in
+  `public.user_cosmetics` (source `grant`).
+- **The Frost Lord companion:** `frostLord` is added to the pet-id checks on `group_members`, `pet_xp` and
+  `pet_state`. `switch_pet()` accepts it, but only for someone who has received Snowcap.
+- **Event reminders:** cron job `notify_winter_event` runs at `7 * * * *` and calls
+  `private.dispatch_winter_event_if_due()`. That function calls the `notify-winter-event` Edge Function only when an
+  opted-in person is at 9am local time and hasn't been notified today.
+- **The Winter Lord look:** a `public.content_windows` row, `event:winterLord`.
+
+**Not deployed yet:** the `notify-winter-event` Edge Function (`supabase/functions/notify-winter-event/index.ts`).
+Deploy it by hand. Until then the cron job's calls fail harmlessly, and only when someone has opted in.
+
+**Community target:** in the 30 days before Nov 18, 2026 there were 921 candles from 13 people, about 1,900 over the
+event. The target is set to 2,000 instead of the spec's 1,000,000. Change it with:
+`update public.events set config = jsonb_set(config, '{community_goal,target}', '5000') where id = 'long-winter-2026';`
+
+**TESTING SETTINGS ARE ON.** The event and the Winter Lord look start 2026-11-18, and `allow_test_dates` is on so the
+dev-only date picker works. Before launch, run:
+
+```sql
+update public.events
+   set starts_on = '2026-12-01', config = jsonb_set(config, '{allow_test_dates}', 'false')
+ where id = 'long-winter-2026';
+update public.content_windows
+   set opens_at = '2026-12-01 00:00'::timestamp at time zone 'America/New_York'
+ where id = 'event:winterLord';
+-- Optional: clear testers' progress and the counter so everyone starts fresh on Dec 1.
+-- delete from public.user_event_progress where event_id = 'long-winter-2026';
+-- update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';
+```
+
+**Kill switch:** `update public.events set is_active = false where id = 'long-winter-2026';`
+
+**Revert:** this deletes all event progress. Granted keepsakes and the Aurora scene stay with their owners. Put the old
+`switch_pet()` and pet checks back only if nobody has the Frost Lord as their pet.
+
+```sql
+select cron.unschedule('notify_winter_event');
+drop trigger if exists event_activity_on_prayer on public.prayer_interactions;
+drop trigger if exists event_activity_on_pair on public.pair_intents;
+drop function if exists public.winter_event_state(text, text, date);
+drop function if exists public.claim_event_reward(text, text, date);
+drop function if exists public.mark_event_seen(text, text, int);
+drop function if exists public.set_event_notifications(text, boolean);
+drop function if exists private.dispatch_winter_event_if_due();
+drop function if exists private.on_event_activity();
+drop function if exists private.evaluate_event(uuid, text, date);
+drop function if exists private.grant_community_reward(text);
+drop function if exists private.safe_tz(text);
+drop table if exists public.community_counters;
+drop table if exists public.user_event_progress;
+drop table if exists public.events;
+delete from public.content_windows where id = 'event:winterLord';
+-- then re-run switch_pet and the three pet-id checks from 20261107_server_side_xp_and_nook.sql / 20261030_content_releases.sql
+```
+
+## Long Winter challenges any day (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_challenges_anytime.sql`, through the Supabase connector on
+2026-11-18. Checked with the updated `supabase/tests/long_winter_event.test.sql`: 28 checks passed, all rolled back.
+
+**What:** all 10 challenges can now be done on any day of the event. Four of them used to be tied to dates:
+
+- Advent Wreath (3 days in each Advent week) → **Four Candles**: pray 3 days in any 4 different weeks.
+- Christmas Prayer (Dec 24 or 25) → **Silent Night**: pray after 9pm on 3 nights.
+- Twelve Days (6 of Dec 25 – Jan 5) → **Twelve Days**: pray for 12 different people.
+- Candlemas (any day Jan 24–31) → **Candlemas**: light a candle before 9am on 3 mornings.
+
+The other six are unchanged. `private.evaluate_event()` gains three rule types for these: `weeks`, `hours` and
+`people`; the old `days_in_range` and `wreath` types still work. The weekly keepsakes, the Advent wreath on the
+event screen, and the Frost Mage's Dec 25 date are unchanged.
+
+**Revert:** re-run the `insert into public.events … on conflict` and the `private.evaluate_event` sections of
+`20261118_long_winter_event.sql`. Progress is recomputed on the next prayer or app open.
+
+## Long Winter rewards on completion, no dates (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_rewards_on_completion.sql`, through the Supabase connector on
+2026-11-18. Checked with the updated `supabase/tests/long_winter_event.test.sql`: 26 checks passed, all rolled back.
+
+**What:** nothing in the Long Winter is tied to a date any more, and finishing all 10 challenges gives the whole reward
+straight away, with nothing to claim.
+
+- The Frost Mage arrives as soon as 4 challenges are done. It no longer waits for Dec 25.
+- The five winter keepsakes are no longer one per week (`config.weekly_rewards` is removed). All five come with
+  finishing all 10 challenges (`config.completion_rewards`), straight into `public.user_trinkets`.
+- The Frost Lord arrives the moment the 10th challenge is done (stage 3, and `rewards_claimed` records `frost_lord`
+  plus the keepsakes). `claim_event_reward` is still there but the app no longer uses it.
+
+**Revert:** run the `private.evaluate_event` section of `20261118_winter_challenges_anytime.sql`, then:
+`update public.events set config = (config - 'completion_rewards') || jsonb_build_object('weekly_rewards', '[{"week":1,"keepsake":"adventWreath"},{"week":4,"keepsake":"christmasStar"},{"week":5,"keepsake":"winterSnowGlobe"},{"week":6,"keepsake":"threeKingsCrown"},{"week":9,"keepsake":"candlemasCandles"}]'::jsonb) where id = 'long-winter-2026';`
+plus `jsonb_set(config, '{evolutions,1,unlock,not_before}', '"2026-12-25"')`. Keepsakes and Frost Lords already
+given are kept.
+
+## Long Winter reminders follow progress (2026-11-18)
+
+**Applied as:** `supabase/migrations/20261118_winter_notifications_progress.sql`, through the Supabase connector on
+2026-11-18.
+
+**What:** a new column, `public.user_event_progress.notified` (text[], default `'{}'`). The `notify-winter-event` Edge
+Function records each reminder it sends there (`start`, `mage`, `lord`, `halfway`, `last-<date>`), so each goes out at
+most once. The reminders follow each person's progress instead of holiday dates: the start, the morning after the
+Frost Mage, the morning after all 10 challenges, halfway (Jan 1), and the last three days. They're opt-in, at 9am
+local time, at most one a day.
+
+**Not deployed yet:** the updated Edge Function (`supabase/functions/notify-winter-event/index.ts`). Deploy it by hand.
+
+**Revert:** `alter table public.user_event_progress drop column if exists notified;` (redeploy the older Edge
+Function first, or it will fail to save).
+
+## Long Winter launch settings applied, reminders deployed (2026-11-18)
+
+- **Testing mode is OFF.** `supabase/migrations/20261118_winter_launch_settings.sql` is applied through the connector.
+  The event starts 2026-12-01, `allow_test_dates` is false, and the `event:winterLord` window opens Dec 1 at midnight
+  US Eastern. Checked afterwards: the event runs 2026-12-01 to 2027-01-31 and is active; the look runs 2026-12-01 to
+  2027-02-01 05:00Z.
+- **Edge Function `notify-winter-event` is deployed** (version 1, active, verify_jwt on), with the progress-based
+  reminders.
+- **Left from testing:** 3 rows in `user_event_progress`, one with Snowcap unlocked. A stage never goes down, so that
+  tester keeps Snowcap. To start everyone fresh on Dec 1:
+  `delete from public.user_event_progress where event_id = 'long-winter-2026';`
+- **To test again:** set `starts_on` back to today and `allow_test_dates` to true, the reverse of the update above.
+
+## Long Winter back in testing mode (2026-11-19)
+
+The user is still testing, so `supabase/migrations/20261119_winter_testing_mode_on.sql` puts the event back to
+starting 2026-11-18, with `allow_test_dates` on and the `event:winterLord` window open from Nov 18. Everyone who had
+prayed since Nov 18 was re-checked, so their prayers count straight away.
+
+**Before Dec 1, run `supabase/migrations/20261118_winter_launch_settings.sql` again** to leave testing mode.
+
+## Long Winter: testing over, real schedule (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_winter_launch_settings_final.sql`, through the connector.
+
+Checked afterwards:
+- The event runs 2026-12-01 to 2027-01-31, is active, and `allow_test_dates` is false.
+- The Winter look runs Dec 1 00:00 ET to Feb 1 00:00 ET.
+- Noel the Donkey, the God With Us wallpaper and Shepherds' Field release Dec 1 00:00 ET, and Noel can be claimed Dec 1 – Jan 7.
+- The `notify_winter_event` cron job is in place.
+
+**Left from testing (the user hasn't decided yet):** 11 `user_event_progress` rows (6 with Snowcap from test prayers since
+Nov 18), and the community counter at 5. To give everyone a clean start on Dec 1:
+`delete from public.user_event_progress where event_id = 'long-winter-2026'; update public.community_counters set value = 0, rewarded_at = null where event_id = 'long-winter-2026';`
+
+**Decision (2026-11-19):** the user said to keep the testing progress and the community count as they are ("they're from me"), so nothing was wiped.
+
+## The Swamp King event (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_swamp_king_event.sql` (migration `swamp_king_event`), through the connector.
+Tested with `supabase/tests/swamp_king_event.test.sql` (14/14 passed, rolled back).
+
+What it added:
+- **Event row** `swamp-king-2027`: Mar 1 to May 1, 2027, `allow_test_dates` false. It has 10 anytime challenges, Vesper on the
+  first prayer, the Fen Warden at 4 challenges, and the Old King plus 5 keepsakes at 10.
+- **Community counter** `fen_lights`, with a target of 2000.
+- **Content window** `event:swampKing`: Mar 1 00:00 ET to May 2 00:00 ET.
+- **New challenge types in `private.evaluate_event`:** `shared`, `journal`, `notes` and `quests`.
+- **Four new triggers:** `event_activity_on_prayer_shared`, `event_activity_on_journal`, `event_activity_on_note` and
+  `event_activity_on_quest`.
+- **Pet-id checks** now allow `vesper`.
+- **`switch_pet`** checks event-pet ownership by `events.config->>'pal_line'`.
+- **Winter wording:** a `reminders` wording config was added to the winter row.
+- **Edge function:** `notify-winter-event` was redeployed (version 2). Its reminder wording now comes from `config.reminders`.
+
+**Revert:**
+```sql
+drop trigger if exists event_activity_on_prayer_shared on public.prayers;
+drop trigger if exists event_activity_on_journal on public.biography_entries;
+drop trigger if exists event_activity_on_note on public.reflections;
+drop trigger if exists event_activity_on_quest on public.quest_completions;
+delete from public.user_event_progress where event_id = 'swamp-king-2027';
+delete from public.community_counters where event_id = 'swamp-king-2027';
+delete from public.content_windows where id = 'event:swampKing';
+delete from public.events where id = 'swamp-king-2027';
+update public.events set config = config - 'reminders' where id = 'long-winter-2026';
+-- evaluate_event / switch_pet / the pet-id checks: re-run their definitions from the earlier winter migrations
+-- (the new challenge types and 'vesper' are harmless if left in place).
+```
+
+## Swamp King in testing mode (2026-11-19)
+
+The user asked to set the date to March 1 for testing. **Applied as:** `supabase/migrations/20261119_swamp_testing_mode_on.sql`.
+- The event now starts 2026-11-19, so real prayers count.
+- `allow_test_dates` is on, so the "Mar 1" dev chip on /swamp works on the server too.
+- The `event:swampKing` window opens 2026-11-19 00:00 ET.
+- The dates people see still say Mar 1 (`real_starts_on`).
+- After the re-check: 5 progress rows, 3 with Vesper.
+
+**Revert / before release:** run `supabase/migrations/20261119_swamp_testing_mode_off.sql`. It has optional lines to wipe test progress.
+
+## Testing: the user's own account skipped to the Old King (2026-11-19)
+
+At the user's request, all 10 Swamp King challenges were marked done on their own account only. That account now has
+`stage_unlocked = 3` and the 5 spring keepsakes in `user_trinkets`. The challenge list is recalculated on the next check
+and drops back to what was really done, but the stage and keepsakes stay.
+
+**Revert, for that account only:**
+`delete from public.user_trinkets where user_id = '<their id>' and trinket_id in ('fenLantern','lentenCross','palmBranches','easterLilies','oldKingsCrown');`
+`delete from public.user_event_progress where user_id = '<their id>' and event_id = 'swamp-king-2027';`
+The swamp-testing-off step's optional wipe also covers the progress row.
+
+## Testing: every companion at max for the user's own account (2026-11-19)
+
+**New table, applied as `supabase/migrations/20261119_account_unlocks.sql`:** `public.account_unlocks (user_id, unlock)`.
+- RLS lets an account read only its own rows, and only the database can add rows.
+- An `'all_pets'` row makes every companion count as released and claimable in the app for that one account
+  (`src/lib/releases.ts`).
+
+**Data, for the user's account only:**
+- An `all_pets` row.
+- `pet_xp.banked_xp = 2450` (level 50, final stage) for all 22 companions.
+- Long Winter `user_event_progress.stage_unlocked = 3`, so the Frost Lord line is owned. Vesper was already at 3.
+
+**Revert:**
+```sql
+delete from public.account_unlocks where user_id = '<their id>';
+-- pet_xp can't be restored exactly (earlier banked values weren't saved); to reset: delete from public.pet_xp where user_id = '<their id>';
+delete from public.user_event_progress where user_id = '<their id>' and event_id = 'long-winter-2026';
+-- to remove the feature entirely: drop table public.account_unlocks;
+```
+
+## Swamp King: testing over, real schedule, late-comer rules (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_swamp_launch_settings.sql`, through the connector.
+
+The schedule:
+- The event runs 2027-03-01 to 2027-05-01, with `allow_test_dates` false.
+- The `event:swampKing` look runs Mar 1 00:00 ET to May 2 00:00 ET.
+
+So that someone who joins on the last days can still finish everything:
+- **`out_of_the_mire` and `feet_upon_a_rock`:** these were rule `prayers` (days prayed). They're now `candles` 20 and 40,
+  which count the prayers prayed, repeats included. Their wording is now "Pray 20 / 40 spring prayers".
+- **`steadfast`:** this was a 10-day streak. It's now `people` 15, "Pray for 15 different requests".
+- Every swamp challenge now closes only when the event ends (`first_steps` needs one day).
+- Everyone with swamp progress was re-checked. A stage already reached is kept.
+
+**Tests:** `supabase/tests/swamp_king_event.test.sql` passes 17/17. That includes a late comer who starts Apr 30, finishes all 10
+and gets the Old King on May 1.
+
+**Kept from testing:** the user's own account (Old King, all companions at max, `account_unlocks`). The other test-day progress
+was also kept: 3 accounts got Vesper from prayers on Nov 19.
+
+**Revert (old rules):** put `out_of_the_mire` back to `{"type":"prayers","min":20}`, `feet_upon_a_rock` to `{"type":"prayers","min":40}`
+and `steadfast` to `{"type":"streak","min":10}`, using the same `jsonb_set` shape as the migration.
+
+## Long Winter: late-comer rules (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_winter_late_comer_rules.sql`. Like the Swamp King, every challenge now closes
+only when the event ends, so someone who starts on Jan 30 can still finish all 10. The titles are unchanged.
+
+| Challenge | Before | Now |
+|---|---|---|
+| `snow_like_wool` | prayers 15 (days) | candles 15, "Pray 15 winter prayers" |
+| `word_melts` | prayers 40 (days) | candles 40, "Pray 40 winter prayers" |
+| `four_candles` | weeks 4 | quests 4, "Finish 4 daily quests" |
+| `silent_night` | hours 21-24 x3 | journal 3, "Write 3 journal entries" |
+| `hoarfrost` | streak 7 | shared 2, "Share 2 prayer requests" |
+| `candlemas` | hours 4-9 x3 | notes 3, "Send 3 encouragements" |
+
+Everyone with winter progress was re-checked, and a stage already reached is kept.
+
+**Test:** `supabase/tests/winter_late_comer.test.sql` passes 4/4. It covers someone who starts on Jan 30 and finishes all 10, the
+Frost Lord and the 5 keepsakes on Jan 31.
+
+**Revert:** set those six rules and their wording back with the same `jsonb_set` shape. The old values are in the first column
+above: weeks `{"type":"weeks","min":4}`, hours `{"type":"hours","from_hour":21,"to_hour":24,"min":3}` and
+`{"type":"hours","from_hour":4,"to_hour":9,"min":3}`, streak `{"type":"streak","min":7}`.
+
+## Dev account: everything unlocked for the owner's account (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_dev_account.sql`. It widens the `account_unlocks.unlock` check to `('all_pets', 'dev')`.
+
+**Data, for the owner's account only** (picked by e-mail when it ran):
+- `account_unlocks` `'dev'`.
+- `user_cosmetics`: all 90 `cosmetic_products` (nook scenes, decorations, bundles and Plus), source `'grant'`, no expiry. The
+  RevenueCat webhook only ever deletes rows whose source is `'revenuecat'`, so these stay.
+- `user_trinkets`: all 84 keepsakes (the 24 originals, 50 nook-collection, 5 winter and 5 swamp).
+- From earlier: all 22 companions at level 50, and both events at stage 3.
+
+**In the app** (`src/lib/releases.ts`): with `'dev'`, every scheduled companion, wallpaper, keepsake, scene and decoration counts as
+out and nothing is in the vault. The event wallpapers can be picked any time (`prayerRoom.ts`). Two things still follow the real
+calendar: the default wallpaper (`isOutForEveryone`), and event looks switching themselves on.
+
+**Revert:**
+```sql
+-- with me as (select id from auth.users where email = '<owner>')
+delete from public.account_unlocks where user_id = (select id from me);
+delete from public.user_cosmetics where user_id = (select id from me) and source = 'grant';
+delete from public.user_trinkets where user_id = (select id from me);  -- note: also removes keepsakes earned for real
+```
+
+## Keep what you earn, forever (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_keep_what_you_earned.sql`. This fixes `public.winter_event_state`, which returned no
+progress once an event was switched off (`is_active` false). The app would then have forgotten that you'd met that event's
+companion. A switched-off event now returns your saved progress, without re-checking it.
+
+**App side:**
+- A companion counts as yours for good if you've ever walked with it. That means it has a `pet_xp` row (even at 0 XP), it's your
+  active companion, it has XP, or it's an event companion you've met.
+- Prayer Pals, the companion page and the current-companion check all use this. An owned companion is never shown as
+  "Arrives…", "Coming…" or in the vault, and you're never moved back to the default companion.
+
+**Revert:** re-create `winter_event_state` without the `elsif uid is not null` branch (the version in
+`20261118_long_winter_event.sql`).
+
+## The Beloved: the Valentine event (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_beloved_event.sql`. Tests: `supabase/tests/beloved_event.test.sql` (14/14).
+- `public.events` row `beloved-2027`: Feb 1 to Feb 28, 2027, between the Long Winter and the Swamp King. Companion line
+  `beloved`: the Cherub (first prayer), the Muse (3 challenges) and The Beloved (all 6), plus four keepsakes
+  (`loveLetter`, `roseBouquet`, `goldenLyre`, `marbleHeart`). Shorter and easier than the two-month events: 6 challenges, every
+  one doable on any day (prayers, different requests, journal entries, encouragements). Her Seraph spirit form is only a
+  look in the app (`config.forms`), so the database just needs stage 3.
+- `community_counters` `garden_of_candles` (target 1,500, unlocks `scene:blossom`).
+- `content_windows` `event:beloved`: Feb 1 00:00 ET to Mar 1 00:00 ET (the rose-garden look).
+- `'beloved'` added to the pet-id checks on `group_members`, `pet_xp` and `pet_state`, and to `switch_pet()`.
+
+**Revert:**
+```sql
+delete from public.user_event_progress where event_id = 'beloved-2027';
+delete from public.community_counters where event_id = 'beloved-2027';
+delete from public.events where id = 'beloved-2027';
+delete from public.content_windows where id = 'event:beloved';
+-- then re-add the pet-id checks and switch_pet() without 'beloved' (the versions in 20261119_swamp_king_event.sql)
+```
+
+## Beloved testing mode ON, then OFF (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_beloved_testing_mode_on.sql`. The event and its look start today (2026-11-19)
+instead of Feb 1, so TestFlight builds show it and real prayers count. Everything people see still says Feb 1
+(`config.real_starts_on`). Turn it off before release with `20261119_beloved_testing_mode_off.sql` (run 2026-11-19, testing done): it puts the
+dates back and zeroes the community count.
+
+**Revert:** run `20261119_beloved_testing_mode_off.sql`.
+
+## Beloved intro reset for the dev account (2026-11-19)
+
+Data only, at the owner's request (to see the first-open intro again): on the dev account's `beloved-2027` progress row,
+`intro_seen_at` was set to null and `stage_seen` to 0, so the "Meet the Beloved" clip auto-plays again, then the Cherub
+celebration. The Cherub itself (stage 1) is kept.
+
+**Revert:** nothing to undo; playing the clip marks it seen again.
+
+## Storage bucket for the event intro clips (2026-11-19)
+
+**Applied as:** migration `event_clips_bucket` (via the connector). A public bucket `event-clips` (video/mp4 only, 15 MB per file)
+for the three intro clips, which the app now streams instead of bundling them, saving about 21 MB of download size:
+`face-the-winter-lord.mp4`, `meet-the-beloved.mp4`, `face-the-swamp-king.mp4`. The source files are in
+`design/event-clips/`. They're uploaded by hand in the dashboard (Storage → event-clips → Upload); there's no upload policy, so
+only the dashboard or the service role can add files.
+
+**Revert:** empty the bucket in the dashboard, then `delete from storage.buckets where id = 'event-clips';`, and put the clips
+back as bundled `require()`s in `src/components/winter/winterUi.tsx`.
+
+## Pretend day for testing mode (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_event_test_today.sql`. While an event's `config.allow_test_dates` is on,
+`winter_event_state` checks the event as of `config.test_today` (unless a dev build sends its own date), and the app
+shows that day too. Set to `"2027-02-01"` on `beloved-2027`, so testing on TestFlight looks like Feb 1, while prayers
+prayed now still count. `20261119_beloved_testing_mode_off.sql` now removes `test_today`.
+
+**Revert:** re-create `winter_event_state` from `20261119_keep_what_you_earned.sql`, and
+`update public.events set config = config - 'test_today' where id = 'beloved-2027';`
+
+## Dev account: every event challenge counts as done (2026-11-19)
+
+**Applied as:** `supabase/migrations/20261119_dev_account_all_challenges.sql`, at the owner's request ("max out my account
+with all quests completed"). It patches the live `private.evaluate_event` in place: one block added before the weekly
+keepsakes. For accounts with an `account_unlocks` `'dev'` row, every challenge counts as done and none as closed, so
+every event shows finished, with its final stage and keepsakes. Then the dev account's events were re-checked: the Beloved
+(6/6, stage 3, 4 keepsakes), the Long Winter (10/10) and the Swamp King (10/10). Everyone else is unaffected.
+
+**Revert:** take the block back out:
+```sql
+do $$ declare src text := pg_get_functiondef('private.evaluate_event(uuid,text,date)'::regprocedure);
+begin execute regexp_replace(src, '  -- dev accounts: every challenge counts as done.*?  end if;\n\n', '', 's'); end $$;
+```

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 
+import type { ChapelColors } from './authChapelColors';
 import { DEFAULT_CHAPEL_ORBIT, type ChapelOrbit } from './authChapelOrbit';
 import type { createAuthChapelWorld } from './authChapelWorld';
 
@@ -12,6 +13,8 @@ export type ChapelCanvasProps = {
   orbit: SharedValue<ChapelOrbit>;
   ready: boolean;
   onReady: (ready: boolean) => void;
+  /** The chapel's colours, matched to the picked wallpaper (src/components/saint/authChapelColors.ts). */
+  colors?: ChapelColors;
 };
 
 export type ChapelSurface = {
@@ -20,7 +23,12 @@ export type ChapelSurface = {
   present?: () => void;
 };
 
-export function useChapelPlayback(surface: ChapelSurface | null, { active, reducedMotion, width, height, orbit, onReady }: ChapelCanvasProps) {
+export function useChapelPlayback(surface: ChapelSurface | null, { active, reducedMotion, width, height, orbit, onReady, colors }: ChapelCanvasProps) {
+  // Repaint before the drawing loop below starts (or restarts), so the first frame is already in the right colours.
+  useEffect(() => {
+    if (surface && colors) surface.world.setColors(colors);
+  }, [surface, colors]);
+
   useEffect(() => {
     if (!surface || !active || width <= 0 || height <= 0) return;
     let frame: number;
@@ -60,5 +68,6 @@ export function useChapelPlayback(surface: ChapelSurface | null, { active, reduc
 
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [active, height, onReady, orbit, reducedMotion, surface, width]);
+    // colors: with Reduce Motion the loop stops after one frame, so a new wallpaper needs a fresh one
+  }, [active, height, onReady, orbit, reducedMotion, surface, width, colors]);
 }

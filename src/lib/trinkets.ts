@@ -8,12 +8,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { COLLECTION_KEEPSAKE_GOALS, COLLECTION_KEEPSAKE_ORDER } from '@/components/pets/collectionData';
 import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
+import { BELOVED_KEEPSAKE_IDS } from '@/components/pets/belovedKeepsakes';
+import { SWAMP_KEEPSAKE_IDS } from '@/components/pets/swampKeepsakes';
+import { WINTER_KEEPSAKE_IDS } from '@/components/pets/winterKeepsakes';
 import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import type { QuestCategory } from '@/lib/questPool';
 import { useReleases } from '@/lib/releases';
 import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
+
+/** Keepsakes only an event can give (claimed on the event screen), never on the honor system. */
+const EVENT_TRINKETS = new Set<TrinketId>([...WINTER_KEEPSAKE_IDS, ...BELOVED_KEEPSAKE_IDS, ...SWAMP_KEEPSAKE_IDS]);
 
 /** Display order, two per month of the original schedule, matched to the season where one fits. */
 export const TRINKET_ORDER: TrinketId[] = [
@@ -287,10 +293,12 @@ export function useTrinkets() {
     if (error) console.warn('earn_trinket failed', error.message);
   }, []);
 
-  const list: TrinketStatus[] = released.map(t => ({
+  // Event keepsakes (the Long Winter's) aren't on the release schedule: they show once they've been claimed in the event.
+  const eventEarned = [...EVENT_TRINKETS].filter(t => earned.has(t));
+  const list: TrinketStatus[] = [...released, ...eventEarned].map(t => ({
     id: t,
     earned: earned.has(t),
-    honor: !AUTO[t],
+    honor: !AUTO[t] && !EVENT_TRINKETS.has(t),
     quest: t in QUEST_GOALS,
     progress: AUTO[t] && stats ? (([n, of]) => [Math.min(n, of), of] as [number, number])(AUTO[t]!(stats)) : undefined,
   }));

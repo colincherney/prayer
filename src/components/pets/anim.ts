@@ -1,5 +1,5 @@
 import { useIsFocused } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import {
   Easing,
   cancelAnimation,
@@ -34,7 +34,26 @@ export function keyframe(p: number, stops: readonly number[], vals: readonly num
 export function useMotionEnabled(animated: boolean): boolean {
   const reduce = useReducedMotion();
   const focused = useIsFocused();
-  return animated && !reduce && focused;
+  const paused = useSyncExternalStore(subscribePause, () => backgroundPaused);
+  return animated && !reduce && focused && !paused;
+}
+
+// A full-screen moment (the winter intro clip) covers the screen underneath, which would otherwise keep animating
+// behind it and compete with the video. While one is up, every loop that uses useMotionEnabled rests.
+let backgroundPaused = false;
+const pauseListeners = new Set<() => void>();
+function subscribePause(fn: () => void) {
+  pauseListeners.add(fn);
+  return () => {
+    pauseListeners.delete(fn);
+  };
+}
+
+/** Pauses (or resumes) background motion app-wide. */
+export function pauseBackgroundMotion(paused: boolean) {
+  if (backgroundPaused === paused) return;
+  backgroundPaused = paused;
+  pauseListeners.forEach(fn => fn());
 }
 
 /** How many steps a loop of `durationMs` gets at 30 frames a second, or enough to run at the screen's full rate if `smooth`. */

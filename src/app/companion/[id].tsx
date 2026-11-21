@@ -11,8 +11,11 @@ import { Pet, PetId, PETS, isPetId } from '@/components/pets/registry';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
+import { useClaimNotes } from '@/lib/claimNotes';
 import { metDates, petProgressFromXp, usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { useReleases } from '@/lib/releases';
+import { usePalStage } from '@/lib/winterEvent';
+import { BelovedFormSwitch } from '@/components/winter/BelovedFormSwitch';
 
 type Tab = 'about' | 'evolution' | 'together';
 const TABS: { id: Tab; label: string }[] = [
@@ -27,7 +30,7 @@ const LONG_VERSE_LIFT = 10;
 /** Roughly how wide one character of the verse is, to tell when it wraps. */
 const VERSE_CHAR_W = 8.3;
 const EVO = 74;
-const GROUP_BADGE = { core: 'CORE', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
+const GROUP_BADGE = { core: 'CORE', legendary: 'LEGENDARY', seasonal: 'SEASONAL', monthly: 'MONTHLY' } as const;
 
 function Chevron({ left, color }: { left?: boolean; color: string }) {
   return (
@@ -57,7 +60,7 @@ function EvolutionTab({ id, stage, name, styles }: { id: PetId; stage: 1 | 2 | 3
               <View style={{ height: (EVO * 260) / 240, opacity: st > stage ? 0.45 : 1 }}>
                 {st <= mounted ? <Pet id={id} stage={st} size={EVO} /> : null}
               </View>
-              <Text style={styles.evoLevel}>LV {STAGE_LEVELS[st - 1]}</Text>
+              <Text style={styles.evoLevel}>{def.eventLine ? `STAGE ${st}` : `LV ${STAGE_LEVELS[st - 1]}`}</Text>
               <Text numberOfLines={2} style={styles.evoName}>{def.stages[st - 1]}</Text>
             </View>
           </React.Fragment>
@@ -66,7 +69,9 @@ function EvolutionTab({ id, stage, name, styles }: { id: PetId; stage: 1 | 2 | 3
       <Text style={styles.body}>
         {stage === 3
           ? <><Text style={styles.bold}>Radiant.</Text> {name} has reached their final form.</>
-          : <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> at level {STAGE_LEVELS[stage]}.</>}
+          : def.eventLine
+            ? <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> through {def.season ?? 'the event'}&apos;s challenges.</>
+            : <>{name} becomes <Text style={styles.bold}>{def.stages[stage]}</Text> at level {STAGE_LEVELS[stage]}.</>}
       </Text>
     </View>
   );
@@ -78,29 +83,33 @@ export default function CompanionScreen() {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string }>();
-  const { petId, name: currentName, xpByPet, setPetId } = usePetProgress();
+  const { petId, name: currentName, xpByPet, owned, setPetId } = usePetProgress();
   const { isReleased, isClaimable, nextWindow } = useReleases();
   const [tab, setTab] = useState<Tab>('about');
   const [walking, setWalking] = useState(false);
   const [now] = useState(() => Date.now());
   const { width: screenW } = useWindowDimensions();
 
-  const out = PETS.filter(def => !def.scheduled || isReleased(`pet:${def.id}`));
+  const out = PETS.filter(def => owned.has(def.id) || !def.scheduled || isReleased(`pet:${def.id}`));
   const id: PetId = isPetId(params.id) ? params.id : petId;
   const def = PETS.find(p => p.id === id) ?? PETS[0];
   const index = out.findIndex(p => p.id === id);
   const info = COMPANION_INFO[id];
   const xp = xpByPet[id] ?? 0;
   const own = petProgressFromXp(xp);
+  // An event companion's stage comes from its event (Snowcap to the Frost Lord, the Cherub to The Beloved), not XP.
+  const eventStage = usePalStage(id);
+  const stage = (eventStage !== null ? Math.min(3, Math.max(1, eventStage)) : own.stage) as 1 | 2 | 3;
   const isCurrent = id === petId;
   const name = isCurrent ? currentName : def.name;
   const metOn = metDates()[id];
   const daysWalked = metOn ? Math.max(1, Math.ceil((now - Date.parse(metOn)) / 86400000)) : null;
   const group = companionGroup(id);
-  // Seasonal companions can only be claimed in their season. Anyone who already has one keeps it.
-  const claimed = isCurrent || xp > 0;
+  // Seasonal companions can only be claimed in their season. Anyone who has ever had one keeps it for good.
+  const claimed = owned.has(id);
   const vaulted = !claimed && !isClaimable(`pet:${id}`);
   const returns = vaulted ? nextWindow(`pet:${id}`) : null;
+  const claimNote = useClaimNotes(owned)(id);
   // The verse card's text area is the screen less the page and card padding.
   const verseWraps = info.verse.text.length + 2 > (screenW - 44 - 32) / VERSE_CHAR_W;
   const heroH = HERO_H - (verseWraps ? LONG_VERSE_LIFT : 0);
@@ -137,7 +146,7 @@ export default function CompanionScreen() {
           </View>
           <View style={[styles.heroPet, { top: insets.top + heroH - 52 - (HERO_PET * 260) / 240 }]}>
             <Acting petId={id} size={HERO_PET}>
-              <Pet id={id} stage={own.stage} size={HERO_PET} />
+              <Pet id={id} stage={stage} size={HERO_PET} />
             </Acting>
           </View>
           {out.length > 1 ? (
@@ -159,10 +168,20 @@ export default function CompanionScreen() {
             <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>{name}</Text>
             <View style={styles.badges}>
               <Text style={styles.badge}>{GROUP_BADGE[group]}</Text>
-              {own.stage === 3 ? <Text style={[styles.badge, styles.badgeGold]}>✦ RADIANT</Text> : null}
+              {stage === 3 ? <Text style={[styles.badge, styles.badgeGold]}>✦ RADIANT</Text> : null}
             </View>
           </View>
           <Text style={styles.species}>{def.species.toUpperCase()}</Text>
+          {claimNote ? (
+            <View style={styles.claimNote} accessibilityRole="text">
+              <Text style={styles.claimNoteTitle}>{claimNote.short.toUpperCase()}</Text>
+              <Text style={styles.claimNoteBody}>{claimNote.long}</Text>
+            </View>
+          ) : null}
+          {/* The Beloved's final stage: switch between marble and her Seraph spirit form */}
+          {id === 'beloved' && claimed ? (
+            <BelovedFormSwitch unlocked={(eventStage ?? 0) >= 3} lockedText="Awaken The Beloved first" />
+          ) : null}
 
           <View style={styles.tabs} accessibilityRole="tablist">
             {TABS.map(t => (
@@ -193,7 +212,7 @@ export default function CompanionScreen() {
               </View>
             </View>
           ) : tab === 'evolution' ? (
-            <EvolutionTab key={id} id={id} stage={own.stage} name={name} styles={styles} />
+            <EvolutionTab key={id} id={id} stage={stage} name={name} styles={styles} />
           ) : (
             <View style={{ gap: 14 }}>
               <View style={styles.pair}>
@@ -262,6 +281,9 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   badges: { flexDirection: 'row', gap: 6 },
   badge: { overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: theme.line, fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1.2, color: theme.inkSoft },
   badgeGold: { borderColor: '#C9A24B', color: '#E8C27A' },
+  claimNote: { marginTop: 12, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#C9A24B', backgroundColor: 'rgba(201,162,75,0.10)', gap: 3 },
+  claimNoteTitle: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.2, color: '#C9A24B' },
+  claimNoteBody: { fontFamily: FONTS.body, fontSize: 13, lineHeight: 18, color: theme.inkSoft },
   species: { marginTop: 4, fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 2, color: theme.muted },
   tabs: { flexDirection: 'row', marginTop: 18, marginBottom: 18, padding: 4, borderRadius: 16, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.line },
   tab: { flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

@@ -4,6 +4,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const LOCAL_KEYS = {
+  accountTours: 'saint.accountTours',
+  appDisplay: 'saint.appDisplay',
   nook: 'nook.v1',
   nookStats: 'nook.stats',
   shelfPicks: 'keepsakes.shelf.v1',
@@ -41,6 +43,12 @@ export function readLocal<T>(key: LocalKey): T | undefined {
 export function writeLocal(key: LocalKey, value: unknown): Promise<void> {
   memory.set(key, value);
   return AsyncStorage.setItem(key, JSON.stringify(value));
+}
+
+/** Forgets a saved value entirely (reads come back undefined, as on a fresh install). */
+export function clearLocal(key: LocalKey): Promise<void> {
+  memory.delete(key);
+  return AsyncStorage.removeItem(key);
 }
 
 /** Saved data that belongs to one account. Before the session has loaded there's no user to check it against yet. */

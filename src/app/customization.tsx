@@ -404,6 +404,45 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'winter') {
+    // The Long Winter — navy sky, an aurora band, a snowcapped peak, snowy hill.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: palette.bg }}>
+        <View style={{ position: 'absolute', left: -10, right: -10, top: 12, height: 14, borderRadius: 14, backgroundColor: '#5FE3C0', opacity: 0.28, transform: [{ rotate: '-6deg' }] }} />
+        <View style={{ position: 'absolute', right: 30, bottom: 14, width: 0, height: 0, borderLeftWidth: 22, borderRightWidth: 22, borderBottomWidth: 30, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#2E4880' }} />
+        <View style={{ position: 'absolute', right: 45, bottom: 34, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 10, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#C9D9F0' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -18, height: 40, borderRadius: 40, backgroundColor: '#B7CBE6' }} />
+        <View style={{ position: 'absolute', left: 18, top: 8, width: 4, height: 4, borderRadius: 2, backgroundColor: '#E9C46A' }} />
+      </View>
+    );
+  }
+  if (room === 'beloved') {
+    // The Beloved — a blush sky, a marble temple, a hedge of roses and a heart.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F7D6DD' }}>
+        <View style={{ position: 'absolute', left: '22%', right: '22%', top: 14, height: 8, backgroundColor: '#F1E6DE' }} />
+        {[0.26, 0.4, 0.54, 0.68].map(x => (
+          <View key={x} style={{ position: 'absolute', left: `${x * 100}%`, top: 22, width: 6, height: 30, backgroundColor: '#F4EBE4' }} />
+        ))}
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 28, borderRadius: 28, backgroundColor: '#8FA872' }} />
+        <View style={{ position: 'absolute', left: 22, bottom: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E07C93' }} />
+        <View style={{ position: 'absolute', right: 30, bottom: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#E07C93' }} />
+        <Text style={{ position: 'absolute', right: 14, top: 6, fontSize: 12, color: '#E8879B' }}>♥</Text>
+      </View>
+    );
+  }
+  if (room === 'swamp') {
+    // The Swamp King — dusk violet sky, a low sun, dark water, a mossy stump and a blue wisp.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#3A3350' }}>
+        <View style={{ position: 'absolute', left: '50%', top: 22, marginLeft: -16, width: 32, height: 32, borderRadius: 16, backgroundColor: '#E8B97A', opacity: 0.4 }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: 12, height: 14, backgroundColor: '#2A3644' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 28, borderRadius: 28, backgroundColor: '#2E3A2C' }} />
+        <View style={{ position: 'absolute', right: 24, bottom: 14, width: 20, height: 10, borderRadius: 3, backgroundColor: '#5E8A4E' }} />
+        <View style={{ position: 'absolute', left: 30, bottom: 30, width: 5, height: 5, borderRadius: 3, backgroundColor: '#6FC3FF' }} />
+      </View>
+    );
+  }
   if (room === 'christmas') {
     // God With Us — navy sky, the star, snowy hill, a pine.
     return (
