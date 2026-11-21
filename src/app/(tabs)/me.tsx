@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   PressableProps,
   ScrollView,
@@ -25,6 +26,8 @@ import Animated, {
 import Svg, { Circle, Defs, LinearGradient, Mask, Path, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { NookDecorator } from '@/components/pets/NookDecorator';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { SimpleHome } from '@/components/saint/SimpleHome';
 import { Nook } from '@/components/pets/Nook';
 import { prefetchNookImages } from '@/components/pets/NookImages';
 import { KeepsakeShelf } from '@/components/pets/KeepsakeShelf';
@@ -162,8 +165,9 @@ type Stats = {
 
 /** Starts the screen over when progress (the nook, shelf picks) arrives from the account, e.g. on a new phone. */
 export default function MeScreen() {
+  const { simple } = useAppDisplay();
   const cloudVersion = useCloudVersion();
-  return <MeContent key={cloudVersion} />;
+  return simple ? <SimpleHome /> : <MeContent key={cloudVersion} />;
 }
 
 function MeContent() {
@@ -172,9 +176,12 @@ function MeContent() {
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { session, isGuest, emailSignInCodes, setEmailSignInCodes, signOut } = useAuth();
-  useEffect(() => afterLaunch(() => {
-    void prefetchNookImages().catch(() => {});
-  }), []);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    return afterLaunch(() => {
+      void prefetchNookImages().catch(() => {});
+    });
+  }, []);
   // Stats still feed the nook scene (web level) and the decorator.
   const [stats, setStats] = useState<Stats>(
     () => readForUser<Stats>(LOCAL_KEYS.nookStats, session?.user.id) ?? { offered: 0, shared: 0, sent: 0, received: 0 },
@@ -417,6 +424,14 @@ function MeContent() {
               <View style={styles.linkCopy}>
                 <Text style={styles.rowTitle}>Notifications</Text>
                 <Text style={styles.rowNote}>Notes, updates, and your daily reminder.</Text>
+              </View>
+              <ArrowIcon size={15} color={theme.inkSoft} />
+            </NookButton>
+            <NookButton onPress={() => go('/appMode')} accessibilityRole="link" style={styles.settingsRow}>
+              <GearIcon color={theme.inkSoft} />
+              <View style={styles.linkCopy}>
+                <Text style={styles.rowTitle}>Display</Text>
+                <Text style={styles.rowNote}>Simple mode and appearance</Text>
               </View>
               <ArrowIcon size={15} color={theme.inkSoft} />
             </NookButton>

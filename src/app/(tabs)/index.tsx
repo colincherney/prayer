@@ -4,6 +4,8 @@ import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { useAppearanceMode } from '@/components/saint/appearanceMode';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { SimpleHome } from '@/components/saint/SimpleHome';
 import { DustMotes } from '@/components/saint/DustMotes';
 import { HeroIllustration } from '@/components/saint/Hero';
 import {
@@ -51,7 +53,9 @@ import { PrayerRoomName, usePrayerRoom } from '@/components/saint/prayerRoom';
 import { useSaintFonts } from '@/components/saint/useFonts';
 
 export default function HomeScreen() {
+  const { simple } = useAppDisplay();
   const { mode } = useAppearanceMode();
+  if (simple) return <SimpleHome />;
   return mode === 'theme' ? <ThemeHomeScreen /> : <RoomHomeScreen />;
 }
 

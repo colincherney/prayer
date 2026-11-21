@@ -28,6 +28,8 @@ import { keyframe, useLoop, useMotionEnabled } from '@/components/pets/anim';
 import { SmoothMotion } from '@/components/pets/Fx';
 import { Acting } from '@/components/pets/petActing';
 import { Pet, petStageName } from '@/components/pets/registry';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { SimpleHome } from '@/components/saint/SimpleHome';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
@@ -312,6 +314,11 @@ function XpFill({ pct, color }: { pct: number; color: string }) {
 type Size = { w: number; h: number };
 
 export default function PrayLauncherScreen() {
+  const { simple } = useAppDisplay();
+  return simple ? <SimpleHome /> : <PrayLauncherContent />;
+}
+
+function PrayLauncherContent() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME, name: themeName } = useTheme();
   const styles = useThemedStyles(makeStyles);

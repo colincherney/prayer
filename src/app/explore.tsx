@@ -30,6 +30,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { ScreenPet } from '@/components/pets/ScreenPet';
+import { useAppDisplay } from '@/components/saint/appDisplay';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -241,6 +242,7 @@ const WallOfLights: React.FC<{
 /* -------------------- Screen -------------------- */
 export default function PrayForOthersScreen() {
   const fontsLoaded = useSaintFonts();
+  const { simple } = useAppDisplay();
   const { theme: THEME } = useTheme();
   const NIGHT = useMemo(() => nightPaletteFromTheme(THEME), [THEME]);
   const styles = useMemo(() => makeStyles(NIGHT), [NIGHT]);
@@ -256,6 +258,7 @@ export default function PrayForOthersScreen() {
   const [prayedIds, setPrayedIds] = useState<Set<string>>(new Set());
   /** Prayers being lit right now, so two taps in the same frame can't record the same prayer twice. */
   const praying = useRef(new Set<string>());
+  const [prayerErrorId, setPrayerErrorId] = useState<string | null>(null);
   const [notesSent, setNotesSent] = useState<Set<string>>(new Set());
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -361,6 +364,7 @@ export default function PrayForOthersScreen() {
 
   // Flicker loop — runs always, but only visible when flame is lit
   useEffect(() => {
+    if (simple) return;
     const easing = Easing.inOut(Easing.quad);
     flicker.set(
       withRepeat(
@@ -374,10 +378,11 @@ export default function PrayForOthersScreen() {
       ),
     );
     return () => cancelAnimation(flicker);
-  }, [flicker]);
+  }, [flicker, simple]);
 
   // When the current request becomes lit/unlit, animate the ignite reveal + glow
   useEffect(() => {
+    if (simple) return;
     lightUp.set(
       withTiming(lit ? 1 : 0, {
         duration: lit ? 750 : 250,
@@ -387,19 +392,25 @@ export default function PrayForOthersScreen() {
     glowIntensity.set(
       withTiming(lit ? 1 : 0.5, { duration: 700, easing: Easing.out(Easing.cubic) }),
     );
-  }, [lit, lightUp, glowIntensity]);
+  }, [lit, lightUp, glowIntensity, simple]);
 
   // Second half of advance(): swap in the next card, then slide it up into place.
   const showNextCard = (next: number) => {
     setIndex(next);
     setNoteOpen(false);
     setNote('');
+    setNoteError(null);
+    if (simple) return;
     const easing = Easing.out(Easing.cubic);
     cardLift.set(withSequence(withTiming(16, { duration: 0 }), withTiming(0, { duration: 360, easing })));
     cardFade.set(withTiming(1, { duration: 360, easing }));
   };
 
   const advance = (next: number) => {
+    if (simple) {
+      showNextCard(next);
+      return;
+    }
     const easing = Easing.in(Easing.quad);
     cardLift.set(withTiming(-16, { duration: 220, easing }));
     cardFade.set(
@@ -414,6 +425,7 @@ export default function PrayForOthersScreen() {
   const onPray = async () => {
     if (!req || !session || praying.current.has(req.id) || prayedIds.has(req.id)) return;
     praying.current.add(req.id);
+    setPrayerErrorId(null);
     // Optimistic light
     setPrayedIds(prev => {
       const next = new Set(prev);
@@ -433,6 +445,7 @@ export default function PrayForOthersScreen() {
     if (error) {
       // Roll back on failure, and let them try again
       praying.current.delete(req.id);
+      setPrayerErrorId(req.id);
       setPrayedIds(prev => {
         const next = new Set(prev);
         next.delete(req.id);
@@ -492,27 +505,30 @@ export default function PrayForOthersScreen() {
   const isLast = total > 0 && index === total - 1;
   const allDone = total > 0 && prayedIds.size === total;
   const noteSent = req ? notesSent.has(req.id) : false;
+  const noteButtonInk = simple ? THEME.accentInk : '#1A130A';
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
-      <VigilBackdrop night={NIGHT} glowIntensity={glowIntensity} />
+      <StatusBar barStyle={simple && !THEME.isDark ? 'dark-content' : 'light-content'} />
+      {!simple && <VigilBackdrop night={NIGHT} glowIntensity={glowIntensity} />}
 
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={[styles.body, simple && styles.simpleColumn]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Top bar */}
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.iconBtn} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.iconBtn} hitSlop={8}>
             <BackIcon size={16} color={NIGHT.ink} />
           </Pressable>
           <View style={{ alignItems: 'center' }}>
-            <Text style={styles.kicker}>A QUIET VIGIL</Text>
-            <Text style={styles.indexLabel}>
+            <Text accessibilityRole="header" style={simple ? styles.simpleTitle : styles.kicker}>
+              {simple ? 'Pray for others' : 'A QUIET VIGIL'}
+            </Text>
+            {(!simple || total > 0) && <Text style={styles.indexLabel}>
               {total > 0 ? index + 1 : 0}{' '}
               <Text style={{ color: NIGHT.muted }}>/ {total}</Text>
-            </Text>
+            </Text>}
           </View>
           <View style={styles.topBarSpacer} />
         </View>
@@ -524,45 +540,52 @@ export default function PrayForOthersScreen() {
         ) : !req ? (
           <View style={styles.centerFill}>
             <Text style={styles.emptyTitle}>
-              {feedError ? 'Couldn’t load prayers' : 'Stillness tonight.'}
+              {feedError ? 'Couldn’t load prayers' : simple ? 'No requests right now' : 'Stillness tonight.'}
             </Text>
-            <Text style={styles.emptyBody}>
+            {(!simple || feedError) && <Text style={styles.emptyBody}>
               {feedError
                 ? feedError
                 : 'No requests are waiting right now. Be the first to share what weighs on your heart.'}
-            </Text>
+            </Text>}
+            {simple && feedError && (
+              <Pressable accessibilityRole="button" onPress={onLoadMore} style={styles.continueBtn}>
+                <Text style={styles.simpleLink}>Try again</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <>
         {/* Body */}
         <Animated.View
-          style={[styles.body, cardStyle]}>
+          style={[styles.body, !simple && cardStyle]}>
           <ScrollView
             contentContainerStyle={styles.bodyScroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            <View>
+            {!simple && <View>
               <Candle night={NIGHT} styles={styles} lit={lit} flicker={flicker} lightUp={lightUp} />
               {/* Your companion keeps vigil beside the candle: warmed by the flame once it is lit, hopping when you light it or send encouragement. */}
               <View pointerEvents="box-none" style={{ position: 'absolute', right: '50%', marginRight: 42, bottom: 10 }}>
                 <ScreenPet size={96} warm={lit} hop={(lit ? 1 : 0) + notesSent.size} scene="vigil" interactive />
               </View>
-            </View>
+            </View>}
 
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
-            </View>
+            <View style={simple && styles.simpleRequest}>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaText}>{req.category.toUpperCase()}</Text>
+              </View>
 
-            <Text style={styles.prayer}>&ldquo;{req.text}&rdquo;</Text>
+              <Text style={[styles.prayer, simple && styles.simplePrayer]}>{simple ? req.text : `“${req.text}”`}</Text>
 
-            <View style={styles.companionRow}>
-              <View style={styles.tinyDot} />
-              <Text style={styles.companionText}>
-                <Text style={styles.companionStrong}>
-                  {req.prayedCount + (lit ? 1 : 0)}
-                </Text>{' '}
-                {lit ? 'have lit a candle with you' : 'have lit a candle'}
-              </Text>
+              <View style={styles.companionRow}>
+                <View style={styles.tinyDot} />
+                <Text style={styles.companionText}>
+                  <Text style={styles.companionStrong}>
+                    {req.prayedCount + (!simple && lit ? 1 : 0)}
+                  </Text>{' '}
+                  {simple ? (req.prayedCount === 1 ? 'person prayed' : 'people prayed') : lit ? 'have lit a candle with you' : 'have lit a candle'}
+                </Text>
+              </View>
             </View>
           </ScrollView>
         </Animated.View>
@@ -570,15 +593,20 @@ export default function PrayForOthersScreen() {
         {/* Action area */}
         <View style={styles.actions}>
           {!lit ? (
-            <Pressable onPress={onPray} style={({ pressed }) => [styles.lightBtn, pressed && { opacity: 0.85 }]}>
-              <View style={styles.lightBtnDot} />
-              <Text style={styles.lightBtnText}>Light a candle</Text>
-            </Pressable>
+            <>
+              {simple && prayerErrorId === req.id && <Text accessibilityRole="alert" style={styles.simpleError}>Couldn’t record your prayer. Try again.</Text>}
+              <Pressable accessibilityRole="button" onPress={onPray} style={({ pressed }) => [styles.lightBtn, simple && styles.simpleButton, pressed && { opacity: 0.85 }]}>
+                {!simple && <View style={styles.lightBtnDot} />}
+                <Text style={simple ? [styles.simpleButtonText, { color: THEME.accentInk }] : styles.lightBtnText}>
+                  {simple ? 'I prayed' : 'Light a candle'}
+                </Text>
+              </Pressable>
+            </>
           ) : (
             <View style={{ gap: 12 }}>
               <View style={styles.litBanner}>
                 <CheckIcon size={14} color={NIGHT.flame} />
-                <Text style={styles.litBannerText}>Your candle is lit. Stay as long as you need.</Text>
+                <Text style={styles.litBannerText}>{simple ? 'Prayer recorded' : 'Your candle is lit. Stay as long as you need.'}</Text>
               </View>
 
               {!noteSent && !noteOpen && (
@@ -602,6 +630,7 @@ export default function PrayForOthersScreen() {
                     onChangeText={setNote}
                     placeholder="A short word of hope, anonymously…"
                     placeholderTextColor={NIGHT.muted}
+                    keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
                     multiline
                     maxLength={280}
                     style={styles.noteInput}
@@ -620,12 +649,12 @@ export default function PrayForOthersScreen() {
                         },
                       ]}>
                       {noteSending ? (
-                        <ActivityIndicator size="small" color="#1A130A" />
+                        <ActivityIndicator size="small" color={noteButtonInk} />
                       ) : (
                         <Text
                           style={[
                             styles.sendNoteText,
-                            { color: note.trim() ? '#1A130A' : NIGHT.muted },
+                            { color: note.trim() ? noteButtonInk : NIGHT.muted },
                           ]}>
                           Send anonymously
                         </Text>
@@ -644,7 +673,7 @@ export default function PrayForOthersScreen() {
                 </View>
               )}
 
-              {!isLast ? (
+              {!simple && (!isLast ? (
                 <Pressable onPress={onContinue} style={styles.continueBtn}>
                   <Text style={styles.continueBtnText}>Carry on to the next →</Text>
                 </Pressable>
@@ -677,13 +706,24 @@ export default function PrayForOthersScreen() {
                     </Pressable>
                   )}
                 </View>
-              )}
+              ))}
             </View>
           )}
         </View>
 
         {/* Wall of lights */}
-        <WallOfLights
+        {simple ? (
+          <View style={styles.simpleNavigation}>
+            {index > 0 && (
+              <Pressable accessibilityRole="button" onPress={() => onJump(index - 1)} disabled={noteSending} style={styles.continueBtn}>
+                <Text style={styles.simpleLink}>Previous</Text>
+              </Pressable>
+            )}
+            <Pressable accessibilityRole="button" onPress={isLast ? onLoadMore : onContinue} disabled={noteSending} style={styles.continueBtn}>
+              <Text style={styles.simpleLink}>{isLast ? 'More requests' : 'Next request'}</Text>
+            </Pressable>
+          </View>
+        ) : <WallOfLights
           night={NIGHT}
           styles={styles}
           total={total}
@@ -691,7 +731,7 @@ export default function PrayForOthersScreen() {
           ids={requests.map(r => r.id)}
           currentIndex={index}
           onJump={onJump}
-        />
+        />}
           </>
         )}
         </KeyboardAvoidingView>
@@ -702,6 +742,18 @@ export default function PrayForOthersScreen() {
 
 const makeStyles = (NIGHT: NightPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: NIGHT.bg },
+  simpleColumn: { width: '100%', maxWidth: 548, alignSelf: 'center' },
+  simpleTitle: { color: NIGHT.ink, fontFamily: FONTS.bodySemi, fontSize: 17 },
+  simpleRequest: {
+    backgroundColor: NIGHT.surface, borderColor: NIGHT.line, borderWidth: 1,
+    borderRadius: 16, paddingHorizontal: 18, paddingVertical: 25,
+  },
+  simplePrayer: { fontSize: 19, lineHeight: 29 },
+  simpleButton: { backgroundColor: NIGHT.flame, borderRadius: 12, paddingVertical: 14 },
+  simpleButtonText: { fontFamily: FONTS.bodySemi, fontSize: 15 },
+  simpleNavigation: { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: 24 },
+  simpleLink: { fontFamily: FONTS.bodyMed, color: NIGHT.flame, fontSize: 14 },
+  simpleError: { color: NIGHT.ink, fontFamily: FONTS.body, paddingBottom: 8 },
 
   /* Top bar */
   topBar: {

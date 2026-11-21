@@ -12,7 +12,7 @@ function navigation() {
   const hooks = [];
   const effects = [];
   const redirects = [];
-  const router = { replace: route => redirects.push(route) };
+  const router = { replace: route => redirects.push(route), push: route => redirects.push(route) };
   const react = {
     useRef(initial) {
       const index = cursor++;
@@ -32,14 +32,22 @@ function navigation() {
   const dependencies = {
     react,
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
-    'expo-router': { useSegments: () => state.segments, useRouter: () => router, Stack: { Screen: noop } },
-    'expo-notifications': { useLastNotificationResponse: () => null },
+    'expo-router': { useSegments: () => state.segments, useRouter: () => router, Stack: { Screen: noop, Protected: noop } },
+    'expo-notifications': {
+      useLastNotificationResponse: () => state.notification && {
+        notification: { request: { identifier: state.notification, content: { data: state.notification } } },
+      },
+      clearLastNotificationResponseAsync: async () => {},
+    },
     'expo-splash-screen': { preventAutoHideAsync: async () => {}, hideAsync: async () => {} },
     'expo-system-ui': { setBackgroundColorAsync: async () => {} },
     '@/lib/auth': { useAuth: () => state.auth },
     '@/lib/notifications': { registerForPushNotifications: async () => null },
     '@/components/saint/useFonts': { useSaintFonts: () => true },
+    '@/components/saint/appDisplay': { useAppDisplay: () => ({ simple: state.simple }) },
+    '@/components/saint/theme': { useTheme: () => ({ theme: {} }) },
     '@/components/pets/registry': { PETS: [] },
+    '@/lib/notificationDestination': { notificationDestination: data => data },
   };
   const source = fs.readFileSync(path.join(__dirname, '../src/app/_layout.tsx'), 'utf8');
   const compiled = ts.transpileModule(source, {
@@ -52,8 +60,8 @@ function navigation() {
 
   const session = { user: { id: 'widget-user' } };
   return {
-    render(screen, { signedIn = false, loading = false } = {}) {
-      state = { segments: [screen], auth: { session: signedIn ? session : null, loading } };
+    render(screen, { signedIn = false, loading = false, simple = false, notification = null } = {}) {
+      state = { segments: [screen], auth: { session: signedIn ? session : null, loading }, simple, notification };
       cursor = 0;
       redirects.length = 0;
       module.exports.renderRootStack();
@@ -92,4 +100,13 @@ test('ordinary launches retain the existing sign-in wall and home destination', 
   assert.deepEqual(nav.render('auth'), []);
   assert.deepEqual(nav.render('auth', { signedIn: true }), ['/']);
   assert.deepEqual(nav.render('(tabs)', { signedIn: true }), []);
+});
+
+test('Simple mode keeps the widget route and prayer notifications available while skipping event navigation', () => {
+  const nav = navigation();
+  const simple = { signedIn: true, simple: true };
+  assert.deepEqual(nav.render('prayerRequest', simple), []);
+  assert.deepEqual(nav.render('(tabs)', { ...simple, notification: '/winter' }), []);
+  assert.deepEqual(nav.render('(tabs)', { ...simple, notification: '/myPrayers' }), ['/myPrayers']);
+  assert.deepEqual(nav.render('(tabs)', { signedIn: true, notification: '/winter' }), ['/winter']);
 });

@@ -8,8 +8,9 @@ import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
+import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
-import { SaintThemeProvider } from '@/components/saint/theme';
+import { SaintThemeProvider, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { syncCloudProgress } from '@/lib/cloudProgress';
@@ -39,6 +40,9 @@ SystemUI.setBackgroundColorAsync(SPLASH_BG).catch(() => {});
 
 function RootStack() {
   const { session, loading } = useAuth();
+  const { simple } = useAppDisplay();
+  const { theme } = useTheme();
+  const colorScheme = useColorScheme();
   const segments = useSegments();
   const router = useRouter();
   const fontsLoaded = useSaintFonts();
@@ -107,52 +111,57 @@ function RootStack() {
     if (handledNotification.current === request.identifier) return;
     handledNotification.current = request.identifier;
     const destination = notificationDestination(request.content.data);
-    if (destination) router.push(destination);
+    if (destination && (!simple || destination === '/' || destination === '/myPrayers')) {
+      router.push(destination);
+    }
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
-  }, [notificationResponse, signedInId, navSettled, router]);
+  }, [notificationResponse, signedInId, navSettled, router, simple]);
 
   return (
-    <>
+    <ThemeProvider value={(simple ? theme.isDark : colorScheme === 'dark') ? DarkTheme : DefaultTheme}>
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: SPLASH_BG },
+        contentStyle: { backgroundColor: simple ? theme.bg : SPLASH_BG },
       }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
       <Stack.Screen name="explore" options={{ presentation: 'card' }} />
       <Stack.Screen name="prayerRequest" options={{ presentation: 'card' }} />
-      <Stack.Screen name="pair" options={{ presentation: 'card' }} />
       <Stack.Screen name="myPrayers" options={{ presentation: 'card' }} />
-      <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
-      <Stack.Screen name="customization" options={{ presentation: 'card' }} />
-      <Stack.Screen name="pets" options={{ presentation: 'card' }} />
-      <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="store" options={{ presentation: 'card' }} />
+      <Stack.Screen name="biography" options={{ presentation: 'card' }} />
+      <Stack.Screen name="appMode" options={{ presentation: 'card' }} />
       <Stack.Screen name="createAccount" options={{ presentation: 'card' }} />
       <Stack.Screen name="changeEmail" options={{ presentation: 'card' }} />
       <Stack.Screen name="deleteAccount" options={{ presentation: 'card' }} />
-      <Stack.Screen name="groups" options={{ presentation: 'card' }} />
-      <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
-      <Stack.Screen name="quests" options={{ presentation: 'card' }} />
-      <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
-      <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
-      <Stack.Screen name="winter" options={{ presentation: 'card' }} />
-      <Stack.Screen name="beloved" options={{ presentation: 'card' }} />
-      <Stack.Screen name="swamp" options={{ presentation: 'card' }} />
-      <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
+      <Stack.Protected guard={!simple}>
+        <Stack.Screen name="pair" options={{ presentation: 'card' }} />
+        <Stack.Screen name="notificationSettings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="customization" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pets" options={{ presentation: 'card' }} />
+        <Stack.Screen name="companion/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="store" options={{ presentation: 'card' }} />
+        <Stack.Screen name="groups" options={{ presentation: 'card' }} />
+        <Stack.Screen name="group/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="groupNook" options={{ presentation: 'card' }} />
+        <Stack.Screen name="quests" options={{ presentation: 'card' }} />
+        <Stack.Screen name="trinkets" options={{ presentation: 'card' }} />
+        <Stack.Screen name="createGroup" options={{ presentation: 'card' }} />
+        <Stack.Screen name="winter" options={{ presentation: 'card' }} />
+        <Stack.Screen name="beloved" options={{ presentation: 'card' }} />
+        <Stack.Screen name="swamp" options={{ presentation: 'card' }} />
+        <Stack.Screen name="patchNotes" options={{ presentation: 'card' }} />
+      </Stack.Protected>
     </Stack>
     {/* The running event's intro clip and evolution moments, over whatever screen is showing (home only). */}
-    {navSettled && session ? <WinterGate /> : null}
+    {!simple && navSettled && session ? <WinterGate /> : null}
     {/* "What's new": companions and wallpapers that just dropped, shown once each. */}
-    {navSettled && session ? <DropGate /> : null}
-    </>
+    {!simple && navSettled && session ? <DropGate /> : null}
+    </ThemeProvider>
   );
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   // The splash stays up during these quick reads, so no screen ever draws the default pet first.
   const [preloaded, setPreloaded] = useState(false);
   useEffect(() => {
@@ -162,7 +171,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AppDisplayProvider>
         <ReleasesProvider>
         <SaintThemeProvider>
           <PrayerRoomProvider>
@@ -174,7 +183,7 @@ export default function RootLayout() {
           </PrayerRoomProvider>
         </SaintThemeProvider>
         </ReleasesProvider>
-      </ThemeProvider>
+      </AppDisplayProvider>
     </GestureHandlerRootView>
   );
 }

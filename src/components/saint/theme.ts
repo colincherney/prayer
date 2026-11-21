@@ -14,6 +14,7 @@ import React, {
 } from 'react';
 
 import { useAppearanceMode } from './appearanceMode';
+import { useAppDisplay } from './appDisplay';
 import {
   PRAYER_ROOM_LABELS,
   PrayerRoomName,
@@ -134,6 +135,25 @@ const PINK: Theme = {
   pillInk: '#8E2A4A',
 };
 
+const SIMPLE_THEMES = {
+  light: {
+    name: 'Light', isDark: false,
+    bg: '#F7F6F1', bgSoft: '#EDEEE7', surface: '#FDFCFA',
+    ink: '#222921', inkSoft: '#485248', muted: '#626B60', line: '#D9DED4',
+    cardDark: '#304839', cardDarkInk: '#F7FAF6',
+    accent: '#365B46', accentInk: '#FFFFFF', accentSoft: '#AAC2AD',
+    pillBg: '#E6EEE4', pillInk: '#365B46',
+  },
+  dark: {
+    name: 'Dark', isDark: true,
+    bg: '#181C19', bgSoft: '#222923', surface: '#202621',
+    ink: '#EFF2EA', inkSoft: '#CCD5C9', muted: '#A7B2A6', line: '#39443B',
+    cardDark: '#2E4134', cardDarkInk: '#EFF2EA',
+    accent: '#A8CBB3', accentInk: '#192D21', accentSoft: '#6D9579',
+    pillBg: '#293A2E', pillInk: '#B8D5BF',
+  },
+} satisfies Record<'light' | 'dark', Theme>;
+
 export const THEMES = {
   cream: CREAM,
   navy: NAVY,
@@ -234,11 +254,12 @@ function roomToTheme(name: PrayerRoomName, p: PrayerRoomPalette): Theme {
 
 export const useTheme = (): { name: string; theme: Theme; setTheme: (name: ThemeName) => void } => {
   const ctx = useContext(ThemeContext);
+  const { simple, simpleColor } = useAppDisplay();
   const { mode } = useAppearanceMode();
   const { name: roomName, palette } = usePrayerRoom();
 
-  const effectiveName = mode === 'room' ? roomName : ctx.name;
-  const effectiveTheme = mode === 'room' ? roomToTheme(roomName, palette) : ctx.theme;
+  const effectiveName = simple ? simpleColor : mode === 'room' ? roomName : ctx.name;
+  const effectiveTheme = simple ? SIMPLE_THEMES[simpleColor] : mode === 'room' ? roomToTheme(roomName, palette) : ctx.theme;
 
   // Keep the legacy mutable singleton in sync so components that read THEME
   // directly (rather than via this hook) still match the active room/theme.

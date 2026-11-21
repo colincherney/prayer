@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PopHearts, ScreenPet, petFeetOffset } from '@/components/pets/ScreenPet';
+import { useAppDisplay } from '@/components/saint/appDisplay';
 import { PrimaryButton, SectionLabel, Squiggle } from '@/components/saint/Common';
 import {
   ArrowIcon,
@@ -45,6 +46,7 @@ const URGENCY_LABELS = ['No urgency', 'Gentle', 'Heavy', 'Urgent'];
 
 export default function SubmitPrayerScreen() {
   const fontsLoaded = useSaintFonts();
+  const { simple } = useAppDisplay();
   const { session } = useAuth();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -55,7 +57,7 @@ export default function SubmitPrayerScreen() {
   }>();
   const [step, setStep] = useState<'compose' | 'confirm'>('compose');
   const [text, setText] = useState('');
-  const [category, setCategory] = useState('family');
+  const [category, setCategory] = useState(simple ? '' : 'family');
   const [urgency, setUrgency] = useState(1);
   const [share, setShare] = useState<'public' | 'private'>('public');
   const [busy, setBusy] = useState(false);
@@ -71,8 +73,10 @@ export default function SubmitPrayerScreen() {
   const onSubmit = async () => {
     if (!text.trim() || busy) return;
     setError(null);
-    setHopTick(t => t + 1);
-    setHeartTick(t => t + 1);
+    if (!simple) {
+      setHopTick(t => t + 1);
+      setHeartTick(t => t + 1);
+    }
 
     if (share === 'private') {
       setStep('confirm');
@@ -110,19 +114,21 @@ export default function SubmitPrayerScreen() {
   if (step === 'confirm') {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.confirmRoot}>
+        <StatusBar barStyle={simple && THEME.isDark ? 'light-content' : 'dark-content'} />
+        <ScrollView contentContainerStyle={[styles.confirmRoot, simple && styles.simpleColumn]} bounces={false}>
           <View style={styles.confirmInner}>
-            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+            {!simple && <View style={{ alignItems: 'center', marginBottom: 6 }}>
               <ScreenPet size={104} hop={1} interactive />
               <PopHearts trigger={1} style={{ right: -4, top: 0 }} />
-            </View>
+            </View>}
             <View style={styles.confirmIconWrap}>
               <PrayingIcon size={40} color={THEME.pillInk} />
             </View>
-            <Squiggle color={THEME.accent} w={56} />
+            {!simple && <Squiggle color={THEME.accent} w={56} />}
             <Text style={styles.confirmTitle}>
-              Your prayer is <Text style={styles.confirmTitleItalic}>held</Text>.
+              {simple ? (share === 'private' ? 'Prayer offered' : 'Request shared') : (
+                <>Your prayer is <Text style={styles.confirmTitleItalic}>held</Text>.</>
+              )}
             </Text>
             <Text style={styles.confirmBody}>
               {share === 'private'
@@ -131,13 +137,15 @@ export default function SubmitPrayerScreen() {
                   ? `It rests with ${groupName ?? 'your group'} now. Your circle will lift it up — without ever knowing it's you.`
                   : "It has been placed gently before the community. Hearts you'll never meet will lift it up."}
             </Text>
-            <Text style={[styles.confirmVerse, { marginTop: 14 }]}>{petName} is praying with you.</Text>
-            <View style={{ marginTop: 24 }}>
-              <Text style={styles.confirmVerse}>
-                &ldquo;Be still, and know that I am God.&rdquo;
-              </Text>
-              <Text style={[styles.confirmVerse, { fontSize: 12, marginTop: 4 }]}>— Psalm 46:10</Text>
-            </View>
+            {!simple && <>
+              <Text style={[styles.confirmVerse, { marginTop: 14 }]}>{petName} is praying with you.</Text>
+              <View style={{ marginTop: 24 }}>
+                <Text style={styles.confirmVerse}>
+                  &ldquo;Be still, and know that I am God.&rdquo;
+                </Text>
+                <Text style={[styles.confirmVerse, { fontSize: 12, marginTop: 4 }]}>— Psalm 46:10</Text>
+              </View>
+            </>}
 
             {sensitive === 'self-harm' && (
               <View style={styles.crisisPanel}>
@@ -180,7 +188,7 @@ export default function SubmitPrayerScreen() {
             onPress={() => router.dismissAll()}
             style={{ marginHorizontal: 22, marginBottom: 20 }}
           />
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -189,29 +197,32 @@ export default function SubmitPrayerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle={simple && THEME.isDark ? 'light-content' : 'dark-content'} />
+      <ScrollView contentContainerStyle={[{ paddingBottom: simple ? 42 : 140 }, simple && styles.simpleColumn]}
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 22, paddingTop: 8 }}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.backBtn}>
             <BackIcon size={16} color={THEME.ink} />
           </Pressable>
-          <Text style={styles.title}>
-            Share your <Text style={styles.titleItalic}>prayer</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            {simple ? 'Request prayer' : <>Share your <Text style={styles.titleItalic}>prayer</Text></>}
           </Text>
-          <Text style={styles.subtitle}>What weighs on your heart today?</Text>
+          {!simple && <Text style={styles.subtitle}>What weighs on your heart today?</Text>}
         </View>
 
         <View style={{ paddingHorizontal: 22 }}>
           {/* Textarea, with your companion sitting on its top corner */}
-          <View style={{ marginTop: 64 }}>
+          <View style={{ marginTop: simple ? 18 : 64 }}>
           <View style={styles.textareaCard}>
             <TextInput
+              accessibilityLabel="Prayer request"
               value={text}
               onChangeText={setText}
               placeholder={
-                'Write freely. No name, no judgment — only the open ear of heaven and the prayers of strangers who care.'
+                simple ? 'What would you like prayer for?' : 'Write freely. No name, no judgment — only the open ear of heaven and the prayers of strangers who care.'
               }
               placeholderTextColor={THEME.muted}
+              keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
               multiline
               maxLength={1000}
               style={styles.textarea}
@@ -224,10 +235,12 @@ export default function SubmitPrayerScreen() {
               <Text style={styles.textareaFootText}>{text.length}/1000</Text>
             </View>
           </View>
-          <View pointerEvents="box-none" style={{ position: 'absolute', right: 20, top: 4 - petFeetOffset(92) }}>
-            <ScreenPet size={92} lean={text.trim().length > 0} hop={hopTick} scene="perch" interactive />
-          </View>
-          <PopHearts trigger={heartTick} style={{ right: 4, top: -66 }} />
+          {!simple && <>
+            <View pointerEvents="box-none" style={{ position: 'absolute', right: 20, top: 4 - petFeetOffset(92) }}>
+              <ScreenPet size={92} lean={text.trim().length > 0} hop={hopTick} scene="perch" interactive />
+            </View>
+            <PopHearts trigger={heartTick} style={{ right: 4, top: -66 }} />
+          </>}
           </View>
 
           <SectionLabel>
@@ -239,9 +252,11 @@ export default function SubmitPrayerScreen() {
               return (
                 <Pressable
                   key={c.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                   onPress={() => {
-                    setCategory(c.id);
-                    setHeartTick(t => t + 1);
+                    setCategory(simple && active ? '' : c.id);
+                    if (!simple) setHeartTick(t => t + 1);
                   }}
                   style={[
                     styles.chip,
@@ -263,6 +278,7 @@ export default function SubmitPrayerScreen() {
             })}
           </View>
 
+          {!simple && <>
           <SectionLabel>Weight on your heart</SectionLabel>
           <View style={styles.urgencyCard}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -282,6 +298,7 @@ export default function SubmitPrayerScreen() {
             </View>
             <Text style={styles.urgencyLabel}>{URGENCY_LABELS[urgency]}</Text>
           </View>
+          </>}
 
           <SectionLabel>Who receives this prayer?</SectionLabel>
           <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -307,6 +324,8 @@ export default function SubmitPrayerScreen() {
               return (
                 <Pressable
                   key={opt.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
                   onPress={() => setShare(opt.id)}
                   style={[
                     styles.shareCard,
@@ -338,7 +357,7 @@ export default function SubmitPrayerScreen() {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <PrimaryButton
-            label={busy ? '' : 'Offer this prayer'}
+            label={busy ? '' : simple && share === 'public' ? 'Share request' : 'Offer this prayer'}
             disabled={!submittable || busy}
             onPress={onSubmit}
             rightIcon={
@@ -358,6 +377,7 @@ export default function SubmitPrayerScreen() {
 
 const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
+  simpleColumn: { width: '100%', maxWidth: 548, alignSelf: 'center' },
   backBtn: {
     width: 40,
     height: 40,
@@ -489,12 +509,13 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     color: THEME.muted,
     marginTop: 2,
   },
-  confirmRoot: { flex: 1, justifyContent: 'space-between', paddingTop: 60 },
+  confirmRoot: { flexGrow: 1, justifyContent: 'space-between', paddingTop: 60 },
   confirmInner: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 22,
+    paddingBottom: 24,
   },
   confirmIconWrap: {
     width: 92,

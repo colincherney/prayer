@@ -9,6 +9,7 @@ import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, w
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { useAppDisplay } from '@/components/saint/appDisplay';
 import { PrimaryButton, Squiggle } from '@/components/saint/Common';
 import { ArrowIcon, BackIcon, CloseIcon, GlobeIcon, HeartIcon, LockIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
 import { PageAmbience } from '@/components/saint/PageAmbience';
@@ -73,6 +74,7 @@ function PrayerCard({ prayer, onPress }: { prayer: MyPrayer; onPress: () => void
 }
 
 export default function MyPrayersScreen() {
+  const { simple } = useAppDisplay();
   const fontsLoaded = useSaintFonts();
   const { session } = useAuth();
   const userId = session?.user.id;
@@ -101,6 +103,7 @@ export default function MyPrayersScreen() {
   }, [search]);
 
   useFocusEffect(useCallback(() => {
+    if (simple) return;
     let cancelled = false;
     setStats(null);
     setStatsError(false);
@@ -113,7 +116,7 @@ export default function MyPrayersScreen() {
     return () => { cancelled = true; };
   // Retrying or saving an update refreshes the counts even while focused.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, revision]));
+  }, [simple, userId, revision]));
 
   useFocusEffect(useCallback(() => {
     const request = ++historyRequest.current;
@@ -172,15 +175,15 @@ export default function MyPrayersScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
-      <PageAmbience name={themeName} />
+      {!simple && <PageAmbience name={themeName} />}
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to Me" onPress={() => router.back()}
+        <Pressable accessibilityRole="button" accessibilityLabel={simple ? 'Back' : 'Back to Me'} onPress={() => router.back()}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
           <BackIcon size={18} color={theme.ink} />
         </Pressable>
         <View style={styles.brandBlock}>
           <Text style={styles.brand}>Saint <Text style={{ color: theme.accent }}>Central</Text></Text>
-          <Squiggle color={theme.accent} w={118} waves={9} />
+          {!simple && <Squiggle color={theme.accent} w={118} waves={9} />}
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -189,6 +192,7 @@ export default function MyPrayersScreen() {
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         ListHeaderComponent={
           <>
+            {!simple && <>
             <View style={styles.pageHeading}>
               <Text accessibilityRole="header" style={styles.title}>Your prayer calendar</Text>
               <Text style={styles.subtitle}>The care you give. The prayers you carry.</Text>
@@ -243,11 +247,12 @@ export default function MyPrayersScreen() {
                 <Text style={styles.notesText}><Text style={styles.notesCount}>{numberOf(stats?.notesReceived)}</Text> notes received</Text>
               </View>
             </View>
+            </>}
 
             <View style={styles.historyHeading}>
               <View style={styles.historyTitleBlock}>
-                <Text accessibilityRole="header" style={styles.sectionTitle}>Your prayers</Text>
-                <Text style={styles.smallText}>Come back to any chapter.</Text>
+                <Text accessibilityRole="header" style={styles.sectionTitle}>{simple ? 'My prayer requests' : 'Your prayers'}</Text>
+                {!simple && <Text style={styles.smallText}>Come back to any chapter.</Text>}
               </View>
               <Pressable accessibilityRole="button" onPress={() => router.push('/prayerRequest')}
                 style={({ pressed }) => [styles.newPrayer, pressed && styles.pressed]}>

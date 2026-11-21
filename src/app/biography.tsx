@@ -27,6 +27,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets/JournalArt';
+import { useAppDisplay } from '@/components/saint/appDisplay';
+import { PrimaryButton } from '@/components/saint/Common';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
@@ -255,6 +257,7 @@ function EntryDetail({
   entry: Entry | null; onBack: () => void; visible: boolean; bibleVersion: BibleVersion;
   onEdit: () => void; onDelete: () => void;
 }) {
+  const { simple } = useAppDisplay();
   const { theme: THEME } = useTheme();
   const anim = useSharedValue(0);
   const insets = useSafeAreaInsets();
@@ -288,26 +291,28 @@ function EntryDetail({
     return () => { cancelled = true; };
   }, [entry?.verse?.ref, bibleVersion, visible]);
 
-  if (!entry) return null;
+  if (!entry || (simple && !visible)) return null;
 
   const entryTheme = ENTRY_THEMES.find(t => t.id === entry.theme);
   const displayVerseText = fetchedVerseText ?? entry.verse?.text ?? '';
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, {
+    <Animated.View pointerEvents={visible ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 10,
     }, detailAnimStyle]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 40 }}
+        contentContainerStyle={[{ paddingTop: insets.top + 16, paddingBottom: 40 }, simple && styles.simpleColumn]}
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.detailNav}>
-          <Pressable onPress={onBack} style={[styles.detailNavBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to journal" onPress={onBack} style={[styles.detailNavBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
             <Text style={[styles.detailNavBtnText, { color: THEME.ink }]}>‹</Text>
           </Pressable>
           <Text style={[styles.detailNavDate, { color: THEME.muted }]}>{entry.date.toUpperCase()}</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Entry options"
             onPress={() => Alert.alert('', '', [
               { text: 'Edit entry', onPress: onEdit },
               { text: 'Delete entry', style: 'destructive', onPress: () =>
@@ -333,7 +338,7 @@ function EntryDetail({
 
           <Text style={[styles.detailTitle, { color: THEME.ink }]}>
             {entry.title}
-            <Text style={[styles.detailTitleDot, { color: THEME.accent }]}>.</Text>
+            {!simple && <Text style={[styles.detailTitleDot, { color: THEME.accent }]}>.</Text>}
           </Text>
 
           <Text style={[styles.detailBody, { color: THEME.inkSoft }]}>{entry.body}</Text>
@@ -358,7 +363,7 @@ function EntryDetail({
             </View>
           )}
 
-          <Text style={[styles.detailDivider, { color: THEME.muted }]}>✥ ✥ ✥</Text>
+          {!simple && <Text style={[styles.detailDivider, { color: THEME.muted }]}>✥ ✥ ✥</Text>}
         </View>
       </ScrollView>
     </Animated.View>
@@ -644,6 +649,7 @@ function NewEntryComposer({
   bibleVersion: BibleVersion;
   editEntry?: Entry | null;
 }) {
+  const { simple } = useAppDisplay();
   const { theme: THEME } = useTheme();
   const anim = useSharedValue(0);
   const insets = useSafeAreaInsets();
@@ -674,24 +680,25 @@ function NewEntryComposer({
 
   const isEdit = !!editEntry;
   const canSave = body.trim().length > 0;
+  if (simple && !visible) return null;
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, {
+    <Animated.View pointerEvents={visible ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, {
       backgroundColor: THEME.bg,
       zIndex: 20,
     }, composerAnimStyle]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={[{ flex: 1 }, simple && styles.simpleColumn]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.composerHeader, { paddingTop: insets.top + 16, borderBottomColor: THEME.line }]}>
           <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }}>
             <Text style={[styles.composerCancel, { color: THEME.muted }]}>Cancel</Text>
           </Pressable>
           <Text style={[styles.composerTitle, { color: THEME.accent }]}>
-            {isEdit ? '✥ EDIT ENTRY' : '✥ NEW JOURNAL ENTRY'}
+            {!simple && '✥ '}{isEdit ? 'EDIT ENTRY' : 'NEW JOURNAL ENTRY'}
           </Text>
           <Pressable
             onPress={() => { if (canSave) onSave({ title, body, theme, verseRef }, editEntry?.id); }}
             style={[styles.composerSaveBtn, { backgroundColor: canSave ? THEME.accent : THEME.surface }]}>
-            <Text style={[styles.composerSaveText, { color: canSave ? THEME.cardDarkInk : THEME.muted }]}>
+            <Text style={[styles.composerSaveText, { color: canSave ? (simple ? THEME.accentInk : THEME.cardDarkInk) : THEME.muted }]}>
               {isEdit ? 'Update' : 'Save'}
             </Text>
           </Pressable>
@@ -705,13 +712,16 @@ function NewEntryComposer({
 
           <Text style={[styles.composerLabel, { color: THEME.muted }]}>TITLE</Text>
           <TextInput
+            accessibilityLabel="Title"
             value={title} onChangeText={setTitle}
             placeholder="A line for today's page"
             placeholderTextColor={THEME.muted}
+            keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
             editable={visible}
             style={[styles.composerTitleInput, { color: THEME.ink, borderBottomColor: THEME.line }]}
           />
 
+          {!simple && <>
           <Text style={[styles.composerLabel, { color: THEME.muted }]}>CATEGORY</Text>
           <View style={styles.composerChips}>
             {ENTRY_THEMES.map(t => (
@@ -719,12 +729,15 @@ function NewEntryComposer({
                 onPress={() => setTheme(t.id)}>{t.label}</FilterChip>
             ))}
           </View>
+          </>}
 
-          <Text style={[styles.composerLabel, { color: THEME.muted }]}>WHAT HAPPENED WITH GOD TODAY?</Text>
+          <Text style={[styles.composerLabel, { color: THEME.muted }]}>{simple ? 'ENTRY' : 'WHAT HAPPENED WITH GOD TODAY?'}</Text>
           <TextInput
+            accessibilityLabel="Journal entry"
             value={body} onChangeText={setBody}
-            placeholder="Write plainly. This is your journal — nobody sees it unless you choose to share."
+            placeholder={simple ? 'Write a private reflection…' : 'Write plainly. This is your journal — nobody sees it unless you choose to share.'}
             placeholderTextColor={THEME.muted}
+            keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
             multiline
             editable={visible}
             style={[styles.composerBodyInput, {
@@ -732,6 +745,7 @@ function NewEntryComposer({
             }]}
           />
 
+          {!simple && <>
           <Text style={[styles.composerLabel, { color: THEME.muted }]}>VERSE (OPTIONAL)</Text>
           <Pressable
             onPress={() => setPickerOpen(true)}
@@ -767,6 +781,7 @@ function NewEntryComposer({
           <Text style={[styles.composerQuote, { color: THEME.muted }]}>
             "Write the vision; make it plain on tablets." — Habakkuk 2:2
           </Text>
+          </>}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -959,6 +974,7 @@ function CalendarView({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BiographyScreen() {
+  const { simple } = useAppDisplay();
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   // Guests have a real (anonymous) account too, so their journal is saved like anyone's, and comes with them if they
@@ -1103,16 +1119,16 @@ export default function BiographyScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={simple && THEME.isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 110 }}
+        contentContainerStyle={[{ paddingTop: insets.top + 8, paddingBottom: simple ? insets.bottom + 28 : 110 }, simple && styles.simpleColumn]}
         showsVerticalScrollIndicator={false}>
 
         {/* Brand / nav row */}
         <View style={styles.brandRow}>
-          <Pressable onPress={() => router.back()} style={[styles.backBtn, {
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={[styles.backBtn, {
             backgroundColor: THEME.surface,
             borderColor: THEME.line,
           }]}>
@@ -1124,6 +1140,12 @@ export default function BiographyScreen() {
           <View style={{ width: 38 }} />
         </View>
 
+        {simple ? (
+          <View style={styles.simpleHeading}>
+            <Text accessibilityRole="header" style={[styles.simpleTitle, { color: THEME.ink }]}>Journal</Text>
+            <PrimaryButton label="New entry" onPress={() => setView('new')} />
+          </View>
+        ) : <>
         {/* Header with book icon */}
         <View style={styles.heroRow}>
           <View style={{ flex: 1 }}>
@@ -1204,6 +1226,7 @@ export default function BiographyScreen() {
             ))}
           </ScrollView>
         )}
+        </>}
 
         {/* Entry list */}
         <View style={{ paddingHorizontal: 22, marginTop: journalView === 'calendar' ? 14 : 0 }}>
@@ -1217,7 +1240,7 @@ export default function BiographyScreen() {
                 <EntryCard key={e.id} entry={e}
                   onOpen={entry => { setOpenEntry(entry); setView('detail'); }} />
               ))}
-              {filtered.length === 0 && !loading && allEntries.length === 0 && (
+              {!simple && filtered.length === 0 && !loading && allEntries.length === 0 && (
                 <View style={{ alignItems: 'center', marginTop: 18 }}>
                   <JournalEmptyArt accent={THEME.accent} />
                 </View>
@@ -1225,7 +1248,7 @@ export default function BiographyScreen() {
               {filtered.length === 0 && !loading && (
                 <Text style={[styles.emptyState, { color: THEME.muted }]}>
                   {allEntries.length === 0
-                    ? 'Your journal is empty.\nShare a prayer or write your first entry.'
+                    ? (simple ? 'Your journal is empty.' : 'Your journal is empty.\nShare a prayer or write your first entry.')
                     : selectedDate
                     ? 'No entries on this day.'
                     : 'No entries in this category yet.'}
@@ -1234,12 +1257,14 @@ export default function BiographyScreen() {
             </>
           )}
 
+          {!simple && <>
           <View style={{ alignItems: 'center', marginTop: 28 }}>
             <JournalFlourish color={THEME.accent} />
           </View>
           <Text style={[styles.footer, { color: THEME.muted, marginTop: 6 }]}>
             The beginning is in here somewhere.
           </Text>
+          </>}
         </View>
       </ScrollView>
 
@@ -1264,6 +1289,9 @@ export default function BiographyScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  simpleColumn: { width: '100%', maxWidth: 548, alignSelf: 'center' },
+  simpleHeading: { paddingHorizontal: 22, paddingVertical: 18, gap: 18 },
+  simpleTitle: { fontFamily: FONTS.displaySemi, fontSize: 36, letterSpacing: -1 },
   // Brand row
   brandRow: {
     flexDirection: 'row',

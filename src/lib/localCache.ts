@@ -4,6 +4,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const LOCAL_KEYS = {
+  appDisplay: 'saint.appDisplay',
   nook: 'nook.v1',
   nookStats: 'nook.stats',
   shelfPicks: 'keepsakes.shelf.v1',
