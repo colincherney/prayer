@@ -37,11 +37,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-iphone.png",
-          "tabletImage": "./assets/images/splash-ipad.png",
+          "image": "./assets/images/splash-light.png",
+          "imageWidth": 216,
           "resizeMode": "contain",
-          "backgroundColor": "#0F1A33",
-          "enableFullScreenImage_legacy": true
+          "backgroundColor": "#F5EFE6",
+          "dark": {
+            "image": "./assets/images/splash-dark.png",
+            "backgroundColor": "#0F1A33"
+          }
         }
       ],
       "expo-font",

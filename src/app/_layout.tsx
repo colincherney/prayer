@@ -4,14 +4,14 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Platform, useColorScheme } from 'react-native';
+import { Appearance, AppState, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AccountTour } from '@/components/saint/AccountTour';
 import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
 import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
-import { SaintThemeProvider, useTheme } from '@/components/saint/theme';
+import { SaintThemeProvider, THEMES, useTheme } from '@/components/saint/theme';
 import { saintWidgetFontDesign, useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { syncCloudProgress } from '@/lib/cloudProgress';
@@ -30,7 +30,6 @@ import { preloadWinterLook } from '@/components/saint/winterLord';
 import { WinterGate } from '@/components/winter/WinterGate';
 import { DropGate } from '@/components/drops/DropGate';
 
-const SPLASH_BG = '#0F1A33';
 const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
 
 // Keep home beneath a cold-start widget link so Back and Return home work.
@@ -39,7 +38,8 @@ export const unstable_settings = { anchor: '(tabs)' };
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Match the RN root view background to the splash so there's no white
 // frame exposed as the native splash fades out into the app.
-SystemUI.setBackgroundColorAsync(SPLASH_BG).catch(() => {});
+const splashBackground = Appearance.getColorScheme() === 'dark' ? THEMES.navy.bg : THEMES.cream.bg;
+SystemUI.setBackgroundColorAsync(splashBackground).catch(() => {});
 
 function RootStack() {
   const { session, loading, accountTourPending, finishAccountTour } = useAuth();
@@ -147,7 +147,7 @@ function RootStack() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: simple ? theme.bg : SPLASH_BG },
+        contentStyle: { backgroundColor: theme.bg },
       }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />

@@ -37,6 +37,7 @@ function navigation() {
   const dependencies = {
     react,
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+    'react-native': { Appearance: { getColorScheme: () => 'light' }, Platform: { OS: 'android' }, useColorScheme: () => 'light' },
     'expo-router': { useSegments: () => state.segments, useRouter: () => router, Stack: { Screen: noop, Protected: noop } },
     'expo-notifications': {
       useLastNotificationResponse: () => state.notification && {
@@ -51,7 +52,7 @@ function navigation() {
     '@/components/saint/AccountTour': { AccountTour },
     '@/components/saint/useFonts': { useSaintFonts: () => true },
     '@/components/saint/appDisplay': { useAppDisplay: () => ({ simple: state.simple }) },
-    '@/components/saint/theme': { useTheme: () => ({ theme: {} }) },
+    '@/components/saint/theme': { THEMES: { cream: { bg: '#F5EFE6' } }, useTheme: () => ({ theme: {} }) },
     '@/components/pets/registry': { PETS: [] },
     '@/lib/notificationDestination': { notificationDestination: data => data },
   };
