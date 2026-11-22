@@ -37,6 +37,7 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { fetchPrayerFeedPage, startPrayerFeed, type PrayerRequest } from '@/lib/prayerFeed';
 import { refreshPrayerStreakActivity } from '@/lib/prayerStreakActivity';
+import { refreshPrayerStreakWidget } from '@/lib/prayerStreakWidget';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
 
@@ -406,6 +407,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     });
     if (!error) {
       refreshPrayerStreakActivity(session.user.id);
+      refreshPrayerStreakWidget(session.user.id);
       refreshAllEvents(true).catch(() => {});
     }
     if (error) {

@@ -129,6 +129,17 @@ test('ordinary launches retain the existing sign-in wall and home destination', 
   assert.deepEqual(nav.render('(tabs)', { signedIn: true }), []);
 });
 
+test('streak and quiet prayer widgets resume their own screens after sign-in', () => {
+  for (const screen of ['explore', 'biography']) {
+    const nav = navigation();
+    assert.deepEqual(nav.render(screen), ['/auth']);
+    assert.deepEqual(nav.render('auth'), []);
+    assert.deepEqual(nav.render('auth', { guest: true, simple: true }), [`/${screen}`]);
+    assert.deepEqual(nav.render(screen, { guest: true, simple: true }), []);
+    assert.deepEqual(nav.render('(tabs)', { guest: true, simple: true }), []);
+  }
+});
+
 test('Simple mode keeps the widget route and prayer notifications available while skipping event navigation', () => {
   const nav = navigation();
   const simple = { signedIn: true, simple: true };

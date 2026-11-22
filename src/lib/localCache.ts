@@ -11,6 +11,7 @@ export const LOCAL_KEYS = {
   shelfPicks: 'keepsakes.shelf.v1',
   trinkets: 'trinkets.cache.v3',
   prayerStreakActivity: 'prayer.streakActivity',
+  prayerStreakWidget: 'prayer.streakWidget',
   owned: 'cosmetics.owned',
   ownedDetails: 'cosmetics.owned.v2',
   companionsMet: 'companions.met',

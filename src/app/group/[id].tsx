@@ -33,6 +33,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { refreshPrayerStreakActivity } from '@/lib/prayerStreakActivity';
+import { refreshPrayerStreakWidget } from '@/lib/prayerStreakWidget';
 import { usePetProgress } from '@/lib/pet';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
@@ -250,6 +251,7 @@ export default function GroupScreen() {
     });
     if (!e) {
       refreshPrayerStreakActivity(session.user.id);
+      refreshPrayerStreakWidget(session.user.id);
       refreshAllEvents(true).catch(() => {});
     }
     if (e) {

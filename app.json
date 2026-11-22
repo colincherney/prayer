@@ -81,6 +81,26 @@
                 "initialLayout": "src/widgets/SharePrayerRequest.tsx"
               },
               "android": null
+            },
+            {
+              "name": "PrayerStreakWidget",
+              "displayName": "Prayer Streak",
+              "description": "See your prayer streak and whether you've prayed today.",
+              "ios": {
+                "supportedFamilies": ["systemSmall", "systemMedium"],
+                "initialLayout": "src/widgets/PrayerStreakWidget.tsx"
+              },
+              "android": null
+            },
+            {
+              "name": "QuietPrayerWidget",
+              "displayName": "Quiet Prayer",
+              "description": "Pause for a short prayer or open your prayer journal.",
+              "ios": {
+                "supportedFamilies": ["systemSmall", "systemMedium"],
+                "initialLayout": "src/widgets/QuietPrayerWidget.tsx"
+              },
+              "android": null
             }
           ]
         }

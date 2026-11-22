@@ -18,3 +18,25 @@ export function getPrayerStreak(days: ReadonlySet<number>, now = new Date()) {
   const expiresAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (prayedToday ? 2 : 1));
   return { count: lastDay - firstDay + 1, expiresAt };
 }
+
+export type PrayerStreakWidgetProps = {
+  count?: number;
+  prayedToday?: boolean;
+  expiresAt?: number;
+};
+
+export function prayerStreakWidgetTimeline(days: ReadonlySet<number>, now: Date) {
+  const streak = getPrayerStreak(days, now);
+  const empty: PrayerStreakWidgetProps = { count: 0 };
+  if (!streak) return [{ date: now, props: empty }];
+
+  const prayedToday = days.has(prayerDay(now));
+  const props = { count: streak.count, prayedToday, expiresAt: streak.expiresAt.getTime() };
+  const entries: { date: Date; props: PrayerStreakWidgetProps }[] = [{ date: now, props }];
+  if (prayedToday) {
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    entries.push({ date: midnight, props: { ...props, prayedToday: false } });
+  }
+  entries.push({ date: streak.expiresAt, props: empty });
+  return entries;
+}

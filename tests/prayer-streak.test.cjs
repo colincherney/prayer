@@ -38,6 +38,63 @@ test('the deadline follows local midnight across a daylight-saving change', () =
   assert.equal(expiresAt.toISOString(), '2026-03-09T04:00:00.000Z');
 });
 
+test('the Home Screen widget updates at local midnight and clears an expired streak', () => {
+  const now = new Date('2026-03-07T19:00:00-05:00');
+  const days = daysOf('2026-03-06T18:00:00-05:00', '2026-03-07T08:00:00-05:00');
+  const midnight = new Date('2026-03-08T00:00:00-05:00');
+  const expiry = new Date('2026-03-09T00:00:00-04:00');
+  assert.deepEqual(streak.prayerStreakWidgetTimeline(days, now), [
+    { date: now, props: { count: 2, prayedToday: true, expiresAt: expiry.getTime() } },
+    { date: midnight, props: { count: 2, prayedToday: false, expiresAt: expiry.getTime() } },
+    { date: expiry, props: { count: 0 } },
+  ]);
+  assert.deepEqual(streak.prayerStreakWidgetTimeline(days, expiry), [{ date: expiry, props: { count: 0 } }]);
+});
+
+test('the Home Screen widget clears on sign-out and ignores a late prayer history response', async () => {
+  const now = new Date();
+  let saved;
+  let resolveHistory;
+  const snapshots = [];
+  const timelines = [];
+  const widget = load('prayerStreakWidget', {
+    'react-native': { Platform: { OS: 'ios' } },
+    './localCache': {
+      LOCAL_KEYS: { prayerStreakWidget: 'widget' },
+      readLocal: () => saved,
+      clearLocal: async () => { saved = undefined; },
+      writeForUser: (_key, userId, data) => { saved = { userId, data }; },
+    },
+    './prayerHistory': {
+      fetchOfferedPrayerHistory: () => ({ abortSignal: () => new Promise(resolve => { resolveHistory = resolve; }) }),
+    },
+    './prayerStreak': streak,
+    '@/widgets/PrayerStreakWidget': {
+      __esModule: true,
+      default: { updateSnapshot: props => snapshots.push(props), updateTimeline: timeline => timelines.push(timeline) },
+    },
+  });
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const response = { data: [{ created_at: now.toISOString() }] };
+
+  widget.setPrayerStreakWidgetUser('owner');
+  await flush();
+  resolveHistory(response);
+  await flush();
+  assert.equal(timelines[0][0].props.count, 1);
+  assert.equal(saved.userId, 'owner');
+
+  widget.refreshPrayerStreakWidget('owner');
+  await flush();
+  widget.setPrayerStreakWidgetUser(null);
+  await flush();
+  assert.deepEqual(snapshots.at(-1), {});
+  assert.equal(saved, undefined);
+  resolveHistory(response);
+  await flush();
+  assert.equal(timelines.length, 1);
+});
+
 test('starting is opt-in and a saved prayer refreshes the running activity before sign-out ends it', async () => {
   const today = new Date();
   const yesterday = new Date(today);

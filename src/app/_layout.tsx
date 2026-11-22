@@ -21,6 +21,7 @@ import { registerForPushNotifications, savePushToken } from '@/lib/notifications
 import { notificationDestination } from '@/lib/notificationDestination';
 import { preloadPet } from '@/lib/pet';
 import { refreshPrayerStreakActivity, setPrayerStreakActivityUser } from '@/lib/prayerStreakActivity';
+import { refreshPrayerStreakWidget, setPrayerStreakWidgetUser } from '@/lib/prayerStreakWidget';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
@@ -50,32 +51,33 @@ function RootStack() {
   const fontsLoaded = useSaintFonts();
   const notificationResponse = useNotificationResponse();
   const handledNotification = useRef<string | null>(null);
-  const pendingPrayerRequest = useRef(false);
+  const pendingWidgetDestination = useRef<'/prayerRequest' | '/explore' | '/biography' | null>(null);
 
   const currentScreen = segments[0];
+  const widgetDestination = currentScreen === 'prayerRequest' || currentScreen === 'explore' || currentScreen === 'biography'
+    ? `/${currentScreen}` as const
+    : null;
   const inAuth = currentScreen === 'auth';
   // On the right side of the sign-in wall: signed out on the auth screens, or signed in anywhere else.
   const navSettled = !loading && !session === inAuth;
-  // Let a linked prayer request open first. The tour can wait until the user returns to the tabs.
+  // Let a linked widget destination open before the tour.
   const showAccountTour = navSettled && fontsLoaded && accountTourPending &&
     (currentScreen === '(tabs)' || currentScreen === 'createAccount');
 
   useEffect(() => {
     if (loading) return;
     if (!session) {
-      // Remember the widget's destination while the user signs in or continues
-      // anonymously. Keep the request form behind the existing sign-in wall.
-      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = true;
+      if (widgetDestination) pendingWidgetDestination.current = widgetDestination;
       if (!inAuth) router.replace('/auth');
       return;
     }
-    if (pendingPrayerRequest.current) {
-      if (currentScreen === 'prayerRequest') pendingPrayerRequest.current = false;
-      else router.replace('/prayerRequest');
+    if (pendingWidgetDestination.current) {
+      if (widgetDestination === pendingWidgetDestination.current) pendingWidgetDestination.current = null;
+      else router.replace(pendingWidgetDestination.current);
     } else if (inAuth) {
       router.replace('/');
     }
-  }, [session, loading, currentScreen, inAuth, router]);
+  }, [session, loading, widgetDestination, inAuth, router]);
 
   // Hide the native splash only once auth, fonts, and navigation are all
   // settled — so the splash transitions directly to a fully-rendered
@@ -98,9 +100,13 @@ function RootStack() {
   useEffect(() => {
     if (loading || Platform.OS !== 'ios') return;
     setPrayerStreakActivityUser(signedInId ?? null);
+    setPrayerStreakWidgetUser(signedInId ?? null);
     if (!signedInId) return;
     const subscription = AppState.addEventListener('change', state => {
-      if (state === 'active') refreshPrayerStreakActivity(signedInId);
+      if (state === 'active') {
+        refreshPrayerStreakActivity(signedInId);
+        refreshPrayerStreakWidget(signedInId);
+      }
     });
     return () => subscription.remove();
   }, [loading, signedInId]);
