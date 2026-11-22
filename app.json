@@ -11,6 +11,9 @@
       "bundleIdentifier": "com.saintcentral.app",
       "buildNumber": "10",
       "supportsTablet": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
