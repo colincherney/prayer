@@ -114,13 +114,14 @@ test('the Home Screen prayer widgets adopt the new theme and clear streak data o
 
   const theme = {
     surface: '#F5F8EC', ink: '#1F3A2E', inkSoft: '#3D5A4A', pillInk: '#5A4030',
-    pillBg: '#E1E7D2', line: 'rgba(31,58,46,0.10)',
+    pillBg: '#E1E7D2', line: 'rgba(31,58,46,0.10)', bgSoft: '#DCE3CF', accentSoft: '#C5A88B', isDark: false,
   };
   widget.setPrayerWidgetTheme(theme, 'default');
   await flush();
   const appearance = {
     background: theme.surface, ink: theme.ink, secondary: theme.inkSoft, accent: theme.pillInk,
     badge: theme.pillBg, line: theme.line, design: 'default',
+    backgroundSoft: theme.bgSoft, accentSoft: theme.accentSoft, isDark: theme.isDark,
   };
   assert.deepEqual(requestSnapshots, [{ appearance }]);
   assert.deepEqual(quietSnapshots, [{ appearance }]);

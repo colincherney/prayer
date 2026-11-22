@@ -41,8 +41,9 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
   const expired = context.isStale || props.expiresAt <= now;
   const dark = context.colorScheme === 'dark';
   const smallInk = dark ? '#EAEFFA' : '#1F2A44';
-  const ink = '#FFFFFF';
-  const muted = '#A6A6A6';
+  const ink = '#F7F2E8';
+  const muted = '#BCC9E2';
+  const accent = '#F2C462';
   const dayLabel = props.count === 1 ? 'day' : 'days';
   const countLabel = expired ? 'Streak expired' : `${props.count} ${dayLabel}`;
 
@@ -119,9 +120,9 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
   const badge = (size: number) => (
     <ZStack modifiers={[frame({ width: size, height: size }), accessibilityHidden()]}>
       <Circle modifiers={[
-        foregroundColor('#CDA86E'),
+        foregroundColor('#5D473C'),
         frame({ width: size, height: size }),
-        strokeBorder({ shape: 'circle', content: '#F0D197', style: { lineWidth: 0.8 } }),
+        strokeBorder({ shape: 'circle', content: accent, style: { lineWidth: 0.8 } }),
       ]} />
       {pip(size * 0.9)}
     </ZStack>
@@ -147,7 +148,7 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
     const heading = [
       font({ size: compact ? 9 : 11, design: 'serif', weight: 'semibold' }),
       kerning(compact ? 1.2 : 1.8),
-      foregroundColor(muted),
+      foregroundColor(accent),
       lineLimit(1),
       minimumScaleFactor(0.7),
     ];
@@ -190,9 +191,9 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
         <HStack spacing={6}>
           {days.map((prayed, day) => (
             <Circle key={day} modifiers={[
-              foregroundColor(prayed ? ink : 'transparent'),
+              foregroundColor(prayed ? accent : 'transparent'),
               frame({ width: prayed ? 9 : 7, height: prayed ? 9 : 7 }),
-              ...(prayed ? [] : [strokeBorder({ shape: 'circle', content: '#747474', style: { lineWidth: 1 } })]),
+              ...(prayed ? [] : [strokeBorder({ shape: 'circle', content: '#7A88A8', style: { lineWidth: 1 } })]),
               frame({ width: 9, height: 9 }),
             ]} />
           ))}
@@ -205,7 +206,7 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
 
   return {
     banner: (
-      <Overlay modifiers={[activityBackgroundTint('#000000')]}>
+      <Overlay modifiers={[activityBackgroundTint('#0F1A33')]}>
         <VStack alignment="leading" spacing={13} modifiers={[frame({ maxWidth: Infinity }), padding({ all: 17 })]}>
           {summary()}
           {props.prayerWeek ? weekRow(props.prayerWeek) : null}
@@ -213,14 +214,14 @@ const PrayerStreakActivity = (props: PrayerStreakActivityProps, context: LiveAct
             <ProgressView
               timerInterval={{ lower: finalDayStart, upper: expiresAt }}
               countsDown
-              modifiers={[progressViewStyle('linear'), labelsHidden(), tint(ink), environment('colorScheme', 'dark'), accessibilityHidden()]}
+              modifiers={[progressViewStyle('linear'), labelsHidden(), tint(accent), environment('colorScheme', 'dark'), accessibilityHidden()]}
             />
           )}
         </VStack>
         <Overlay.Content>
           <RoundedRectangle cornerRadius={23} modifiers={[
             foregroundColor('transparent'),
-            strokeBorder({ shape: 'roundedRectangle', cornerRadius: 23, content: '#303030', style: { lineWidth: 1 } }),
+            strokeBorder({ shape: 'roundedRectangle', cornerRadius: 23, content: '#F2C46244', style: { lineWidth: 1 } }),
             accessibilityHidden(),
           ]} />
         </Overlay.Content>

@@ -8,7 +8,7 @@ import { prayerDay, prayerStreakWidgetTimeline, type PrayerStreakWidgetProps } f
 import type { PrayerWidgetAppearance } from './prayerWidgetAppearance';
 
 const key = LOCAL_KEYS.prayerStreakWidget;
-const layoutVersion = 2;
+const layoutVersion = 3;
 type SavedStreak = PrayerStreakWidgetProps & { layoutVersion?: number };
 let signedInId: string | null | undefined;
 let pending: AbortController | undefined;
@@ -25,6 +25,9 @@ export function setPrayerWidgetTheme(theme: Theme, design: PrayerWidgetAppearanc
     badge: theme.pillBg,
     line: theme.line,
     design,
+    backgroundSoft: theme.bgSoft,
+    accentSoft: theme.accentSoft,
+    isDark: theme.isDark,
   };
   const nextKey = JSON.stringify(next);
   if (nextKey === appearanceKey) return;
