@@ -12,7 +12,7 @@ import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
 import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
 import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
 import { SaintThemeProvider, useTheme } from '@/components/saint/theme';
-import { useSaintFonts } from '@/components/saint/useFonts';
+import { saintWidgetFontDesign, useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { syncCloudProgress } from '@/lib/cloudProgress';
 import { markLaunched } from '@/lib/launch';
@@ -21,7 +21,7 @@ import { registerForPushNotifications, savePushToken } from '@/lib/notifications
 import { notificationDestination } from '@/lib/notificationDestination';
 import { preloadPet } from '@/lib/pet';
 import { refreshPrayerStreakActivity, setPrayerStreakActivityUser } from '@/lib/prayerStreakActivity';
-import { refreshPrayerStreakWidget, setPrayerStreakWidgetUser } from '@/lib/prayerStreakWidget';
+import { refreshPrayerStreakWidget, setPrayerStreakWidgetUser, setPrayerWidgetTheme } from '@/lib/prayerStreakWidget';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
@@ -97,6 +97,10 @@ function RootStack() {
   }, [session?.user?.id]);
 
   const signedInId = session?.user?.id;
+  useEffect(() => {
+    if (Platform.OS === 'ios') setPrayerWidgetTheme(theme, saintWidgetFontDesign());
+  }, [theme]);
+
   useEffect(() => {
     if (loading || Platform.OS !== 'ios') return;
     setPrayerStreakActivityUser(signedInId ?? null);

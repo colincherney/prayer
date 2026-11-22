@@ -42,3 +42,7 @@ export function useSaintFonts() {
   const [loaded] = useFonts(pickFonts());
   return loaded;
 }
+
+export function saintWidgetFontDesign() {
+  return pickFonts().Saint_400 === PlayfairDisplay_400Regular ? 'serif' : 'default';
+}

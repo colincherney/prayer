@@ -1,3 +1,5 @@
+import type { PrayerWidgetAppearanceProps } from './prayerWidgetAppearance';
+
 const DAY_MS = 86_400_000;
 
 /** A calendar day on the device, expressed as an ordinal so DST doesn't affect day counts. */
@@ -19,7 +21,7 @@ export function getPrayerStreak(days: ReadonlySet<number>, now = new Date()) {
   return { count: lastDay - firstDay + 1, expiresAt };
 }
 
-export type PrayerStreakWidgetProps = {
+export type PrayerStreakWidgetProps = PrayerWidgetAppearanceProps & {
   count?: number;
   prayedToday?: boolean;
   expiresAt?: number;

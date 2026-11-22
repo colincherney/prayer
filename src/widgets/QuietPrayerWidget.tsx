@@ -1,20 +1,23 @@
 import { Capsule, Ellipse, HStack, Mask, Rectangle, Spacer, Text, UnevenRoundedRectangle, VStack, ZStack } from '@expo/ui/swift-ui';
 import {
-  accessibilityHidden, containerBackground, font, foregroundColor, frame, lineLimit,
+  accessibilityHidden, containerBackground, font, foregroundColor, frame, kerning, lineLimit,
   minimumScaleFactor, offset, widgetURL,
 } from '@expo/ui/swift-ui/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 
-const QuietPrayerWidget = (_props: object, environment: WidgetEnvironment) => {
+import type { PrayerWidgetAppearanceProps } from '@/lib/prayerWidgetAppearance';
+
+const QuietPrayerWidget = (props: PrayerWidgetAppearanceProps, environment: WidgetEnvironment) => {
   'widget';
 
   const dark = environment.colorScheme === 'dark';
   const medium = environment.widgetFamily === 'systemMedium';
-  const background = dark ? '#242641' : '#F5EFE6';
-  const ink = dark ? '#F9EAD9' : '#2B263D';
-  const accent = dark ? '#F0BDA4' : '#845245';
+  const background = props.appearance?.background ?? (dark ? '#1C2D52' : '#FBF7EF');
+  const ink = props.appearance?.ink ?? (dark ? '#EAEFFA' : '#1F2A44');
+  const accent = props.appearance?.accent ?? (dark ? '#D4A574' : '#A4582C');
+  const design = props.appearance?.design ?? 'default';
   const wood = '#63463F';
-  const scale = medium ? 1 : 0.24;
+  const scale = medium ? 0.9 : 0.28;
   const shape = (width: number, height: number, x: number, y: number, color: string) => [
     foregroundColor(color), frame({ width: width * scale, height: height * scale }),
     offset({ x: x * scale, y: y * scale }),
@@ -40,23 +43,33 @@ const QuietPrayerWidget = (_props: object, environment: WidgetEnvironment) => {
             modifiers={[frame({ width: 68 * scale, height: 90 * scale })]} />
         </Mask.Content>
       </Mask>
-      <Capsule modifiers={shape(91, 6, 0, 49, '#8E6253')} />
+      <Capsule modifiers={shape(91, 6, 0, 49, accent)} />
     </ZStack>
   );
 
   const prayer = (
     <VStack alignment="leading" spacing={3} modifiers={[frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: 'leading' })]}>
       <HStack spacing={4}>
-        <Text modifiers={[font({ size: medium ? 13 : 11, weight: 'semibold' }), foregroundColor(accent), lineLimit(1)]}>Quiet prayer</Text>
+        <Text modifiers={[
+          font({ size: medium ? 12 : 10, weight: 'semibold', design }), foregroundColor(accent),
+          kerning(0.8), lineLimit(1), minimumScaleFactor(0.8),
+        ]}>
+          QUIET PRAYER
+        </Text>
         {!medium ? <Spacer minLength={0} /> : null}
         {!medium ? window : null}
       </HStack>
       <Spacer minLength={0} />
-      <Text modifiers={[font({ design: 'serif', size: medium ? 22 : 16 }), foregroundColor(ink), lineLimit(3), minimumScaleFactor(0.74)]}>
+      <Text modifiers={[font({ design, size: medium ? 22 : 16, weight: 'medium' }), foregroundColor(ink), lineLimit(3), minimumScaleFactor(0.74)]}>
         Lord, quiet my heart. Guide me. Amen.
       </Text>
       <Spacer minLength={0} />
-      <Text modifiers={[font({ size: medium ? 12 : 10, weight: 'semibold' }), foregroundColor(accent), lineLimit(1), minimumScaleFactor(0.8)]}>Open prayer journal →</Text>
+      <Text modifiers={[
+        font({ size: medium ? 12 : 11, weight: 'semibold', design }), foregroundColor(accent),
+        lineLimit(1), minimumScaleFactor(0.8),
+      ]}>
+        Open journal →
+      </Text>
     </VStack>
   );
 

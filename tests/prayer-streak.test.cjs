@@ -51,12 +51,17 @@ test('the Home Screen widget updates at local midnight and clears an expired str
   assert.deepEqual(streak.prayerStreakWidgetTimeline(days, expiry), [{ date: expiry, props: { count: 0 } }]);
 });
 
-test('the Home Screen widget clears on sign-out and ignores a late prayer history response', async () => {
-  const now = new Date();
-  let saved;
+test('the Home Screen prayer widgets adopt the new theme and clear streak data on sign-out', async t => {
+  const now = new Date('2026-11-19T14:00:00');
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const expiresAt = new Date('2026-11-20T00:00:00').getTime();
+  let saved = { userId: 'owner', data: { count: 1, prayedToday: false, expiresAt } };
   let resolveHistory;
+  let reloads = 0;
   const snapshots = [];
   const timelines = [];
+  const requestSnapshots = [];
+  const quietSnapshots = [];
   const widget = load('prayerStreakWidget', {
     'react-native': { Platform: { OS: 'ios' } },
     './localCache': {
@@ -69,30 +74,70 @@ test('the Home Screen widget clears on sign-out and ignores a late prayer histor
       fetchOfferedPrayerHistory: () => ({ abortSignal: () => new Promise(resolve => { resolveHistory = resolve; }) }),
     },
     './prayerStreak': streak,
+    '@/widgets/SharePrayerRequest': {
+      __esModule: true, default: { updateSnapshot: props => requestSnapshots.push(props) },
+    },
+    '@/widgets/QuietPrayerWidget': {
+      __esModule: true, default: { updateSnapshot: props => quietSnapshots.push(props) },
+    },
     '@/widgets/PrayerStreakWidget': {
       __esModule: true,
-      default: { updateSnapshot: props => snapshots.push(props), updateTimeline: timeline => timelines.push(timeline) },
+      default: {
+        reload: () => { reloads += 1; },
+        getTimeline: async () => timelines.at(-1),
+        updateSnapshot: props => snapshots.push(props),
+        updateTimeline: timeline => timelines.push(timeline),
+      },
     },
   });
   const flush = () => new Promise(resolve => setImmediate(resolve));
-  const response = { data: [{ created_at: now.toISOString() }] };
+  const response = { data: [{ created_at: '2026-11-18T12:00:00' }] };
 
   widget.setPrayerStreakWidgetUser('owner');
   await flush();
+  // A layout-only change redraws the existing timeline before any network response.
+  assert.equal(reloads, 1);
   resolveHistory(response);
   await flush();
-  assert.equal(timelines[0][0].props.count, 1);
+  assert.equal(timelines.length, 0);
+  assert.equal(snapshots.length, 0);
+
+  widget.refreshPrayerStreakWidget('owner');
+  await flush();
+  resolveHistory({ data: [...response.data, { created_at: now.toISOString() }] });
+  await flush();
+  assert.equal(reloads, 1);
+  assert.deepEqual(timelines[0][0].props, {
+    count: 2, prayedToday: true, expiresAt: new Date('2026-11-21T00:00:00').getTime(),
+  });
   assert.equal(saved.userId, 'owner');
+
+  const theme = {
+    surface: '#F5F8EC', ink: '#1F3A2E', inkSoft: '#3D5A4A', pillInk: '#5A4030',
+    pillBg: '#E1E7D2', line: 'rgba(31,58,46,0.10)',
+  };
+  widget.setPrayerWidgetTheme(theme, 'default');
+  await flush();
+  const appearance = {
+    background: theme.surface, ink: theme.ink, secondary: theme.inkSoft, accent: theme.pillInk,
+    badge: theme.pillBg, line: theme.line, design: 'default',
+  };
+  assert.deepEqual(requestSnapshots, [{ appearance }]);
+  assert.deepEqual(quietSnapshots, [{ appearance }]);
+  assert.deepEqual(timelines[1], timelines[0].map(({ date, props }) => ({ date, props: { ...props, appearance } })));
+  widget.setPrayerWidgetTheme({ ...theme }, 'default');
+  await flush();
+  assert.equal(requestSnapshots.length, 1);
 
   widget.refreshPrayerStreakWidget('owner');
   await flush();
   widget.setPrayerStreakWidgetUser(null);
   await flush();
-  assert.deepEqual(snapshots.at(-1), {});
+  assert.deepEqual(snapshots.at(-1), { appearance });
   assert.equal(saved, undefined);
   resolveHistory(response);
   await flush();
-  assert.equal(timelines.length, 1);
+  assert.equal(timelines.length, 2);
 });
 
 test('starting is opt-in and a saved prayer refreshes the running activity before sign-out ends it', async t => {
