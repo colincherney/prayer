@@ -95,11 +95,15 @@ test('the Home Screen widget clears on sign-out and ignores a late prayer histor
   assert.equal(timelines.length, 1);
 });
 
-test('starting is opt-in and a saved prayer refreshes the running activity before sign-out ends it', async () => {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const rows = [{ created_at: yesterday.toISOString() }];
+test('starting is opt-in and a saved prayer refreshes the running activity before sign-out ends it', async t => {
+  const today = new Date('2026-11-19T14:00:00');
+  t.mock.timers.enable({ apis: ['Date'], now: today });
+  const rows = [
+    { created_at: '2026-11-18T12:00:00' },
+    { created_at: '2026-11-18T10:00:00' },
+    { created_at: '2026-11-16T10:00:00' },
+    { created_at: '2026-11-15T10:00:00' },
+  ];
   let saved;
   let active;
   let buttons;
@@ -157,6 +161,10 @@ test('starting is opt-in and a saved prayer refreshes the running activity befor
   await flush();
   assert.equal(startCount, 1);
   assert.equal(props.count, 1);
+  assert.deepEqual(props.prayerWeek, {
+    days: [true, false, true, false, false, false, false],
+    endsAt: new Date('2026-11-23T00:00:00').getTime(),
+  });
   const firstDeadline = props.expiresAt;
 
   rows.unshift({ created_at: today.toISOString() });
@@ -180,6 +188,7 @@ test('starting is opt-in and a saved prayer refreshes the running activity befor
   }
   await flush();
   assert.equal(props.count, 2);
+  assert.deepEqual(props.prayerWeek.days, [true, false, true, true, false, false, false]);
   assert.ok(props.expiresAt > firstDeadline);
 
   button('End Live Activity').onPress();

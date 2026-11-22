@@ -72,7 +72,17 @@ function manage(userId: string | null, command: Command): Promise<Status> {
       return 'no-streak';
     }
 
-    const props = { count: streak.count, updatedAt: now.getTime(), expiresAt: streak.expiresAt.getTime() };
+    const daysSinceMonday = (now.getDay() + 6) % 7;
+    const monday = prayerDay(now) - daysSinceMonday;
+    const props = {
+      count: streak.count,
+      updatedAt: now.getTime(),
+      expiresAt: streak.expiresAt.getTime(),
+      prayerWeek: {
+        days: Array.from({ length: 7 }, (_, day) => days.has(monday + day)),
+        endsAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7 - daysSinceMonday).getTime(),
+      },
+    };
     if (own) {
       await own.update(props, streak.expiresAt);
     } else {
