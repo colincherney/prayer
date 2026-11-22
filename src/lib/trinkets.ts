@@ -13,6 +13,8 @@ import { SWAMP_KEEPSAKE_IDS } from '@/components/pets/swampKeepsakes';
 import { WINTER_KEEPSAKE_IDS } from '@/components/pets/winterKeepsakes';
 import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
+import { fetchOfferedPrayerHistory } from '@/lib/prayerHistory';
+import { getPrayerStreak, prayerDay } from '@/lib/prayerStreak';
 import type { QuestCategory } from '@/lib/questPool';
 import { useReleases } from '@/lib/releases';
 import { afterLaunch } from '@/lib/launch';
@@ -142,46 +144,20 @@ export type TrinketStatus = {
 
 const JOURNEY_STEPS = 5;
 
-const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-
-function currentStreak(days: Set<string>): number {
-  const day = new Date();
-  if (!days.has(dayKey(day))) day.setDate(day.getDate() - 1);
-  let n = 0;
-  while (days.has(dayKey(day))) {
-    n += 1;
-    day.setDate(day.getDate() - 1);
-  }
-  return n;
-}
-
-function longestStreak(days: Set<string>, dates: Date[]): number {
+function longestStreak(days: Set<number>): number {
   let best = 0;
-  for (const d of dates) {
-    const prev = new Date(d);
-    prev.setDate(prev.getDate() - 1);
-    if (days.has(dayKey(prev))) continue; // not the start of a run
-    let n = 1;
-    const next = new Date(d);
-    for (;;) {
-      next.setDate(next.getDate() + 1);
-      if (!days.has(dayKey(next))) break;
-      n += 1;
-    }
-    best = Math.max(best, n);
+  for (const day of days) {
+    if (days.has(day - 1)) continue;
+    let next = day + 1;
+    while (days.has(next)) next += 1;
+    best = Math.max(best, next - day);
   }
   return best;
 }
 
 async function loadStats(userId: string): Promise<Stats> {
   const [prayed, shared, journal, questRows] = await Promise.all([
-    supabase
-      .from('prayer_interactions')
-      .select('prayer_id, created_at')
-      .eq('user_id', userId)
-      .eq('action', 'prayed')
-      .order('created_at', { ascending: false })
-      .limit(5000),
+    fetchOfferedPrayerHistory(userId),
     supabase.from('prayers').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('biography_entries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('quest_completions').select('quest_id, category, tier, day').eq('user_id', userId).limit(5000),
@@ -195,14 +171,14 @@ async function loadStats(userId: string): Promise<Stats> {
   }
   const rows = prayed.data ?? [];
   const dates = rows.map(r => new Date(r.created_at as string));
-  const days = new Set(dates.map(dayKey));
+  const days = new Set(dates.map(prayerDay));
   const hours = dates.map(d => d.getHours());
-  const advent = new Map<number, Set<string>>();
+  const advent = new Map<number, Set<number>>();
   for (const d of dates) {
     const inAdvent = (d.getMonth() === 10 && d.getDate() >= 29) || (d.getMonth() === 11 && d.getDate() <= 24);
     if (!inAdvent) continue;
-    const set = advent.get(d.getFullYear()) ?? new Set<string>();
-    set.add(dayKey(d));
+    const set = advent.get(d.getFullYear()) ?? new Set<number>();
+    set.add(prayerDay(d));
     advent.set(d.getFullYear(), set);
   }
   return {
@@ -210,8 +186,8 @@ async function loadStats(userId: string): Promise<Stats> {
     people: new Set(rows.map(r => r.prayer_id as string)).size,
     shared: shared.count ?? 0,
     journal: journal.count ?? 0,
-    streak: longestStreak(days, dates),
-    currentStreak: currentStreak(days),
+    streak: longestStreak(days),
+    currentStreak: getPrayerStreak(days)?.count ?? 0,
     dawn: hours.filter(h => h >= 5 && h < 8).length,
     night: hours.filter(h => h >= 22).length,
     advent: Math.max(0, ...[...advent.values()].map(s => s.size)),

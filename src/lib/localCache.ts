@@ -10,6 +10,7 @@ export const LOCAL_KEYS = {
   nookStats: 'nook.stats',
   shelfPicks: 'keepsakes.shelf.v1',
   trinkets: 'trinkets.cache.v3',
+  prayerStreakActivity: 'prayer.streakActivity',
   owned: 'cosmetics.owned',
   ownedDetails: 'cosmetics.owned.v2',
   companionsMet: 'companions.met',

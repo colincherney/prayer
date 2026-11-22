@@ -42,6 +42,15 @@ export type PrayerStats = {
 
 export const PRAYER_PAGE_SIZE = 20;
 
+export function fetchOfferedPrayerHistory(userId: string) {
+  return supabase.from('prayer_interactions')
+    .select('prayer_id, created_at')
+    .eq('user_id', userId)
+    .eq('action', 'prayed')
+    .order('created_at', { ascending: false })
+    .limit(5000);
+}
+
 export async function fetchPrayerStats(userId: string): Promise<PrayerStats> {
   const weekStart = new Date();
   weekStart.setHours(0, 0, 0, 0);

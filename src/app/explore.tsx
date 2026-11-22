@@ -36,6 +36,7 @@ import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { fetchPrayerFeedPage, startPrayerFeed, type PrayerRequest } from '@/lib/prayerFeed';
+import { refreshPrayerStreakActivity } from '@/lib/prayerStreakActivity';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
 
@@ -403,8 +404,10 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
       user_id: session.user.id,
       action: 'prayed',
     });
-    // the event challenges count prayers: show the new count straight away
-    if (!error) refreshAllEvents(true).catch(() => {});
+    if (!error) {
+      refreshPrayerStreakActivity(session.user.id);
+      refreshAllEvents(true).catch(() => {});
+    }
     if (error) {
       // Roll back on failure, and let them try again
       praying.current.delete(req.id);

@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { AppState, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AccountTour } from '@/components/saint/AccountTour';
@@ -20,6 +20,7 @@ import { preloadLocal } from '@/lib/localCache';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
 import { notificationDestination } from '@/lib/notificationDestination';
 import { preloadPet } from '@/lib/pet';
+import { refreshPrayerStreakActivity, setPrayerStreakActivityUser } from '@/lib/prayerStreakActivity';
 import { localDay } from '@/lib/quests';
 import { PETS } from '@/components/pets/registry';
 import { preloadReleases, ReleasesProvider } from '@/lib/releases';
@@ -93,8 +94,18 @@ function RootStack() {
     syncCloudProgress(userId, localDay(), PETS.map(p => p.id));
   }, [session?.user?.id]);
 
-  // Register the device for push notifications once we have a session.
   const signedInId = session?.user?.id;
+  useEffect(() => {
+    if (loading || Platform.OS !== 'ios') return;
+    setPrayerStreakActivityUser(signedInId ?? null);
+    if (!signedInId) return;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshPrayerStreakActivity(signedInId);
+    });
+    return () => subscription.remove();
+  }, [loading, signedInId]);
+
+  // Register the device for push notifications once we have a session.
   useEffect(() => {
     if (!signedInId || !navSettled || accountTourPending) return;
     let cancelled = false;

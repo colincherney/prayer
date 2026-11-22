@@ -1,6 +1,9 @@
 import { type Href, router } from 'expo-router';
 import React, { type ReactNode } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+
+import { useAuth } from '@/lib/auth';
+import { showPrayerStreakActivityControls } from '@/lib/prayerStreakActivity';
 
 import { ArrowIcon, HeartIcon, PenIcon, PrayingIcon } from './Icons';
 import { SafeAreaView } from './SafeArea';
@@ -28,6 +31,8 @@ export function SimplePage({ children }: { children: ReactNode }) {
 export function SimpleHome() {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { session } = useAuth();
+  const streakUserId = Platform.OS === 'ios' ? session?.user.id : undefined;
   return (
     <SimplePage>
       <View style={styles.topBar}>
@@ -59,6 +64,13 @@ export function SimpleHome() {
         <Text style={styles.settingsLabel}>My prayer requests</Text>
         <ArrowIcon size={15} color={theme.pillInk} />
       </Pressable>
+      {streakUserId ? (
+        <Pressable accessibilityRole="button" onPress={() => showPrayerStreakActivityControls(streakUserId)}
+          style={({ pressed }) => [styles.streak, pressed && styles.pressed]}>
+          <Text style={styles.settingsLabel}>Prayer streak Live Activity</Text>
+          <ArrowIcon size={15} color={theme.pillInk} />
+        </Pressable>
+      ) : null}
     </SimplePage>
   );
 }
@@ -94,5 +106,6 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
       minHeight: 44, alignSelf: 'flex-start', marginTop: 16, flexDirection: 'row',
       alignItems: 'center', gap: 8,
     },
+    streak: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
     pressed: { opacity: 0.7 },
 });

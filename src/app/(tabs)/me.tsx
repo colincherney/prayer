@@ -55,6 +55,7 @@ import { useAuth } from '@/lib/auth';
 import { saveToCloud, useCloudVersion } from '@/lib/cloudProgress';
 import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
+import { showPrayerStreakActivityControls } from '@/lib/prayerStreakActivity';
 import { supabase } from '@/lib/supabase';
 import { usePetProgress } from '@/lib/pet';
 import { stripUnowned, useOwned } from '@/lib/store';
@@ -237,6 +238,8 @@ function MeContent() {
   const { petId, name: petName, progress: petProgress } = usePetProgress();
   const { width: screenW, height: screenH, fontScale } = useWindowDimensions();
   const { trinkets, currentStreak } = useTrinkets();
+  const streakUserId = Platform.OS === 'ios' ? session?.user.id : undefined;
+  const StreakChip = streakUserId ? Pressable : View;
   const pageW = Math.min(screenW, 500);
   const actionSizing = { flexBasis: ACTION_MIN_WIDTH * fontScale };
   const frameW = pageW - ARCH_MARGIN * 2;
@@ -343,10 +346,17 @@ function MeContent() {
           <Squiggle color={theme.accent} w={140} waves={11} />
         </View>
         <View style={styles.headerMeta}>
-          <View style={styles.streak}>
+          <StreakChip style={styles.streak} {...(streakUserId ? {
+            accessibilityRole: 'button',
+            accessibilityLabel: `${currentStreak}-day prayer streak`,
+            accessibilityHint: 'Manage your prayer streak Live Activity',
+            hitSlop: 8,
+            onPress: () => showPrayerStreakActivityControls(streakUserId),
+          } : {})}>
             <StreakFlame />
             <Text style={styles.metaText}>{currentStreak} day streak</Text>
-          </View>
+            {streakUserId ? <ArrowIcon size={9} color={theme.inkSoft} /> : null}
+          </StreakChip>
         </View>
         <NookButton onPress={() => setSettingsOpen(true)} accessibilityLabel="Settings and account. Always anonymous."
           hitSlop={6} style={styles.gear}>
