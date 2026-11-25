@@ -1,9 +1,8 @@
-import { Platform } from 'react-native';
-
 import type { Theme } from '@/components/saint/theme';
 
 import { clearLocal, LOCAL_KEYS, readLocal, writeForUser } from './localCache';
 import { fetchOfferedPrayerHistory } from './prayerHistory';
+import { widgetsAvailable } from './widgetsAvailable';
 import { prayerDay, prayerStreakWidgetTimeline, type PrayerStreakWidgetProps } from './prayerStreak';
 import type { PrayerWidgetAppearance } from './prayerWidgetAppearance';
 
@@ -16,7 +15,7 @@ let appearance: PrayerWidgetAppearance | undefined;
 let appearanceKey: string | undefined;
 
 export function setPrayerWidgetTheme(theme: Theme, design: PrayerWidgetAppearance['design']) {
-  if (Platform.OS !== 'ios') return;
+  if (!widgetsAvailable) return;
   const next = {
     background: theme.surface,
     ink: theme.ink,
@@ -51,7 +50,7 @@ export function setPrayerStreakWidgetUser(userId: string | null) {
 }
 
 export function refreshPrayerStreakWidget(userId: string | null) {
-  if (Platform.OS !== 'ios' || userId !== signedInId) return;
+  if (!widgetsAvailable || userId !== signedInId) return;
   pending?.abort();
   const request = new AbortController();
   pending = request;

@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { FONTS, THEME, Theme } from './theme';
+import { PressScale } from './GroupKit';
 import { BackIcon } from './Icons';
 
 /* -------------------- Squiggle -------------------- */
@@ -286,7 +287,11 @@ export const PrimaryButton: React.FC<{
   fg?: string;
   style?: StyleProp<ViewStyle>;
 }> = ({ label, onPress, disabled, rightIcon, bg, fg = THEME.accentInk, style }) => (
-  <Pressable
+  <PressScale
+    haptic={null}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{ disabled: !!disabled }}
     onPress={disabled ? undefined : onPress}
     style={[
       {
@@ -311,5 +316,5 @@ export const PrimaryButton: React.FC<{
       {label}
     </Text>
     {rightIcon}
-  </Pressable>
+  </PressScale>
 );

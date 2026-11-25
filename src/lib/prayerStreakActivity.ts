@@ -1,7 +1,8 @@
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
 import { clearLocal, LOCAL_KEYS, readLocal, writeLocal } from './localCache';
 import { fetchOfferedPrayerHistory } from './prayerHistory';
+import { widgetsAvailable } from './widgetsAvailable';
 import { getPrayerStreak, prayerDay } from './prayerStreak';
 
 type TrackedActivity = { id: string; userId: string };
@@ -25,7 +26,7 @@ export function refreshPrayerStreakActivity(userId: string | null) {
 }
 
 function manage(userId: string | null, command: Command): Promise<Status> {
-  if (Platform.OS !== 'ios' || userId !== account.userId) return Promise.resolve('unavailable');
+  if (!widgetsAvailable || userId !== account.userId) return Promise.resolve('unavailable');
   const { signal } = account.controller;
 
   // Serialize mutations so rapid taps and account changes cannot duplicate an activity.

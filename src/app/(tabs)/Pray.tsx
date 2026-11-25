@@ -31,6 +31,7 @@ import { Pet, petStageName } from '@/components/pets/registry';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { SimpleHome } from '@/components/saint/SimpleHome';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
+import { DURATION, EASE_OUT, SPRING_LAND } from '@/components/saint/motion';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
 import { useQuests } from '@/lib/quests';
@@ -276,7 +277,7 @@ type HeroArcProps = {
 function HeroArc({ width, height, top, path, len, cx, cy, r, stroke, knobR, pct, track, fill, knobColor }: HeroArcProps) {
   const p = useSharedValue(pct);
   useEffect(() => {
-    p.set(withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) }));
+    p.set(withTiming(pct, { duration: 600, easing: EASE_OUT }));
   }, [pct, p]);
   const fillProps = useAnimatedProps(() => ({ strokeDashoffset: len * (1 - p.get() / 100) }));
   const knobProps = useAnimatedProps(() => {
@@ -305,7 +306,7 @@ function HeroArc({ width, height, top, path, len, cx, cy, r, stroke, knobR, pct,
 function XpFill({ pct, color }: { pct: number; color: string }) {
   const p = useSharedValue(pct);
   useEffect(() => {
-    p.set(withTiming(pct, { duration: 500, easing: Easing.out(Easing.quad) }));
+    p.set(withTiming(pct, { duration: 600, easing: EASE_OUT }));
   }, [pct, p]);
   const style = useAnimatedStyle(() => ({ width: `${p.get()}%` }));
   return <Animated.View style={[{ height: '100%', borderRadius: 999, backgroundColor: color }, style]} />;
@@ -331,25 +332,30 @@ function PrayLauncherContent() {
   const [hero, setHero] = useState<Size | null>(null);
   const [actions, setActions] = useState<Size | null>(null);
 
-  // Level-up hop: 0.9s, up 40pt and 1.12x at 30%, squashed to 0.94x at 62%, settled by the end.
-  const hop = useSharedValue(1);
+  // Level-up hop: rises 40pt and swells, slowing at the top; falls back under gravity, squashes, and springs to rest.
+  const hopY = useSharedValue(0);
+  const hopScale = useSharedValue(1);
   useEffect(() => {
     if (!leveledUp) return;
-    hop.set(0);
-    hop.set(withTiming(1, { duration: 900, easing: Easing.linear }));
-  }, [leveledUp, hop]);
+    hopY.set(withSequence(
+      withTiming(-40, { duration: 260, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 220, easing: Easing.in(Easing.quad) }),
+    ));
+    hopScale.set(withSequence(
+      withTiming(1.12, { duration: 260, easing: EASE_OUT }),
+      withTiming(0.94, { duration: 220, easing: Easing.in(Easing.quad) }),
+      withSpring(1, SPRING_LAND),
+    ));
+  }, [leveledUp, hopY, hopScale]);
   const hopStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: keyframe(hop.get(), [0, 0.3, 0.62, 1], [0, -40, 0, 0]) },
-      { scale: keyframe(hop.get(), [0, 0.3, 0.62, 1], [1, 1.12, 0.94, 1]) },
-    ],
+    transform: [{ translateY: hopY.get() }, { scale: hopScale.get() }],
   }));
 
   // The pet grows a little with each level, with a springy settle.
   const petScale = 1 + Math.min((progress.level - 1) * 0.02, 0.08);
   const growth = useSharedValue(petScale);
   useEffect(() => {
-    growth.set(withSpring(petScale, { damping: 8, stiffness: 140 }));
+    growth.set(withSpring(petScale, { damping: 12, stiffness: 150 }));
   }, [petScale, growth]);
   const growthStyle = useAnimatedStyle(() => ({ transform: [{ scale: growth.get() }] }));
 
@@ -361,13 +367,13 @@ function PrayLauncherContent() {
       return;
     }
     toastIn.set(withSequence(
-      withTiming(1, { duration: 264 }),
-      withDelay(1600, withTiming(0, { duration: 336 })),
+      withTiming(1, { duration: DURATION.enter, easing: EASE_OUT }),
+      withDelay(1600, withTiming(0, { duration: 240, easing: EASE_OUT })),
     ));
   }, [leveledUp, toastIn]);
   const toastStyle = useAnimatedStyle(() => ({
     opacity: toastIn.get(),
-    transform: [{ translateY: (1 - toastIn.get()) * -10 }, { scale: 0.9 + 0.1 * toastIn.get() }],
+    transform: [{ translateY: (1 - toastIn.get()) * -10 }, { scale: 0.95 + 0.05 * toastIn.get() }],
   }));
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;

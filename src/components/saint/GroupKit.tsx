@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, Pressable, PressableProps, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -12,6 +11,7 @@ import Animated, {
 import Svg, { Path } from 'react-native-svg';
 
 import { authHaptic } from './authHaptics';
+import { DURATION, EASE_OUT, SPRING_RELEASE, SPRING_SNAP } from './motion';
 import { FONTS, Theme } from './theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -43,11 +43,11 @@ export function PressScale({
       {...rest}
       disabled={disabled}
       onPressIn={e => {
-        if (!reduce) scale.set(withTiming(scaleTo, { duration: 110, easing: Easing.out(Easing.quad) }));
+        if (!reduce) scale.set(withTiming(scaleTo, { duration: DURATION.press, easing: EASE_OUT }));
         onPressIn?.(e);
       }}
       onPressOut={e => {
-        if (!reduce) scale.set(withSpring(1, { damping: 14, stiffness: 320 }));
+        if (!reduce) scale.set(withSpring(1, SPRING_RELEASE));
         onPressOut?.(e);
       }}
       onPress={e => {
@@ -84,7 +84,7 @@ export function SlidingSegments<K extends string>({
   const target = index * segW;
   useEffect(() => {
     if (segW <= 0) return;
-    x.set(reduce ? target : withSpring(target, { damping: 22, stiffness: 260, mass: 0.8 }));
+    x.set(reduce ? target : withSpring(target, SPRING_SNAP));
   }, [target, segW, reduce, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 

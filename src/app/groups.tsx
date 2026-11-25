@@ -11,7 +11,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { enterUp } from '@/components/saint/motion';
 
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { authHaptic } from '@/components/saint/authHaptics';
@@ -314,7 +315,7 @@ export default function GroupsScreen() {
                 </Text>
               </View>
             ) : (
-              <Animated.View entering={FadeInDown.duration(320)} style={styles.list}>
+              <Animated.View entering={enterUp(0)} style={styles.list}>
                 {myGroups.map((g, i) => (
                   <GroupRowItem key={g.id} group={g} mine last={i === myGroups.length - 1} />
                 ))}
@@ -336,7 +337,7 @@ export default function GroupsScreen() {
               <Text style={styles.sectionTitle}>Open circles</Text>
               <Text style={styles.sectionHint}>Public groups anyone can join. Still no names.</Text>
               {publicError ? <Text style={[styles.errorText, { marginTop: 0, marginBottom: 12 }]}>{publicError}</Text> : null}
-              <Animated.View entering={FadeInDown.duration(320).delay(90)} style={styles.list}>
+              <Animated.View entering={enterUp(2)} style={styles.list}>
                 {publicGroups.map((g, i) => (
                   <GroupRowItem key={g.id} group={g} mine={false} last={i === publicGroups.length - 1} />
                 ))}

@@ -361,7 +361,10 @@ export const NookView = memo(function NookView({
     setAwake(true);
     hop.set(withSequence(
       withTiming(-22, { duration: 280, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 520, easing: Easing.bounce }),
+      // falls under gravity, then one small rebound
+      withTiming(0, { duration: 300, easing: Easing.in(Easing.quad) }),
+      withTiming(-5, { duration: 110, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 130, easing: Easing.in(Easing.quad) }),
     ));
     later('wake', 2600, () => setAwake(false));
   };

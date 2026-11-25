@@ -16,7 +16,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { EASE_OUT, enterFade, enterUp } from '@/components/saint/motion';
 
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { GroupPrayerNotifications } from '@/components/saint/GroupPrayerNotifications';
@@ -455,7 +456,7 @@ export default function GroupScreen() {
   const onAccent = THEME.isDark ? THEME.bg : THEME.accentInk;
 
   // Cards rise in, a beat apart, whenever a list first shows (and again on switching tabs).
-  const enter = (i: number) => FadeInDown.duration(320).delay(Math.min(i, 6) * 45);
+  const enter = enterUp;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -584,7 +585,7 @@ export default function GroupScreen() {
 
             {tab === 'circle' ? (
               circlePrayers.length === 0 ? (
-                <Animated.View key="circle-empty" entering={FadeIn.duration(260)} style={styles.emptyBox}>
+                <Animated.View key="circle-empty" entering={enterFade(260)} style={styles.emptyBox}>
                   <PrayingIcon size={26} color={THEME.muted} />
                   <Text style={styles.emptyBoxTitle}>Quiet by the fire</Text>
                   <Text style={styles.emptyBoxText}>
@@ -619,7 +620,7 @@ export default function GroupScreen() {
                           </PressScale>
                         )}
                         {p.prayedByMe ? (
-                          <Animated.View entering={FadeIn.duration(180)} style={styles.prayedChip}>
+                          <Animated.View entering={enterFade(180)} style={styles.prayedChip}>
                             <CheckIcon size={13} color={THEME.accent} />
                             <Text style={styles.prayedChipText}>Prayed</Text>
                           </Animated.View>
@@ -639,12 +640,12 @@ export default function GroupScreen() {
 
                       {/* Anonymous encouragement — same flow as the vigil page. */}
                       {notesSent.has(p.id) ? (
-                        <Animated.View entering={FadeIn.duration(220)} style={styles.noteSent}>
+                        <Animated.View entering={enterFade(220)} style={styles.noteSent}>
                           <CheckIcon size={12} color={THEME.accent} />
                           <Text style={styles.noteSentText}>Your encouragement was delivered.</Text>
                         </Animated.View>
                       ) : noteFor === p.id ? (
-                        <Animated.View entering={FadeInDown.duration(220)} style={styles.noteBox}>
+                        <Animated.View entering={FadeInDown.duration(220).easing(EASE_OUT)} style={styles.noteBox}>
                           <TextInput
                             value={note}
                             onChangeText={setNote}
@@ -695,7 +696,7 @@ export default function GroupScreen() {
                 </View>
               )
             ) : myPrayers.length === 0 ? (
-              <Animated.View key="yours-empty" entering={FadeIn.duration(260)} style={styles.emptyBox}>
+              <Animated.View key="yours-empty" entering={enterFade(260)} style={styles.emptyBox}>
                 <PenIcon size={24} color={THEME.muted} />
                 <Text style={styles.emptyBoxTitle}>Nothing shared yet</Text>
                 <Text style={styles.emptyBoxText}>

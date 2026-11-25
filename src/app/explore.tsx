@@ -32,6 +32,7 @@ import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { ScreenPet } from '@/components/pets/ScreenPet';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
+import { EASE_OUT } from '@/components/saint/motion';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -350,8 +351,8 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     if (simple) return;
     lightUp.set(
       withTiming(lit ? 1 : 0, {
-        duration: lit ? 750 : 250,
-        easing: lit ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+        duration: lit ? 750 : 200,
+        easing: EASE_OUT,
       }),
     );
     glowIntensity.set(
@@ -366,9 +367,9 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     setNote('');
     setNoteError(null);
     if (simple) return;
-    const easing = Easing.out(Easing.cubic);
-    cardLift.set(withSequence(withTiming(16, { duration: 0 }), withTiming(0, { duration: 360, easing })));
-    cardFade.set(withTiming(1, { duration: 360, easing }));
+    // The next card rises in from just below.
+    cardLift.set(withSequence(withTiming(12, { duration: 0 }), withTiming(0, { duration: 300, easing: EASE_OUT })));
+    cardFade.set(withTiming(1, { duration: 300, easing: EASE_OUT }));
   };
 
   const advance = (next: number) => {
@@ -376,10 +377,10 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
       showNextCard(next);
       return;
     }
-    const easing = Easing.in(Easing.quad);
-    cardLift.set(withTiming(-16, { duration: 220, easing }));
+    // The current card lifts away quickly, so the next one isn't kept waiting.
+    cardLift.set(withTiming(-12, { duration: 180, easing: EASE_OUT }));
     cardFade.set(
-      withTiming(0, { duration: 220, easing }, () => {
+      withTiming(0, { duration: 180, easing: EASE_OUT }, () => {
         scheduleOnRN(showNextCard, next);
       }),
     );

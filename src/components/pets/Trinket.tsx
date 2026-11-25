@@ -34,7 +34,7 @@ export function TapTrinket({ id, size = 96, children }: { id: TrinketId; size?: 
     transform: [{ translateY: -16 * jump.get() }, { rotate: `${-4 * jump.get()}deg` }, { scaleY: 1 + 0.06 * jump.get() }],
   }));
   const onPress = () => {
-    jump.set(withSequence(withTiming(1, { duration: 280, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 420, easing: Easing.bounce })));
+    jump.set(withSequence(withTiming(1, { duration: 280, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 260, easing: Easing.in(Easing.quad) }), withTiming(0.18, { duration: 100, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 120, easing: Easing.in(Easing.quad) })));
     setSaying(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setSaying(false), 1500);

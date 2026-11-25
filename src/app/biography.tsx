@@ -22,8 +22,6 @@ import Animated, {
   interpolate,
   Extrapolation,
   SharedValue,
-  FadeIn,
-  FadeInDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -33,6 +31,7 @@ import { useAppDisplay } from '@/components/saint/appDisplay';
 import { authHaptic } from '@/components/saint/authHaptics';
 import { PrimaryButton } from '@/components/saint/Common';
 import { PressScale, SlidingSegments } from '@/components/saint/GroupKit';
+import { DURATION, EASE_DRAWER, EASE_OUT, enterFade, enterUp } from '@/components/saint/motion';
 import { ArrowIcon, BackIcon, CloseIcon, PenIcon } from '@/components/saint/Icons';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
@@ -254,7 +253,7 @@ function EntryCard({ entry, onOpen, index }: { entry: Entry; onOpen: (e: Entry) 
   const d = entry.createdAt ? new Date(entry.createdAt) : null;
 
   return (
-    <Animated.View entering={FadeInDown.duration(300).delay(Math.min(index, 6) * 40)}>
+    <Animated.View entering={enterUp(index)}>
       <PressScale
         onPress={() => onOpen(entry)}
         haptic={null}
@@ -308,7 +307,8 @@ function EntryDetail({
   }));
 
   useEffect(() => {
-    anim.set(withTiming(visible ? 1 : 0, { duration: 280 }));
+    // Opens with a soft settle; closes a little quicker, so going back never drags.
+    anim.set(withTiming(visible ? 1 : 0, { duration: visible ? DURATION.enter : 220, easing: EASE_OUT }));
   }, [visible]);
 
   useEffect(() => {
@@ -705,7 +705,8 @@ function NewEntryComposer({
   }));
 
   useEffect(() => {
-    anim.set(withTiming(visible ? 1 : 0, { duration: 340 }));
+    // A sheet rising over the journal.
+    anim.set(withTiming(visible ? 1 : 0, { duration: visible ? DURATION.sheet : 280, easing: EASE_DRAWER }));
     if (!visible) {
       Keyboard.dismiss();
       setTitle(''); setBody(''); setTheme('gratitude'); setVerseRef(''); setVersePreviewText(''); setPickerOpen(false);
@@ -1223,7 +1224,7 @@ export default function BiographyScreen() {
 
         {/* Calendar */}
         {journalView === 'calendar' && (
-          <Animated.View entering={FadeIn.duration(220)} style={{ marginTop: 14 }}>
+          <Animated.View entering={enterFade(220)} style={{ marginTop: 14 }}>
             <CalendarView
               entries={allEntries}
               calMonth={calMonth}

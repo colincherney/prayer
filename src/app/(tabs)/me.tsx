@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  FadeInDown,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -49,6 +48,7 @@ import {
 import { Squiggle } from '@/components/saint/Common';
 import { LegalLinks } from '@/components/saint/LegalLinks';
 import { PageAmbience } from '@/components/saint/PageAmbience';
+import { DURATION, EASE_OUT, enterUp } from '@/components/saint/motion';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -102,8 +102,8 @@ function NookButton({ children, style, disabled, ...props }: Omit<PressableProps
       {...props}
       disabled={disabled}
       accessibilityState={{ ...props.accessibilityState, disabled: !!disabled }}
-      onPressIn={() => pressed.set(withTiming(1, { duration: reducedMotion ? 0 : 120 }))}
-      onPressOut={() => pressed.set(withTiming(0, { duration: reducedMotion ? 0 : 180 }))}
+      onPressIn={() => pressed.set(withTiming(1, { duration: reducedMotion ? 0 : DURATION.press, easing: EASE_OUT }))}
+      onPressOut={() => pressed.set(withTiming(0, { duration: reducedMotion ? 0 : 200, easing: EASE_OUT }))}
       style={[style, feedback, disabled && { opacity: 0.45 }]}>
       {children}
     </AnimatedPressable>
@@ -374,7 +374,7 @@ function MeContent() {
             )}
           </NookAlcove>
           <View style={styles.below}>
-            <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(600)}
+            <Animated.View entering={reducedMotion ? undefined : enterUp(1)}
               onLayout={e => setBelowH(e.nativeEvent.layout.height)} style={styles.content}>
               <KeepsakeShelf trinkets={trinkets} onOpen={() => router.push('/trinkets')} />
               <View style={styles.actions}>

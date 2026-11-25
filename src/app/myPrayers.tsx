@@ -5,7 +5,7 @@ import {
   Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -14,6 +14,7 @@ import { PrimaryButton, Squiggle } from '@/components/saint/Common';
 import { ArrowIcon, BackIcon, CloseIcon, GlobeIcon, HeartIcon, LockIcon, PenIcon, PrayingIcon } from '@/components/saint/Icons';
 import { PageAmbience } from '@/components/saint/PageAmbience';
 import { SafeAreaView } from '@/components/saint/SafeArea';
+import { DURATION, EASE_DRAWER, EASE_OUT } from '@/components/saint/motion';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -380,18 +381,15 @@ const ReflectSheet: React.FC<{
       setMounted(true);
       slide.set(SCREEN_HEIGHT);
       fade.set(0);
-      fade.set(withTiming(1, { duration: reducedMotion ? 0 : 180, easing: Easing.out(Easing.quad) }));
-      slide.set(withTiming(0, {
-        duration: reducedMotion ? 0 : 320,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-      }));
+      fade.set(withTiming(1, { duration: reducedMotion ? 0 : DURATION.quick, easing: EASE_OUT }));
+      slide.set(withTiming(0, { duration: reducedMotion ? 0 : DURATION.sheet, easing: EASE_DRAWER }));
       });
       return () => cancelAnimationFrame(frame);
     } else {
-      fade.set(withTiming(0, { duration: reducedMotion ? 0 : 160, easing: Easing.in(Easing.quad) }));
+      fade.set(withTiming(0, { duration: reducedMotion ? 0 : DURATION.quick, easing: EASE_OUT }));
       slide.set(withTiming(
         SCREEN_HEIGHT,
-        { duration: reducedMotion ? 0 : 240, easing: Easing.in(Easing.cubic) },
+        { duration: reducedMotion ? 0 : 280, easing: EASE_DRAWER },
         finished => {
           if (finished) scheduleOnRN(setMounted, false);
         },
