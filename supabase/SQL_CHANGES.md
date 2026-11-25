@@ -1003,3 +1003,38 @@ every event shows finished, with its final stage and keepsakes. Then the dev acc
 do $$ declare src text := pg_get_functiondef('private.evaluate_event(uuid,text,date)'::regprocedure);
 begin execute regexp_replace(src, '  -- dev accounts: every challenge counts as done.*?  end if;\n\n', '', 's'); end $$;
 ```
+
+---
+
+## Bible reading and notes earn XP (2026-11-25) — NOT APPLIED YET
+
+**Why:** reading the Bible and taking notes on it now feed your companion and your account level.
+
+**What:**
+- New table `bible_reads` (user, book, chapter, day): one row the first time you finish a chapter each day. +3 XP each.
+  Rows can only be added for today and only for yourself (RLS), and the key stops the same chapter counting twice a day.
+- New table `bible_notes` (user, book, chapter, optional verse, version, body up to 2000 chars). +5 XP each. Private to
+  the writer (RLS: select, insert, update, delete own rows only).
+- `account_xp(uid)` also counts those two tables (×3 and ×5), in step with `xpFromCounts()` in `src/lib/pet.ts`.
+- Both tables go away with their account (`on delete cascade`).
+
+**Apply as:** `supabase/migrations/20261124_bible_reads_and_notes.sql`. The app already reads these tables and counts
+them as 0 until they exist.
+
+**Revert:**
+
+```sql
+create or replace function public.account_xp(uid uuid)
+ returns integer language sql stable security definer set search_path to 'public'
+as $function$
+  select (
+      (select count(*) from prayer_interactions where user_id = uid and action = 'prayed') * 10
+    + (select count(*) from prayers where user_id = uid) * 20
+    + (select count(*) from biography_entries where user_id = uid) * 5
+    + (select coalesce(sum(xp), 0) from quest_completions where user_id = uid)
+  )::integer;
+$function$;
+revoke all on function public.account_xp(uuid) from public, anon, authenticated;
+drop table if exists public.bible_notes;
+drop table if exists public.bible_reads;
+```

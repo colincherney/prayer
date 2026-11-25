@@ -20,6 +20,7 @@ import { keyframe, useLoop, useMotionEnabled } from './anim';
 import { Fx } from './Fx';
 import { LieEyes, LyingPet, lyingFeetOffset, lyingHeight } from './LyingPets';
 import { OverlayKind, PetOverlay } from './petActing';
+import { TapPet } from './PetReaction';
 import { Pet } from './registry';
 
 // The player's companion on the prayer screens (design: Share, Pray Now, Vigil, Together).
@@ -151,6 +152,9 @@ export function ScreenPet({ size, lean, sleepy, watching, warm, hop, interactive
   }, [hops, reduce, hopY]);
 
   const h = lying ? lyingHeight(size) : petHeight(size);
+  const overlay = !lying && scene && (scene !== 'doze' || sleepy)
+    ? <PetOverlay petId={petId} kind={scene} size={size} warm={warm} />
+    : null;
   const style = useAnimatedStyle(() => ({
     transform: [
       { translateY: hopY.get() + perk.get() + sink.get() * 5 - look.get() * 4 },
@@ -168,10 +172,19 @@ export function ScreenPet({ size, lean, sleepy, watching, warm, hop, interactive
           <Pressable disabled={!interactive} onPress={() => setTapHops(n => n + 1)} accessibilityRole="button" accessibilityLabel="Your companion">
             <LyingPet id={petId} stage={progress.stage} size={size} eyes={sleepy ? 'sleep' : watching ? 'up' : 'open'} />
           </Pressable>
+        ) : overlay && interactive ? (
+          // The scene's paws (or blanket) go inside the tap reaction, so they jump and squash with the body
+          // instead of staying behind when it leaps.
+          <TapPet id={petId} stage={progress.stage} size={size}>
+            <Pet id={petId} stage={progress.stage} size={size} />
+            {overlay}
+          </TapPet>
         ) : (
-          <Pet id={petId} stage={progress.stage} size={size} interactive={interactive} />
+          <>
+            <Pet id={petId} stage={progress.stage} size={size} interactive={interactive} />
+            {overlay}
+          </>
         )}
-        {!lying && scene && (scene !== 'doze' || sleepy) ? <PetOverlay petId={petId} kind={scene} size={size} warm={warm} /> : null}
         {warm ? <Motes size={size} /> : null}
       </Animated.View>
       {sleepy ? (

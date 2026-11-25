@@ -57,7 +57,7 @@ import { afterLaunch } from '@/lib/launch';
 import { LOCAL_KEYS, readForUser, readLocal, writeForUser, writeLocal } from '@/lib/localCache';
 import { showPrayerStreakActivityControls } from '@/lib/prayerStreakActivity';
 import { supabase } from '@/lib/supabase';
-import { usePetProgress } from '@/lib/pet';
+import { useAccountLevel, usePetProgress } from '@/lib/pet';
 import { stripUnowned, useOwned } from '@/lib/store';
 import { useTrinkets } from '@/lib/trinkets';
 import { latestDropDay, patchNotesSeenDay } from '@/lib/drops';
@@ -238,6 +238,7 @@ function MeContent() {
   const { petId, name: petName, progress: petProgress } = usePetProgress();
   const { width: screenW, height: screenH, fontScale } = useWindowDimensions();
   const { trinkets, currentStreak } = useTrinkets();
+  const accountLevel = useAccountLevel();
   const streakUserId = Platform.OS === 'ios' ? session?.user.id : undefined;
   const StreakChip = streakUserId ? Pressable : View;
   const pageW = Math.min(screenW, 500);
@@ -357,6 +358,15 @@ function MeContent() {
             <Text style={styles.metaText}>{currentStreak} day streak</Text>
             {streakUserId ? <ArrowIcon size={9} color={theme.inkSoft} /> : null}
           </StreakChip>
+          {/* The account's own level: everything earned with every companion, all together. */}
+          {accountLevel ? (
+            <View style={styles.levelRow} accessible accessibilityLabel={`Account level ${accountLevel.level}, ${accountLevel.xpInLevel} of ${accountLevel.xpForLevel} XP to the next`}>
+              <Text style={styles.metaText}>Level {accountLevel.level}</Text>
+              <View style={styles.levelTrack}>
+                <View style={[styles.levelFill, { width: `${Math.min(100, (accountLevel.xpInLevel / accountLevel.xpForLevel) * 100)}%` }]} />
+              </View>
+            </View>
+          ) : null}
         </View>
         <NookButton onPress={() => setSettingsOpen(true)} accessibilityLabel="Settings and account. Always anonymous."
           hitSlop={6} style={styles.gear}>
@@ -516,6 +526,9 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   titleAccent: { color: theme.accent },
   metaText: { flexShrink: 1, fontFamily: FONTS.bodyBold, fontSize: 10.5, lineHeight: 15, letterSpacing: 1, textTransform: 'uppercase', fontVariant: ['lining-nums'], color: theme.inkSoft },
   streak: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 3 },
+  levelTrack: { flex: 1, maxWidth: 90, height: 4, borderRadius: 2, backgroundColor: theme.line, overflow: 'hidden' },
+  levelFill: { height: '100%', borderRadius: 2, backgroundColor: theme.accent },
   gear: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bgSoft, borderWidth: 1, borderColor: theme.line },
   below: { flex: 1, justifyContent: 'center' },
   content: { paddingHorizontal: PAGE_MARGIN, paddingTop: 6 },

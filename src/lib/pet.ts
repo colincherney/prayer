@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { pipStageForLevel, PipStage } from '@/components/pets/PipLamb';
 import { DEFAULT_PET, getPet, isPetId, PetId, PETS, useAvailablePets } from '@/components/pets/registry';
@@ -11,8 +11,9 @@ import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 import { usePalStage, usePalStages } from '@/lib/winterEvent';
 
-/** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level). */
-export const XP = { share: 20, prayed: 10, journal: 5 } as const;
+/** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level), plus the Bible:
+ * +3 for each chapter read through (once per chapter a day) and +5 for each note taken on it. */
+export const XP = { share: 20, prayed: 10, journal: 5, bibleRead: 3, bibleNote: 5 } as const;
 export const XP_PER_LEVEL = 50;
 
 export type PetProgress = {
@@ -30,8 +31,22 @@ export function petProgressFromXp(xp: number): PetProgress {
 
 /** XP comes from rows the app already writes, plus whatever finished quests were worth (public.quest_completions). */
 /** Keep in step with public.account_xp() in the database, which switch_pet uses (supabase/SQL_CHANGES.md #15). */
-export function xpFromCounts(c: { prayed: number; shared: number; journal: number; quests?: number }): number {
-  return c.prayed * XP.prayed + c.shared * XP.share + c.journal * XP.journal + (c.quests ?? 0);
+export function xpFromCounts(c: {
+  prayed: number;
+  shared: number;
+  journal: number;
+  quests?: number;
+  bibleReads?: number;
+  bibleNotes?: number;
+}): number {
+  return (
+    c.prayed * XP.prayed +
+    c.shared * XP.share +
+    c.journal * XP.journal +
+    (c.quests ?? 0) +
+    (c.bibleReads ?? 0) * XP.bibleRead +
+    (c.bibleNotes ?? 0) * XP.bibleNote
+  );
 }
 
 const PET_KEY = 'pet.id';
@@ -40,7 +55,7 @@ const levelKey = (id: PetId) => `pet.lastSeenLevel.${id}`;
 const XP_CACHE_KEY = 'pet.xpCache';
 
 /** `claimed`: every companion this account has ever walked with (a public.pet_xp row, or the active one), even at 0 XP. */
-type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>>; claimed?: PetId[] };
+type XpCache = { userId: string; xpByPet: Partial<Record<PetId, number>>; claimed?: PetId[]; total?: number };
 
 // The current pet and XP, shared by every screen. A change here (switching pets, new XP) reaches every screen that
 // shows a pet at once, instead of each one catching up when it's next opened.
@@ -80,8 +95,8 @@ supabase.auth.onAuthStateChange((_event, next) => {
   authUserId = nextId;
 });
 
-function rememberXp(userId: string, xpByPet: Record<PetId, number>, claimed: PetId[]) {
-  knownXp = { userId, xpByPet, claimed };
+function rememberXp(userId: string, xpByPet: Record<PetId, number>, claimed: PetId[], total?: number) {
+  knownXp = { userId, xpByPet, claimed, total: total ?? knownXp?.total };
   listeners.forEach(fn => fn());
   AsyncStorage.setItem(XP_CACHE_KEY, JSON.stringify(knownXp)).catch(() => {});
 }
@@ -276,7 +291,7 @@ export function usePetProgress() {
     const id = ++loadId.current;
     const userId = session.user.id;
     try {
-      const [prayed, shared, journal, quests] = await Promise.all([
+      const [prayed, shared, journal, quests, bibleReads, bibleNotes] = await Promise.all([
         supabase
           .from('prayer_interactions')
           .select('id', { count: 'exact', head: true })
@@ -285,6 +300,9 @@ export function usePetProgress() {
         supabase.from('prayers').select('id', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('biography_entries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('quest_completions').select('xp').eq('user_id', userId),
+        // Until these tables exist the counts come back empty, which counts as 0.
+        supabase.from('bible_reads').select('book', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('bible_notes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       ]);
       if (id !== loadId.current) return;
       const questXp = (quests.data ?? []).reduce((sum, r) => sum + ((r.xp as number) ?? 0), 0);
@@ -293,6 +311,8 @@ export function usePetProgress() {
         shared: shared.count ?? 0,
         journal: journal.count ?? 0,
         quests: questXp,
+        bibleReads: bibleReads.count ?? 0,
+        bibleNotes: bibleNotes.count ?? 0,
       });
       const localPet = await loadPetId();
       const { xpByPet: byPet, activePet: active, claimed } = await loadXpByPet(localPet, total);
@@ -302,7 +322,7 @@ export function usePetProgress() {
       // Another device may have switched pets; follow the account.
       if (active !== localPet) await setChoice(active);
       const next = petProgressFromXp(byPet[active]);
-      rememberXp(userId, byPet, claimed ?? knownXp?.claimed ?? []);
+      rememberXp(userId, byPet, claimed ?? knownXp?.claimed ?? [], total);
       const up = await consumeLevelUp(active, next.level);
       if (id === loadId.current && up) {
         setLeveledUp(true);
@@ -326,6 +346,9 @@ export function usePetProgress() {
     }, [reload]),
   );
 
+  // Something just earned XP somewhere (a Bible chapter, a note): catch up without waiting for the next focus.
+  useEffect(() => onXpRefresh(() => { reload(); }), [reload]);
+
   /** Switches companion. The old pet keeps the XP it earned; the new one picks up from its own level. */
   const setPetId = useCallback(
     async (next: PetId) => {
@@ -344,4 +367,35 @@ export function usePetProgress() {
   );
 
   return { progress, xpByPet, owned, leveledUp, reload, ...choice, setPetId };
+}
+
+/**
+ * The account's own level, from everything it has ever earned across every companion. Each level asks a little more
+ * than the last: level 1 → 2 takes 100 XP, 2 → 3 takes 200, and so on.
+ */
+export function accountLevelFromXp(xp: number) {
+  const level = Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
+  const start = 50 * level * (level - 1);
+  const need = 100 * level;
+  return { xp, level, xpInLevel: Math.max(0, xp - start), xpForLevel: need };
+}
+
+/** The signed-in account's level, shared by every screen; null until the first load. */
+export function useAccountLevel() {
+  const { session } = useAuth();
+  const snap = useSyncExternalStore(subscribe, () => knownXp);
+  const total = snap && snap.userId === session?.user.id ? snap.total : undefined;
+  return useMemo(() => (total === undefined ? null : accountLevelFromXp(total)), [total]);
+}
+
+/** Asks every screen showing XP to load it again, after something that earns XP (a chapter read, a note). */
+export function refreshXpSoon() {
+  xpRefreshers.forEach(fn => fn());
+}
+const xpRefreshers = new Set<() => void>();
+export function onXpRefresh(fn: () => void) {
+  xpRefreshers.add(fn);
+  return () => {
+    xpRefreshers.delete(fn);
+  };
 }

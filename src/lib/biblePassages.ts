@@ -3,7 +3,8 @@ import type { BibleVersion } from './bibleVersion';
 import { supabase } from './supabase';
 
 export type BibleVerse = { number: number; text: string; inReading: boolean };
-export type BibleChapter = { key: string; title: string; data: BibleVerse[]; partial: boolean };
+/** `book` is the app's own name for it ("1 Samuel", "Psalms"), the one notes and reading progress are saved under. */
+export type BibleChapter = { key: string; title: string; book: string; chapter: number; data: BibleVerse[]; partial: boolean };
 
 const PAGE_SIZE = 1000;
 // Both tables name books the same way ("I Samuel", "Revelation of John").
@@ -64,7 +65,7 @@ async function fetchPassage(
     if (!verses.some(v => v.inReading)) throw new Error(`Missing verses for ${reference}`);
 
     const title = `${book === 'Psalms' ? 'Psalm' : book} ${chapter}`;
-    return { key: `${reference}:${chapter}`, title, data: verses, partial };
+    return { key: `${reference}:${chapter}`, title, book: book === 'Psalm' ? 'Psalms' : book, chapter: Number(chapter), data: verses, partial };
   });
 }
 
