@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleProp,
@@ -14,6 +13,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, {
   cancelAnimation,
   Easing,

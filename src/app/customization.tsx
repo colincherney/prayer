@@ -4,13 +4,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { AppearanceMode, useAppearanceMode } from '@/components/saint/appearanceMode';

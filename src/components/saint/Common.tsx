@@ -2,7 +2,6 @@ import { useIsFocused } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   GestureResponderEvent,
-  Pressable,
   StyleProp,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, {
   cancelAnimation,
   Easing,

@@ -1,6 +1,7 @@
 import { type Href, router } from 'expo-router';
 import React, { type ReactNode } from 'react';
-import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 
 import { useAuth } from '@/lib/auth';
 import { showPrayerStreakActivityControls } from '@/lib/prayerStreakActivity';

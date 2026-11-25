@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Pressable,
   TextInput,
   StyleSheet,
   KeyboardAvoidingView,
@@ -14,6 +13,7 @@ import {
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, {
   useSharedValue,
   withTiming,
@@ -192,6 +192,7 @@ function FilterChip({ active, onPress, color, children }: {
   const { theme: THEME } = useTheme();
   return (
     <Pressable
+      haptic={null}
       onPress={() => { if (!active) authHaptic('select'); onPress(); }}
       hitSlop={4}
       accessibilityRole="button"

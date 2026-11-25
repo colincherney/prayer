@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Modal, Pressable, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

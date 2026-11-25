@@ -1,7 +1,9 @@
+import { useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { authHaptic } from '@/components/saint/authHaptics';
 import { FONTS } from '@/components/saint/theme';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { Colors } from '@/constants/theme';
@@ -10,6 +12,16 @@ export default function AppTabs() {
   const { simple } = useAppDisplay();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  // A light tick each time you switch tabs (not on screens pushed over them, and not on launch).
+  const segments = useSegments();
+  const tab = segments[0] === '(tabs)' ? segments[1] ?? 'index' : null;
+  const lastTab = useRef(tab);
+  useEffect(() => {
+    if (!tab) return;
+    if (lastTab.current && lastTab.current !== tab) authHaptic('select');
+    lastTab.current = tab;
+  }, [tab]);
 
   return (
     <NativeTabs

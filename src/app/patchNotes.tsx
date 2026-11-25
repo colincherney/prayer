@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 
 import { copyFor, DecorArt } from '@/components/drops/DropShowcase';
 import { COLLECTION_SCENES } from '@/components/pets/collectionData';

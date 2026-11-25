@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 
 import { EmailCodeStep } from '@/components/saint/EmailCodeStep';
 import { BackIcon } from '@/components/saint/Icons';

@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { BackIcon } from '@/components/saint/Icons';

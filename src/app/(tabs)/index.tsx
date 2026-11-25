@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { useAppearanceMode } from '@/components/saint/appearanceMode';

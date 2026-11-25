@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { memo, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { COMPANION_INFO, CompanionGroup, companionGroup, GROUP_LABELS, STAGE_LEVELS } from '@/components/pets/companionInfo';

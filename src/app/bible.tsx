@@ -12,7 +12,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BIBLE_BOOKS } from '@/lib/bibleBooks';
-import { fetchBibleTotals, fetchReadChapters } from '@/lib/bibleProgress';
+import { type BibleTotals, fetchBibleTotals, fetchReadChapters } from '@/lib/bibleProgress';
 import { BIBLE_VERSIONS, useBibleVersion } from '@/lib/bibleVersion';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { useAccountLevel, XP } from '@/lib/pet';
@@ -45,7 +45,7 @@ export default function BibleScreen() {
   const [openBook, setOpenBook] = useState<number | null>(null);
   const [readInBook, setReadInBook] = useState<Set<number>>(new Set());
   const [reading, setReading] = useState<Place | null>(null);
-  const [totals, setTotals] = useState<{ reads: number; notes: number } | null>(null);
+  const [totals, setTotals] = useState<BibleTotals | null>(null);
   const [lastRead, setLastRead] = useState<Place | undefined>(() => {
     const saved = readLocal<Place>(LOCAL_KEYS.bibleLastRead);
     return saved && BIBLE_BOOKS[saved.book] && saved.chapter >= 1 && saved.chapter <= BIBLE_BOOKS[saved.book].chapters ? saved : undefined;
@@ -125,12 +125,12 @@ export default function BibleScreen() {
           The <Text style={styles.titleAccent}>Bible</Text>
         </Text>
         <Text style={styles.subtitle}>
-          Every chapter you finish feeds your companion {XP.bibleRead} XP, and every note {XP.bibleNote} more.
+          Finish a chapter for {XP.bibleRead} XP, highlight a verse for {XP.bibleHighlight}, take a note for {XP.bibleNote}. It all feeds your companion.
         </Text>
 
-        {totals && (totals.reads > 0 || totals.notes > 0) ? (
+        {totals && (totals.reads > 0 || totals.notes > 0 || totals.highlights > 0) ? (
           <Text style={styles.earned}>
-            {totals.reads * XP.bibleRead + totals.notes * XP.bibleNote} XP earned from the Bible so far
+            {totals.reads * XP.bibleRead + totals.notes * XP.bibleNote + totals.highlights * XP.bibleHighlight} XP earned from the Bible so far
           </Text>
         ) : null}
 
@@ -160,8 +160,8 @@ export default function BibleScreen() {
           <PressScale onPress={() => router.push({ pathname: '/bibleHistory', params: { tab: 'notes' } })} haptic="press" scaleTo={0.97}
             accessibilityRole="button" accessibilityLabel={`My notes${totals ? `, ${totals.notes}` : ''}`} style={styles.shortcut}>
             <View style={styles.shortcutIcon}><PenIcon size={16} color={theme.pillInk} /></View>
-            <Text style={styles.shortcutTitle}>My notes</Text>
-            <Text style={styles.shortcutSub}>{totals ? `${totals.notes} ${totals.notes === 1 ? 'note' : 'notes'}` : 'Everything you wrote'}</Text>
+            <Text style={styles.shortcutTitle}>Notes & highlights</Text>
+            <Text style={styles.shortcutSub}>{totals ? `${totals.notes} ${totals.notes === 1 ? 'note' : 'notes'} · ${totals.highlights} marked` : 'Everything you kept'}</Text>
           </PressScale>
         </View>
 

@@ -36,7 +36,20 @@ import { DURATION, EASE_DRAWER, EASE_OUT, SPRING_SNAP } from '@/components/saint
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { type BibleChapter, fetchBiblePassages } from '@/lib/biblePassages';
-import { addNote, type BibleNote, deleteNote, fetchChapterNotes, markChapterRead } from '@/lib/bibleProgress';
+import {
+  addNote,
+  type BibleNote,
+  deleteNote,
+  fetchChapterHighlights,
+  fetchChapterNotes,
+  HIGHLIGHT_COLORS,
+  HIGHLIGHT_SWATCH,
+  HIGHLIGHT_WASH,
+  type HighlightColor,
+  markChapterRead,
+  removeHighlight,
+  setHighlight,
+} from '@/lib/bibleProgress';
 import { BIBLE_VERSIONS, bibleVersionName, useBibleVersion } from '@/lib/bibleVersion';
 import { XP } from '@/lib/pet';
 
@@ -114,6 +127,50 @@ export function BiblePassageReader({ references, onClose, backLabel = 'Back to Q
     return () => controller.abort();
   }, [book, noteChapter]);
 
+  // Highlights for every chapter on the page, keyed "chapter:verse".
+  const [highlights, setHighlights] = useState<Map<string, HighlightColor>>(new Map());
+  const chapterList = chapters?.map(c => c.chapter).join(',') ?? '';
+  useEffect(() => {
+    if (!book || !chapterList) return;
+    const controller = new AbortController();
+    Promise.all(chapterList.split(',').map(n => fetchChapterHighlights(book, Number(n), controller.signal))).then(
+      found => {
+        if (controller.signal.aborted) return;
+        setHighlights(new Map(found.flat().map(h => [`${h.chapter}:${h.verse}`, h.color])));
+      },
+      () => {},
+    );
+    return () => controller.abort();
+  }, [book, chapterList]);
+
+  const highlight = (color: HighlightColor) => {
+    if (!selected || !book) return;
+    const key = `${selected.chapter}:${selected.verse}`;
+    const before = highlights.get(key);
+    const { chapter, verse } = selected;
+    const apply = (value?: HighlightColor) =>
+      setHighlights(prev => {
+        const next = new Map(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      });
+    authHaptic('select');
+    if (before === color) {
+      // Tapping the colour it already has takes the highlight off again.
+      apply(undefined);
+      removeHighlight(book, chapter, verse).catch(() => apply(before));
+      setSelected(null);
+      return;
+    }
+    apply(color);
+    setSelected(null);
+    setHighlight(book, chapter, verse, color).then(
+      () => { if (!before) flash(`Highlighted · +${XP.bibleHighlight} XP`); },
+      () => { apply(before); authHaptic('error'); flash('Couldn’t save that highlight'); },
+    );
+  };
+
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     if (shortTimer.current) clearTimeout(shortTimer.current);
@@ -121,7 +178,7 @@ export function BiblePassageReader({ references, onClose, backLabel = 'Back to Q
 
   const flash = (text: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ id: Date.now(), text });
+    setToast(prev => ({ id: (prev?.id ?? 0) + 1, text }));
     toastTimer.current = setTimeout(() => setToast(null), 2200);
   };
 
@@ -363,7 +420,12 @@ export function BiblePassageReader({ references, onClose, backLabel = 'Back to Q
                                       setSelected(isSelected ? null : { chapter: c.chapter, verse: v.number });
                                     }}
                                     accessibilityHint="Select this verse to take a note on it"
-                                    style={isSelected && styles.verseSelected}>
+                                    style={[
+                                      highlights.has(`${c.chapter}:${v.number}`) && {
+                                        backgroundColor: HIGHLIGHT_WASH[highlights.get(`${c.chapter}:${v.number}`)!],
+                                      },
+                                      isSelected && styles.verseSelected,
+                                    ]}>
                                     <Text style={[styles.verseNumber, noted && styles.verseNumberNoted]}>{`${v.number} `}</Text>
                                     {v.text}{' '}
                                   </Text>
@@ -414,17 +476,40 @@ export function BiblePassageReader({ references, onClose, backLabel = 'Back to Q
           </Animated.View>
         ) : null}
 
-        {/* A verse is picked: offer to write about it. */}
+        {/* A verse is picked: highlight it, or write about it. */}
         {selected && !notesOpen ? (
           <Animated.View entering={SlideInDown.duration(DURATION.enter).easing(EASE_DRAWER)} exiting={SlideOutDown.duration(200)} style={styles.verseBar}>
-            <Text style={styles.verseBarText}>Verse {selected.verse}</Text>
-            <PressScale onPress={() => setNotesOpen(true)} haptic="press" accessibilityRole="button" style={styles.verseBarBtn}>
-              <PenIcon size={15} color={theme.isDark ? theme.bg : theme.accentInk} />
-              <Text style={styles.verseBarBtnText}>Take a note</Text>
-            </PressScale>
-            <Pressable onPress={() => setSelected(null)} accessibilityRole="button" accessibilityLabel="Clear verse" style={styles.iconBtn}>
-              <CloseIcon size={15} color={theme.inkSoft} />
-            </Pressable>
+            <View style={styles.verseBarTop}>
+              <Text style={styles.verseBarText}>Verse {selected.verse}</Text>
+              <Pressable onPress={() => setSelected(null)} accessibilityRole="button" accessibilityLabel="Clear verse" style={styles.iconBtn}>
+                <CloseIcon size={15} color={theme.inkSoft} />
+              </Pressable>
+            </View>
+            <View style={styles.verseBarRow}>
+              {HIGHLIGHT_COLORS.map(color => {
+                const on = highlights.get(`${selected.chapter}:${selected.verse}`) === color;
+                return (
+                  <PressScale
+                    key={color}
+                    onPress={() => highlight(color)}
+                    haptic={null}
+                    scaleTo={0.88}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={on ? `Remove ${color} highlight` : `Highlight ${color}`}
+                    style={styles.swatchHit}>
+                    <View style={[styles.swatch, { backgroundColor: HIGHLIGHT_SWATCH[color] }, on && styles.swatchOn]}>
+                      {on ? <CloseIcon size={12} color="#2A2118" /> : null}
+                    </View>
+                  </PressScale>
+                );
+              })}
+              <View style={{ flex: 1 }} />
+              <PressScale onPress={() => setNotesOpen(true)} haptic="press" accessibilityRole="button" style={styles.verseBarBtn}>
+                <PenIcon size={15} color={theme.isDark ? theme.bg : theme.accentInk} />
+                <Text style={styles.verseBarBtnText}>Note</Text>
+              </PressScale>
+            </View>
           </Animated.View>
         ) : null}
 
@@ -531,7 +616,7 @@ const makeStyles = (theme: Theme) => {
     verseText: { fontFamily: FONTS.display, fontSize: 20, lineHeight: 33, color: theme.ink },
     verseNumber: { fontFamily: FONTS.bodySemi, fontSize: 11, color: theme.inkSoft },
     verseNumberNoted: { color: theme.pillInk },
-    verseSelected: { backgroundColor: theme.pillBg, textDecorationLine: 'underline', textDecorationColor: theme.accent },
+    verseSelected: { textDecorationLine: 'underline', textDecorationColor: theme.accent, textDecorationStyle: 'solid' },
     pill: {
       marginTop: 8, minHeight: 48, borderRadius: 24, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
       paddingHorizontal: 20, backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line,
@@ -543,12 +628,17 @@ const makeStyles = (theme: Theme) => {
     navPill: { flex: 1 },
     hint: { fontFamily: FONTS.body, fontSize: 12, color: theme.muted, textAlign: 'center', marginTop: 14 },
     verseBar: {
-      position: 'absolute', left: 16, right: 16, bottom: 28, flexDirection: 'row', alignItems: 'center', gap: 6,
-      padding: 6, paddingLeft: 18, borderRadius: 28, backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth,
+      position: 'absolute', left: 16, right: 16, bottom: 28, gap: 2,
+      paddingVertical: 6, paddingHorizontal: 10, paddingLeft: 18, borderRadius: 26, backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth,
       borderColor: theme.line, shadowColor: '#000', shadowOpacity: theme.isDark ? 0.4 : 0.12, shadowRadius: 18,
       shadowOffset: { width: 0, height: 6 }, elevation: 6,
     },
+    verseBarTop: { flexDirection: 'row', alignItems: 'center' },
+    verseBarRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: -8, paddingBottom: 4 },
     verseBarText: { flex: 1, fontFamily: FONTS.bodySemi, fontSize: 14, color: theme.ink },
+    swatchHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    swatch: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+    swatchOn: { borderWidth: 2, borderColor: theme.ink },
     verseBarBtn: {
       minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 16, borderRadius: 22,
       backgroundColor: theme.accent,

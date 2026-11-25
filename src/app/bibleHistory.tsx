@@ -9,10 +9,20 @@ import { enterFade, enterUp } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { placeOf, shownBibleRef, useBibleReader } from '@/components/saint/useBibleReader';
-import { type BibleNote, type BibleRead, deleteNote, fetchAllNotes, fetchReadHistory } from '@/lib/bibleProgress';
+import {
+  type BibleHighlight,
+  type BibleNote,
+  type BibleRead,
+  deleteNote,
+  fetchAllHighlights,
+  fetchAllNotes,
+  fetchReadHistory,
+  HIGHLIGHT_SWATCH,
+  HIGHLIGHT_WASH,
+} from '@/lib/bibleProgress';
 import { XP } from '@/lib/pet';
 
-type Tab = 'history' | 'notes';
+type Tab = 'history' | 'notes' | 'highlights';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "Today", "Yesterday", or "Nov 18" (with the year once it isn't this one). */
@@ -36,9 +46,10 @@ export default function BibleHistoryScreen() {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const params = useLocalSearchParams<{ tab?: string }>();
-  const [tab, setTab] = useState<Tab>(params.tab === 'notes' ? 'notes' : 'history');
+  const [tab, setTab] = useState<Tab>(params.tab === 'notes' || params.tab === 'highlights' ? params.tab : 'history');
   const [reads, setReads] = useState<BibleRead[] | null>();
   const [notes, setNotes] = useState<BibleNote[] | null>();
+  const [marks, setMarks] = useState<BibleHighlight[] | null>();
 
   const load = useCallback(() => {
     const controller = new AbortController();
@@ -49,6 +60,10 @@ export default function BibleHistoryScreen() {
     fetchAllNotes(controller.signal).then(
       n => { if (!controller.signal.aborted) setNotes(n); },
       () => { if (!controller.signal.aborted) setNotes(null); },
+    );
+    fetchAllHighlights(controller.signal).then(
+      h => { if (!controller.signal.aborted) setMarks(h); },
+      () => { if (!controller.signal.aborted) setMarks(null); },
     );
     return () => controller.abort();
   }, []);
@@ -82,7 +97,7 @@ export default function BibleHistoryScreen() {
     if (last?.day === r.read_on) last.items.push(r);
     else days.push({ day: r.read_on, items: [r] });
   }
-  const list = tab === 'history' ? reads : notes;
+  const list = tab === 'history' ? reads : tab === 'notes' ? notes : marks;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -105,6 +120,7 @@ export default function BibleHistoryScreen() {
           segments={[
             { key: 'history', label: 'History', count: reads?.length },
             { key: 'notes', label: 'Notes', count: notes?.length },
+            { key: 'highlights', label: 'Marked', count: marks?.length },
           ]}
           style={styles.tabs}
         />
@@ -116,11 +132,15 @@ export default function BibleHistoryScreen() {
             <Text style={styles.empty}>Couldn’t load this right now. Pull back in a moment.</Text>
           ) : list.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>{tab === 'history' ? 'Nothing read yet' : 'No notes yet'}</Text>
+              <Text style={styles.emptyTitle}>
+                {tab === 'history' ? 'Nothing read yet' : tab === 'notes' ? 'No notes yet' : 'No highlights yet'}
+              </Text>
               <Text style={styles.empty}>
                 {tab === 'history'
                   ? `Read a chapter to the end and it shows up here, with +${XP.bibleRead} XP for your companion.`
-                  : `Tap a verse while you read and choose Take a note. Each one gives +${XP.bibleNote} XP.`}
+                  : tab === 'notes'
+                    ? `Tap a verse while you read and choose Note. Each one gives +${XP.bibleNote} XP.`
+                    : `Tap a verse while you read and pick a colour. Each highlight gives +${XP.bibleHighlight} XP.`}
               </Text>
             </View>
           ) : tab === 'history' ? (
@@ -140,6 +160,27 @@ export default function BibleHistoryScreen() {
                 </View>
               </Animated.View>
             ))
+          ) : tab === 'highlights' ? (
+            <View style={styles.notes}>
+              {(marks ?? []).map((h, i) => {
+                const place = placeOf(h.book, h.chapter);
+                return (
+                  <Animated.View key={`${h.book}-${h.chapter}-${h.verse}`} entering={enterUp(i)}>
+                    <PressScale onPress={() => openAt(h.book, h.chapter)} haptic="press" scaleTo={0.99}
+                      accessibilityRole="button" accessibilityLabel={`Open ${h.book} ${h.chapter}:${h.verse}`} style={styles.markRow}>
+                      <View style={[styles.markDot, { backgroundColor: HIGHLIGHT_SWATCH[h.color] }]} />
+                      <Text style={styles.markRef}>
+                        <Text style={{ backgroundColor: HIGHLIGHT_WASH[h.color] }}>
+                          {place ? shownBibleRef(place) : `${h.book} ${h.chapter}`}:{h.verse}
+                        </Text>
+                      </Text>
+                      <Text style={styles.noteDate}>{dayLabel(noteDay(h.created_at))}</Text>
+                      <ArrowIcon size={12} color={theme.inkSoft} />
+                    </PressScale>
+                  </Animated.View>
+                );
+              })}
+            </View>
           ) : (
             <View style={styles.notes}>
               {(notes ?? []).map((n, i) => {
@@ -194,6 +235,12 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   rowRef: { flex: 1, fontFamily: FONTS.display, fontSize: 18, color: theme.ink },
   rowXp: { fontFamily: FONTS.bodySemi, fontSize: 12, color: theme.pillInk },
   notes: { gap: 10, marginTop: 18 },
+  markRow: {
+    minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, borderRadius: 18,
+    backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line,
+  },
+  markDot: { width: 12, height: 12, borderRadius: 6 },
+  markRef: { flex: 1, fontFamily: FONTS.display, fontSize: 18, color: theme.ink },
   noteCard: { padding: 16, borderRadius: 20, backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line },
   noteHead: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
   noteRef: { flex: 1, fontFamily: FONTS.bodySemi, fontSize: 14, color: theme.ink },

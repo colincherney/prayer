@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
+import { authHaptic } from '@/components/saint/authHaptics';
 import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
@@ -163,6 +165,7 @@ export default function QuestsScreen() {
     if (status === 'done' || busy) return;
     if (status === 'new') {
       await q.accept(quest);
+      authHaptic('press');
       setLine(`A worthy path. ${quest.text} Go gently; I will keep the lantern lit.`);
       return;
     }
@@ -170,9 +173,11 @@ export default function QuestsScreen() {
     const res = await q.complete(quest);
     setBusy(null);
     if (!res.ok) {
+      authHaptic('error');
       setLine(res.message);
       return;
     }
+    authHaptic('success');
     const left = regular.filter(x => x.id !== quest.id && q.statusOf(x) !== 'done').length;
     const msg =
       quest.slot === 'bonus'

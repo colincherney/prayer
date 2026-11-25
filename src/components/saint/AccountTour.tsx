@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 
 import { OliveDove } from '@/components/pets/Dove';
 

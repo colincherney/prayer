@@ -12,8 +12,8 @@ import { supabase } from '@/lib/supabase';
 import { usePalStage, usePalStages } from '@/lib/winterEvent';
 
 /** XP rules from design/README.md (share +20, pray for others +10, journal +5; 50 XP per level), plus the Bible:
- * +3 for each chapter read through (once per chapter a day) and +5 for each note taken on it. */
-export const XP = { share: 20, prayed: 10, journal: 5, bibleRead: 3, bibleNote: 5 } as const;
+ * +3 for each chapter read through (once per chapter a day), +5 for each note taken on it, +2 for each verse highlighted. */
+export const XP = { share: 20, prayed: 10, journal: 5, bibleRead: 3, bibleNote: 5, bibleHighlight: 2 } as const;
 export const XP_PER_LEVEL = 50;
 
 export type PetProgress = {
@@ -38,6 +38,7 @@ export function xpFromCounts(c: {
   quests?: number;
   bibleReads?: number;
   bibleNotes?: number;
+  bibleHighlights?: number;
 }): number {
   return (
     c.prayed * XP.prayed +
@@ -45,7 +46,8 @@ export function xpFromCounts(c: {
     c.journal * XP.journal +
     (c.quests ?? 0) +
     (c.bibleReads ?? 0) * XP.bibleRead +
-    (c.bibleNotes ?? 0) * XP.bibleNote
+    (c.bibleNotes ?? 0) * XP.bibleNote +
+    (c.bibleHighlights ?? 0) * XP.bibleHighlight
   );
 }
 
@@ -291,7 +293,7 @@ export function usePetProgress() {
     const id = ++loadId.current;
     const userId = session.user.id;
     try {
-      const [prayed, shared, journal, quests, bibleReads, bibleNotes] = await Promise.all([
+      const [prayed, shared, journal, quests, bibleReads, bibleNotes, bibleHighlights] = await Promise.all([
         supabase
           .from('prayer_interactions')
           .select('id', { count: 'exact', head: true })
@@ -303,6 +305,7 @@ export function usePetProgress() {
         // Until these tables exist the counts come back empty, which counts as 0.
         supabase.from('bible_reads').select('book', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('bible_notes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('bible_highlights').select('verse', { count: 'exact', head: true }).eq('user_id', userId),
       ]);
       if (id !== loadId.current) return;
       const questXp = (quests.data ?? []).reduce((sum, r) => sum + ((r.xp as number) ?? 0), 0);
@@ -313,6 +316,7 @@ export function usePetProgress() {
         quests: questXp,
         bibleReads: bibleReads.count ?? 0,
         bibleNotes: bibleNotes.count ?? 0,
+        bibleHighlights: bibleHighlights.count ?? 0,
       });
       const localPet = await loadPetId();
       const { xpByPet: byPet, activePet: active, claimed } = await loadXpByPet(localPet, total);

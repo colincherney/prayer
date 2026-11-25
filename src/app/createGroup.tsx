@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   Share,
   StatusBar,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PrimaryButton, ScreenHeader, SectionLabel, Squiggle } from '@/components/saint/Common';

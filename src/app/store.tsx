@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -12,6 +11,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
+import { authHaptic } from '@/components/saint/authHaptics';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -204,6 +205,8 @@ export default function StoreScreen() {
 
   const onBuy = async (product: Product) => {
     const result = await buy(product.id);
+    if (result.ok) authHaptic('success');
+    else if (result.message) authHaptic('error');
     if (!result.ok && result.message) Alert.alert('Saint Central+', result.message);
     if (result.ok) Alert.alert(usingTestStore ? 'Test purchase complete' : 'Purchase complete', usingTestStore
       ? 'Simulated checkout completed. Use the native iOS app to activate Saint Central+.'

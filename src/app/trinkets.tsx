@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { RARITY_COLOR, TapTrinket, TrinketArt } from '@/components/pets/Trinket';

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, {
   Easing,
   useAnimatedStyle,

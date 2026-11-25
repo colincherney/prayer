@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SERAPH_FRAME } from '@/components/pets/FrostLordPet';

@@ -48,6 +48,7 @@ import {
 import { Squiggle } from '@/components/saint/Common';
 import { LegalLinks } from '@/components/saint/LegalLinks';
 import { PageAmbience } from '@/components/saint/PageAmbience';
+import { authHaptic } from '@/components/saint/authHaptics';
 import { DURATION, EASE_OUT, enterUp } from '@/components/saint/motion';
 import { FONTS, mixColors, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
@@ -103,6 +104,10 @@ function NookButton({ children, style, disabled, ...props }: Omit<PressableProps
       disabled={disabled}
       accessibilityState={{ ...props.accessibilityState, disabled: !!disabled }}
       onPressIn={() => pressed.set(withTiming(1, { duration: reducedMotion ? 0 : DURATION.press, easing: EASE_OUT }))}
+      onPress={e => {
+        authHaptic('press');
+        props.onPress?.(e);
+      }}
       onPressOut={() => pressed.set(withTiming(0, { duration: reducedMotion ? 0 : 200, easing: EASE_OUT }))}
       style={[style, feedback, disabled && { opacity: 0.45 }]}>
       {children}

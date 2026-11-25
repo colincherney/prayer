@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   GestureResponderEvent,
   Modal,
-  Pressable,
   PressableProps,
   ScrollView,
   StatusBar,
@@ -15,6 +14,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';

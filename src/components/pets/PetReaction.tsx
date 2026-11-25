@@ -10,6 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { softHaptic } from '@/components/saint/authHaptics';
+
 import { FONTS } from '@/components/saint/theme';
 
 import { keyframe } from './anim';
@@ -314,6 +316,7 @@ export function TapPet({ id, stage, size, children, onTap }: Props) {
   );
 
   const tap = () => {
+    softHaptic();
     onTap?.();
     if (clearTimer.current) clearTimeout(clearTimer.current);
     setShown(n => n + 1);

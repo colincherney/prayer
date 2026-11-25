@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { ArrowIcon, BackIcon, CheckIcon } from '@/components/saint/Icons';

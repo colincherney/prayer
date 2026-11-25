@@ -4,12 +4,12 @@ import {
   Alert,
   LayoutChangeEvent,
   Platform,
-  Pressable,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, {
   Easing,
   SharedValue,
@@ -31,6 +31,7 @@ import { Pet, petStageName } from '@/components/pets/registry';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { SimpleHome } from '@/components/saint/SimpleHome';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
+import { authHaptic } from '@/components/saint/authHaptics';
 import { DURATION, EASE_OUT, SPRING_LAND } from '@/components/saint/motion';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { savePetName, usePetProgress, XP, XP_PER_LEVEL } from '@/lib/pet';
@@ -146,6 +147,7 @@ function ActionCell({ name, xp, label, onPress, icon, colW, orb, slot, primary, 
         {primary ? <PulseRing orb={orb} color={THEME.accent} /> : null}
         <Pressable
           onPress={onPress}
+          haptic="press"
           accessibilityRole="button"
           accessibilityLabel={label}
           style={({ pressed }) => [
@@ -343,6 +345,7 @@ function PrayLauncherContent() {
   const hopScale = useSharedValue(1);
   useEffect(() => {
     if (!leveledUp) return;
+    authHaptic('success');
     hopY.set(withSequence(
       withTiming(-40, { duration: 260, easing: Easing.out(Easing.quad) }),
       withTiming(0, { duration: 220, easing: Easing.in(Easing.quad) }),

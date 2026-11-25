@@ -1039,3 +1039,38 @@ revoke all on function public.account_xp(uuid) from public, anon, authenticated;
 drop table if exists public.bible_notes;
 drop table if exists public.bible_reads;
 ```
+
+---
+
+## Bible highlights earn XP (2026-11-25)
+
+**Why:** highlighting a verse now feeds your companion and your account level, like reading and notes.
+
+**What:**
+- New table `bible_highlights` (user, book, chapter, verse, colour gold/rose/sage/sky). +2 XP each. One highlight per
+  verse (primary key), so recolouring or re-highlighting can't stack XP; removing one takes its XP back. Private to the
+  owner (RLS: select, insert, update, delete own rows only). Goes away with its account (`on delete cascade`).
+- `account_xp(uid)` also counts highlights (×2), in step with `xpFromCounts()` in `src/lib/pet.ts`.
+
+**Applied as:** `supabase/migrations/20261125_bible_highlights.sql`. Applied to the live project on 2026-11-25 through the
+Supabase connector. Checked afterwards as a guest (anonymous) account in a rolled-back test: a highlight saved and
+`account_xp` went up by 2; recolouring it updated the colour and left XP unchanged.
+
+**Revert:**
+
+```sql
+create or replace function public.account_xp(uid uuid)
+ returns integer language sql stable security definer set search_path to 'public'
+as $function$
+  select (
+      (select count(*) from prayer_interactions where user_id = uid and action = 'prayed') * 10
+    + (select count(*) from prayers where user_id = uid) * 20
+    + (select count(*) from biography_entries where user_id = uid) * 5
+    + (select coalesce(sum(xp), 0) from quest_completions where user_id = uid)
+    + (select count(*) from bible_reads where user_id = uid) * 3
+    + (select count(*) from bible_notes where user_id = uid) * 5
+  )::integer;
+$function$;
+revoke all on function public.account_xp(uuid) from public, anon, authenticated;
+drop table if exists public.bible_highlights;
+```
