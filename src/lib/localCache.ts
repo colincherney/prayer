@@ -19,6 +19,7 @@ export const LOCAL_KEYS = {
   cloudOwner: 'cloud.owner',
   groupsList: 'groups.list.v1',
   groupPages: 'groups.pages.v1',
+  bibleVersion: 'bible.version',
 } as const;
 
 type LocalKey = (typeof LOCAL_KEYS)[keyof typeof LOCAL_KEYS];

@@ -38,8 +38,9 @@ import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
 import { useAuth } from '@/lib/auth';
+import { type BibleVersion, useBibleVersion } from '@/lib/bibleVersion';
 
-type BibleVersion = 'KJV' | 'CPVD';
+
 
 const ENTRY_THEMES = [
   { id: 'health',        label: 'Health',        glyph: '✦', color: '#e0876a' },
@@ -1030,7 +1031,8 @@ export default function BiographyScreen() {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [bibleVersion, setBibleVersion] = useState<BibleVersion>('KJV');
+  // Shared with the Quests reader: pick a version in either place and both remember it.
+  const [bibleVersion, setBibleVersion] = useBibleVersion();
 
   useFocusEffect(useCallback(() => {
     if (!session) return;
