@@ -3,14 +3,27 @@ import { ActivityIndicator, Modal, Pressable, SectionList, StyleSheet, Text, Vie
 import Animated from 'react-native-reanimated';
 
 import { PressScale, SlidingSegments } from '@/components/saint/GroupKit';
-import { BackIcon } from '@/components/saint/Icons';
+import { ArrowIcon, BackIcon } from '@/components/saint/Icons';
 import { enterFade } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { type BibleChapter, fetchBiblePassages } from '@/lib/biblePassages';
 import { BIBLE_VERSIONS, bibleVersionName, useBibleVersion } from '@/lib/bibleVersion';
 
-export function BiblePassageReader({ references, onClose }: { references: readonly string[]; onClose: () => void }) {
+export function BiblePassageReader({
+  references,
+  onClose,
+  backLabel = 'Back to Quests',
+  onPrevChapter,
+  onNextChapter,
+}: {
+  references: readonly string[];
+  onClose: () => void;
+  backLabel?: string;
+  /** For reading straight through: buttons at the end of the chapter to step back or on. */
+  onPrevChapter?: () => void;
+  onNextChapter?: () => void;
+}) {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [version, saveVersion] = useBibleVersion();
@@ -31,7 +44,7 @@ export function BiblePassageReader({ references, onClose }: { references: readon
       result => {
         if (controller.signal.aborted) return;
         setChapters(result);
-        setShown(`${version}-${wholeChapter}`);
+        setShown(`${version}-${wholeChapter}-${references.join('|')}`);
         setLoading(false);
       },
       () => {
@@ -56,6 +69,11 @@ export function BiblePassageReader({ references, onClose }: { references: readon
 
   const partial = chapters?.some(c => c.partial) ?? false;
   const chapterNames = chapters ? [...new Set(chapters.map(c => c.title))] : [];
+  const stepChapter = (go?: () => void) => {
+    if (!go) return;
+    setLoading(true);
+    go();
+  };
   const toggleWhole = () => {
     jumpToReading.current = !wholeChapter;
     setLoading(true);
@@ -71,7 +89,7 @@ export function BiblePassageReader({ references, onClose }: { references: readon
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <PressScale onPress={onClose} haptic={null} accessibilityRole="button" accessibilityLabel="Back to Quests" style={styles.backButton}>
+            <PressScale onPress={onClose} haptic={null} accessibilityRole="button" accessibilityLabel={backLabel} style={styles.backButton}>
               <BackIcon size={16} color={theme.ink} />
             </PressScale>
             <View style={styles.heading}>
@@ -137,6 +155,23 @@ export function BiblePassageReader({ references, onClose }: { references: readon
                     {wholeChapter ? 'Show just the reading' : `Read all of ${chapterNames.join(' and ')}`}
                   </Text>
                 </PressScale>
+              ) : onPrevChapter || onNextChapter ? (
+                <View style={styles.chapterNav}>
+                  {onPrevChapter ? (
+                    <PressScale onPress={() => stepChapter(onPrevChapter)} haptic="select" scaleTo={0.98}
+                      accessibilityRole="button" accessibilityLabel="Previous chapter" style={[styles.wholeButton, styles.navButton]}>
+                      <BackIcon size={14} color={theme.ink} />
+                      <Text style={styles.wholeButtonText}>Previous</Text>
+                    </PressScale>
+                  ) : <View style={styles.navButton} />}
+                  {onNextChapter ? (
+                    <PressScale onPress={() => stepChapter(onNextChapter)} haptic="select" scaleTo={0.98}
+                      accessibilityRole="button" accessibilityLabel="Next chapter" style={[styles.wholeButton, styles.navButton]}>
+                      <Text style={styles.wholeButtonText}>Next chapter</Text>
+                      <ArrowIcon size={14} color={theme.ink} />
+                    </PressScale>
+                  ) : <View style={styles.navButton} />}
+                </View>
               ) : undefined}
             />
           </Animated.View>
@@ -187,5 +222,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.line,
   },
+  chapterNav: { flexDirection: 'row', gap: 10 },
+  navButton: { flex: 1, flexDirection: 'row', gap: 8 },
   wholeButtonText: { fontFamily: FONTS.bodySemi, fontSize: 15, color: theme.ink },
 });

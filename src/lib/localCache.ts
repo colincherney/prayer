@@ -20,6 +20,7 @@ export const LOCAL_KEYS = {
   groupsList: 'groups.list.v1',
   groupPages: 'groups.pages.v1',
   bibleVersion: 'bible.version',
+  bibleLastRead: 'bible.lastRead',
 } as const;
 
 type LocalKey = (typeof LOCAL_KEYS)[keyof typeof LOCAL_KEYS];

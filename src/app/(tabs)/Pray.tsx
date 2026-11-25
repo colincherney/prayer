@@ -107,6 +107,12 @@ const StarIcon = ({ color, size }: IconProps) => (
     <Path d="M12 2l2.2 6.8H21l-5.5 4 2.1 6.7L12 15.4l-5.6 4.1 2.1-6.7L3 8.8h6.8Z" stroke={color} {...strokeProps} />
   </Svg>
 );
+const BibleIcon = ({ color, size }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3Z" stroke={color} {...strokeProps} />
+    <Path d="M12 7v8 M9 10h6" stroke={color} {...strokeProps} />
+  </Svg>
+);
 const JournalIcon = ({ color, size }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3Z" stroke={color} {...strokeProps} />
@@ -493,16 +499,21 @@ function PrayLauncherContent() {
     );
   }
 
-  // ---- Action layout: four orbs at the corners, "Pray right now" in the middle, Journal at the bottom center. ----
+  // ---- Action layout: four orbs at the corners; down the middle, the Bible, "Pray right now", then Journal. ----
   let gridNode: React.ReactNode = null;
   if (actions) {
     const W = actions.w;
     const H = actions.h;
     const colW = (W - SIDE_PAD * 2) / 3;
     const orb = clamp(Math.min(colW * ORB_OF_COL, (H - 2 * ORB_CHROME) / 2), ORB_MIN, ORB_MAX);
-    const center = clamp(Math.min(colW * CENTER_OF_COL, (H - 2 * ORB_CHROME) / 2), orb, CENTER_MAX);
     const reflect = Math.max(ORB_MIN, orb * REFLECT_OF_ORB);
     const cellH = (o: number) => o + ORB_CHROME;
+    // The middle column stacks three cells, so on a short screen "Pray right now" gives up a little size to fit.
+    const center = clamp(
+      Math.min(colW * CENTER_OF_COL, (H - 2 * ORB_CHROME) / 2, H - 2 * cellH(reflect) - ORB_CHROME - 4),
+      reflect,
+      CENTER_MAX,
+    );
 
     const xLeft = SIDE_PAD;
     const xRight = W - SIDE_PAD - colW;
@@ -511,11 +522,13 @@ function PrayLauncherContent() {
     // Corners: top pair flush with the top, bottom pair flush with the bottom.
     const yTop = 0;
     const yBottomCorner = H - cellH(orb);
-    // Journal sits at the very bottom of the middle column; the middle orb floats above it,
-    // as close to the vertical midpoint of the corner orbs as that column allows.
+    // The Bible sits at the top of the middle column and Journal at the bottom, the same size, so the column mirrors
+    // itself; "Pray right now" floats between them, as close to the corner orbs' midpoint as the room allows.
+    // Its caption lines up with the top corners' captions, as Journal's does with the bottom pair.
+    const yBible = yTop + orb - reflect;
     const yReflect = H - cellH(reflect);
     const midOrbCenter = (yTop + orb / 2 + yBottomCorner + orb / 2) / 2;
-    const yCenter = Math.max(0, Math.min(midOrbCenter - center / 2, yReflect - cellH(center) - 2));
+    const yCenter = clamp(midOrbCenter - center / 2, yBible + cellH(reflect) + 2, yReflect - cellH(center) - 2);
 
     const at = (x: number, y: number) => ({ position: 'absolute' as const, left: x, top: y });
 
@@ -544,6 +557,18 @@ function PrayLauncherContent() {
             label="Pray for others"
             icon={(c, s) => <FlameIcon color={c} size={s} />}
             onPress={() => router.push('/explore')}
+          />
+        </View>
+        <View style={at(xMid, yBible)}>
+          <ActionCell
+            colW={colW}
+            orb={reflect}
+            slot={reflect}
+            name="Bible"
+            xp=""
+            label="Read the Bible"
+            icon={(c, s) => <BibleIcon color={c} size={s} />}
+            onPress={() => router.push('/bible')}
           />
         </View>
         <View style={at(xMid, yCenter)}>
