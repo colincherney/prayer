@@ -5,10 +5,12 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { BiblePassageReader } from '@/components/saint/BiblePassageReader';
 import { PressScale, SlidingSegments } from '@/components/saint/GroupKit';
-import { ArrowIcon, BackIcon, CloseIcon } from '@/components/saint/Icons';
+import { ArrowIcon, BackIcon, CloseIcon, PenIcon } from '@/components/saint/Icons';
 import { EASE_OUT, enterFade, enterUp } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
+import Svg, { Circle, Path } from 'react-native-svg';
+
 import { BIBLE_BOOKS } from '@/lib/bibleBooks';
 import { fetchBibleTotals, fetchReadChapters } from '@/lib/bibleProgress';
 import { BIBLE_VERSIONS, useBibleVersion } from '@/lib/bibleVersion';
@@ -16,6 +18,18 @@ import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { useAccountLevel, XP } from '@/lib/pet';
 
 type Place = { book: number; chapter: number };
+
+/** A clock face with its hands turned back: what you've read. */
+function HistoryIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" />
+      <Path d="M3 4v4h4" />
+      <Path d="M12 8v4.5l3 2" />
+      <Circle cx={12} cy={12} r={0.01} />
+    </Svg>
+  );
+}
 const refOf = ({ book, chapter }: Place) => `${BIBLE_BOOKS[book].name} ${chapter}`;
 const shownRef = (place: Place) => refOf(place).replace(/^Psalms /, 'Psalm ');
 const LIST_MOTION = LinearTransition.duration(260).easing(EASE_OUT);
@@ -115,22 +129,9 @@ export default function BibleScreen() {
         </Text>
 
         {totals && (totals.reads > 0 || totals.notes > 0) ? (
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statNum}>{totals.reads}</Text>
-              <Text style={styles.statLabel}>{totals.reads === 1 ? 'chapter read' : 'chapters read'}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statNum}>{totals.notes}</Text>
-              <Text style={styles.statLabel}>{totals.notes === 1 ? 'note' : 'notes'}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statNum}>{totals.reads * XP.bibleRead + totals.notes * XP.bibleNote}</Text>
-              <Text style={styles.statLabel}>XP earned</Text>
-            </View>
-          </View>
+          <Text style={styles.earned}>
+            {totals.reads * XP.bibleRead + totals.notes * XP.bibleNote} XP earned from the Bible so far
+          </Text>
         ) : null}
 
         {lastRead ? (
@@ -147,6 +148,22 @@ export default function BibleScreen() {
             </PressScale>
           </Animated.View>
         ) : null}
+
+        {/* What you've read, and every note you've taken. */}
+        <View style={styles.shortcuts}>
+          <PressScale onPress={() => router.push({ pathname: '/bibleHistory', params: { tab: 'history' } })} haptic="press" scaleTo={0.97}
+            accessibilityRole="button" accessibilityLabel={`Reading history${totals ? `, ${totals.reads} chapters` : ''}`} style={styles.shortcut}>
+            <View style={styles.shortcutIcon}><HistoryIcon color={theme.pillInk} /></View>
+            <Text style={styles.shortcutTitle}>History</Text>
+            <Text style={styles.shortcutSub}>{totals ? `${totals.reads} ${totals.reads === 1 ? 'chapter' : 'chapters'}` : 'What you read'}</Text>
+          </PressScale>
+          <PressScale onPress={() => router.push({ pathname: '/bibleHistory', params: { tab: 'notes' } })} haptic="press" scaleTo={0.97}
+            accessibilityRole="button" accessibilityLabel={`My notes${totals ? `, ${totals.notes}` : ''}`} style={styles.shortcut}>
+            <View style={styles.shortcutIcon}><PenIcon size={16} color={theme.pillInk} /></View>
+            <Text style={styles.shortcutTitle}>My notes</Text>
+            <Text style={styles.shortcutSub}>{totals ? `${totals.notes} ${totals.notes === 1 ? 'note' : 'notes'}` : 'Everything you wrote'}</Text>
+          </PressScale>
+        </View>
 
         <SlidingSegments
           theme={theme}
@@ -264,6 +281,7 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 46, color: theme.ink, marginTop: 10, paddingHorizontal: 6 },
   titleAccent: { color: theme.accent },
   subtitle: { fontFamily: FONTS.body, fontSize: 15, lineHeight: 21, color: theme.inkSoft, marginTop: 6, paddingHorizontal: 6 },
+  earned: { fontFamily: FONTS.bodySemi, fontSize: 13, color: theme.pillInk, marginTop: 10, paddingHorizontal: 6 },
   stats: {
     marginTop: 18, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderRadius: 20,
     backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line,
@@ -280,6 +298,16 @@ const makeStyles = (theme: Theme) => StyleSheet.create({
   continueLabel: { fontFamily: FONTS.body, fontSize: 13, color: theme.inkSoft },
   continueRef: { fontFamily: FONTS.display, fontSize: 26, color: theme.ink, marginTop: 2 },
   continueGo: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  shortcuts: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  shortcut: {
+    flex: 1, padding: 16, borderRadius: 20, gap: 2,
+    backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line,
+  },
+  shortcutIcon: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.pillBg, marginBottom: 8,
+  },
+  shortcutTitle: { fontFamily: FONTS.bodySemi, fontSize: 15, color: theme.ink },
+  shortcutSub: { fontFamily: FONTS.body, fontSize: 12.5, color: theme.inkSoft, fontVariant: ['tabular-nums'] },
   versions: { marginTop: 22 },
   search: {
     marginTop: 12, flexDirection: 'row', alignItems: 'center', minHeight: 48, borderRadius: 16, paddingLeft: 16,

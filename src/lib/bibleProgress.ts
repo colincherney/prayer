@@ -66,3 +66,29 @@ export async function fetchBibleTotals(signal: AbortSignal): Promise<{ reads: nu
   if (reads.error || notes.error) return null;
   return { reads: reads.count ?? 0, notes: notes.count ?? 0 };
 }
+
+export type BibleRead = { book: string; chapter: number; read_on: string; created_at: string };
+
+/** Your reading history, newest first: every chapter you finished, and the day you finished it. */
+export async function fetchReadHistory(signal: AbortSignal, limit = 300): Promise<BibleRead[]> {
+  const { data, error } = await supabase
+    .from('bible_reads')
+    .select('book, chapter, read_on, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+    .abortSignal(signal);
+  if (error) throw error;
+  return data as BibleRead[];
+}
+
+/** Every note you've taken, newest first. */
+export async function fetchAllNotes(signal: AbortSignal, limit = 300): Promise<BibleNote[]> {
+  const { data, error } = await supabase
+    .from('bible_notes')
+    .select('id, book, chapter, verse, version, body, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+    .abortSignal(signal);
+  if (error) throw error;
+  return data as BibleNote[];
+}

@@ -1006,7 +1006,7 @@ begin execute regexp_replace(src, '  -- dev accounts: every challenge counts as 
 
 ---
 
-## Bible reading and notes earn XP (2026-11-25) — NOT APPLIED YET
+## Bible reading and notes earn XP (2026-11-25)
 
 **Why:** reading the Bible and taking notes on it now feed your companion and your account level.
 
@@ -1018,8 +1018,9 @@ begin execute regexp_replace(src, '  -- dev accounts: every challenge counts as 
 - `account_xp(uid)` also counts those two tables (×3 and ×5), in step with `xpFromCounts()` in `src/lib/pet.ts`.
 - Both tables go away with their account (`on delete cascade`).
 
-**Apply as:** `supabase/migrations/20261124_bible_reads_and_notes.sql`. The app already reads these tables and counts
-them as 0 until they exist.
+**Applied as:** `supabase/migrations/20261124_bible_reads_and_notes.sql`. Applied to the live project on 2026-11-25
+through the Supabase connector. Checked afterwards as a guest (anonymous) account in a rolled-back test: a note and a
+chapter read both saved, a second read of the same chapter that day was ignored, and `account_xp` went up by exactly 8.
 
 **Revert:**
 
