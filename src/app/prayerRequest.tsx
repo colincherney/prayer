@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { PopHearts, ScreenPet, petFeetOffset } from '@/components/pets/ScreenPet';
+import { authHaptic, prayerHaptic } from '@/components/saint/authHaptics';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { PrimaryButton, SectionLabel, Squiggle } from '@/components/saint/Common';
 import {
@@ -79,6 +80,7 @@ export default function SubmitPrayerScreen() {
     }
 
     if (share === 'private') {
+      prayerHaptic();
       setStep('confirm');
       return;
     }
@@ -96,10 +98,12 @@ export default function SubmitPrayerScreen() {
     });
     setBusy(false);
     if (e) {
+      authHaptic('error');
       setError(e.message);
       return;
     }
     if (data?.ok === false) {
+      authHaptic('error');
       setError(
         data.reason === 'moderation_blocked'
           ? "This prayer doesn't fit our community guidelines. To keep everyone anonymous, avoid using people's names — try \"my friend\" or \"my brother\" instead."
@@ -108,6 +112,7 @@ export default function SubmitPrayerScreen() {
       return;
     }
     setSensitive(typeof data?.sensitive === 'string' ? data.sensitive : null);
+    prayerHaptic();
     setStep('confirm');
   };
 

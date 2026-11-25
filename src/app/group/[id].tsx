@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EASE_OUT, enterFade, enterUp } from '@/components/saint/motion';
+import { authHaptic, prayerHaptic } from '@/components/saint/authHaptics';
 
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { GroupPrayerNotifications } from '@/components/saint/GroupPrayerNotifications';
@@ -273,6 +274,7 @@ export default function GroupScreen() {
     // praying.current: two taps in the same frame can't record the same prayer twice
     if (!session || prayer.prayedByMe || prayer.mine || praying.current.has(prayer.id)) return;
     praying.current.add(prayer.id);
+    prayerHaptic();
     // Optimistic
     setPrayers(prev =>
       prev.map(p =>
@@ -292,6 +294,7 @@ export default function GroupScreen() {
       refreshAllEvents(true).catch(() => {});
     }
     if (e) {
+      authHaptic('error');
       praying.current.delete(prayer.id);
       setPrayers(prev =>
         prev.map(p =>
@@ -367,10 +370,12 @@ export default function GroupScreen() {
     });
     setNoteSending(false);
     if (e) {
+      authHaptic('error');
       setNoteError(e.message);
       return;
     }
     if (data?.ok === false) {
+      authHaptic('error');
       setNoteError(
         data.reason === 'moderation_blocked'
           ? 'Couldn’t send — try rewording your note.'
@@ -378,6 +383,7 @@ export default function GroupScreen() {
       );
       return;
     }
+    authHaptic('success');
     setNote('');
     setNoteFor(null);
     setNotesSent(prev => {
@@ -627,7 +633,7 @@ export default function GroupScreen() {
                         ) : (
                           <PressScale
                             onPress={() => onPray(p)}
-                            haptic="success"
+                            haptic={null}
                             scaleTo={0.94}
                             accessibilityRole="button"
                             accessibilityLabel="I prayed for this"

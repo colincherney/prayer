@@ -12,8 +12,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -23,6 +25,7 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from '@/components/saint/SafeArea';
@@ -32,7 +35,9 @@ import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { ScreenPet } from '@/components/pets/ScreenPet';
 import { useAppDisplay } from '@/components/saint/appDisplay';
 import { BackIcon, CheckIcon, HeartIcon } from '@/components/saint/Icons';
-import { EASE_OUT } from '@/components/saint/motion';
+import { authHaptic, prayerHaptic, softHaptic } from '@/components/saint/authHaptics';
+import { PressScale } from '@/components/saint/GroupKit';
+import { EASE_OUT, SPRING_SNAP } from '@/components/saint/motion';
 import { FONTS, Theme, useTheme } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
@@ -272,9 +277,17 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
   const cardFade = useSharedValue(1);
   const cardLift = useSharedValue(0);
   const glowIntensity = useSharedValue(0.55);
+  // The card follows your finger sideways, tilting a touch, when you swipe between requests.
+  const { width: screenW } = useWindowDimensions();
+  const dragX = useSharedValue(0);
+  const swipeArmed = useSharedValue(0);
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardFade.get(),
-    transform: [{ translateY: cardLift.get() }],
+    transform: [
+      { translateX: dragX.get() },
+      { translateY: cardLift.get() },
+      { rotate: `${(dragX.get() / screenW) * 5}deg` },
+    ],
   }));
 
   const loadFeed = useCallback(
@@ -366,6 +379,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     setNoteOpen(false);
     setNote('');
     setNoteError(null);
+    softHaptic();
     if (simple) return;
     // The next card rises in from just below.
     cardLift.set(withSequence(withTiming(12, { duration: 0 }), withTiming(0, { duration: 300, easing: EASE_OUT })));
@@ -388,8 +402,57 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: NIGHT.bg }} />;
 
+  // A swiped card has already left to one side: the next one slides in from the other and settles.
+  const showSwipedCard = (next: number, dir: number) => {
+    setIndex(next);
+    setNoteOpen(false);
+    setNote('');
+    setNoteError(null);
+    softHaptic();
+    dragX.set(withSequence(withTiming(dir * 56, { duration: 0 }), withSpring(0, SPRING_SNAP)));
+    cardFade.set(withTiming(1, { duration: 240, easing: EASE_OUT }));
+  };
+
+  // Swipe left for the next request, right for the one before. Past the line you feel a tick; let go and it goes.
+  const SWIPE_LINE = 90;
+  const canPrev = index > 0;
+  const canNext = index + 1 < requests.length;
+  const swipe = Gesture.Pan()
+    .enabled(!simple && !noteOpen && !noteSending && !!req)
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-12, 12])
+    .onUpdate(e => {
+      const x = e.translationX;
+      const blocked = (x > 0 && !canPrev) || (x < 0 && !canNext);
+      // Nowhere to go that way: rising friction instead of a hard stop.
+      dragX.set(blocked ? (x * 60) / (60 + Math.abs(x)) : x);
+      const armed = !blocked && Math.abs(x) > SWIPE_LINE ? Math.sign(x) : 0;
+      if (armed !== swipeArmed.get()) {
+        swipeArmed.set(armed);
+        if (armed !== 0) scheduleOnRN(authHaptic, 'select');
+      }
+    })
+    .onEnd(e => {
+      const x = e.translationX;
+      const fling = Math.abs(e.velocityX) > 700 && Math.sign(e.velocityX) === Math.sign(x);
+      const blocked = (x > 0 && !canPrev) || (x < 0 && !canNext);
+      swipeArmed.set(0);
+      if (!blocked && x !== 0 && (Math.abs(x) > SWIPE_LINE || fling)) {
+        const dir = x < 0 ? 1 : -1;
+        const target = index + dir;
+        scheduleOnRN(authHaptic, 'press');
+        dragX.set(withTiming(-dir * screenW * 0.7, { duration: 180, easing: EASE_OUT }));
+        cardFade.set(withTiming(0, { duration: 160, easing: EASE_OUT }, finished => {
+          if (finished) scheduleOnRN(showSwipedCard, target, dir);
+        }));
+      } else {
+        dragX.set(withSpring(0, SPRING_SNAP));
+      }
+    });
+
   const onPray = async () => {
     if (!req || !session || praying.current.has(req.id) || prayedIds.has(req.id)) return;
+    prayerHaptic();
     praying.current.add(req.id);
     setPrayerErrorId(null);
     // Optimistic light
@@ -413,6 +476,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     }
     if (error) {
       // Roll back on failure, and let them try again
+      authHaptic('error');
       praying.current.delete(req.id);
       setPrayerErrorId(req.id);
       setPrayedIds(prev => {
@@ -450,10 +514,12 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
     });
     setNoteSending(false);
     if (error) {
+      authHaptic('error');
       setNoteError(error.message);
       return;
     }
     if (data?.ok === false) {
+      authHaptic('error');
       setNoteError(
         data.reason === 'moderation_blocked'
           ? 'Couldn’t send — try rewording your note.'
@@ -461,6 +527,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
       );
       return;
     }
+    authHaptic('success');
     setNote('');
     setNotesSent(prev => {
       const next = new Set(prev);
@@ -525,6 +592,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
         ) : (
           <>
         {/* Body */}
+        <GestureDetector gesture={swipe}>
         <Animated.View
           style={[styles.body, !simple && cardStyle]}>
           <ScrollView
@@ -558,18 +626,19 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
             </View>
           </ScrollView>
         </Animated.View>
+        </GestureDetector>
 
         {/* Action area */}
         <View style={styles.actions}>
           {!lit ? (
             <>
               {simple && prayerErrorId === req.id && <Text accessibilityRole="alert" style={styles.simpleError}>Couldn’t record your prayer. Try again.</Text>}
-              <Pressable accessibilityRole="button" onPress={onPray} style={({ pressed }) => [styles.lightBtn, simple && styles.simpleButton, pressed && { opacity: 0.85 }]}>
+              <PressScale haptic={null} scaleTo={0.96} accessibilityRole="button" onPress={onPray} style={[styles.lightBtn, simple && styles.simpleButton]}>
                 {!simple && <View style={styles.lightBtnDot} />}
                 <Text style={simple ? [styles.simpleButtonText, { color: THEME.accentInk }] : styles.lightBtnText}>
                   {simple ? 'I prayed' : 'Light a candle'}
                 </Text>
-              </Pressable>
+              </PressScale>
             </>
           ) : (
             <View style={{ gap: 12 }}>
