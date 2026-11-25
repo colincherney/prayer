@@ -22,13 +22,18 @@ import Animated, {
   interpolate,
   Extrapolation,
   SharedValue,
+  FadeIn,
+  FadeInDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets/JournalArt';
 import { useAppDisplay } from '@/components/saint/appDisplay';
+import { authHaptic } from '@/components/saint/authHaptics';
 import { PrimaryButton } from '@/components/saint/Common';
+import { PressScale, SlidingSegments } from '@/components/saint/GroupKit';
+import { ArrowIcon, BackIcon, CloseIcon, PenIcon } from '@/components/saint/Icons';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { useTheme, FONTS } from '@/components/saint/theme';
 import { supabase } from '@/lib/supabase';
@@ -145,28 +150,58 @@ function formatEntryDateLong(iso: string): string {
 
 // ── Small components ──────────────────────────────────────────────────────────
 
-function ThemeDot({ themeId, size = 8 }: { themeId: string; size?: number }) {
-  const t = ENTRY_THEMES.find(th => th.id === themeId);
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** Text and icons placed on the accent: the dark themes' accent is a light tan, so they take the dark ground. */
+function useOnAccent() {
   const { theme: THEME } = useTheme();
+  return THEME.isDark ? THEME.bg : THEME.accentInk;
+}
+
+function themeOf(id: string) {
+  return ENTRY_THEMES.find(t => t.id === id) ?? ENTRY_THEMES[ENTRY_THEMES.length - 1];
+}
+
+function ThemeDot({ themeId, size = 8 }: { themeId: string; size?: number }) {
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: themeOf(themeId).color }} />;
+}
+
+function DotsIcon({ color, size = 18 }: { color: string; size?: number }) {
   return (
-    <View style={{
-      width: size, height: size, borderRadius: size / 2,
-      backgroundColor: t?.color ?? THEME.accent,
-    }} />
+    <Svg width={size} height={size} viewBox="0 0 18 18">
+      <Circle cx={4} cy={9} r={1.5} fill={color} />
+      <Circle cx={9} cy={9} r={1.5} fill={color} />
+      <Circle cx={14} cy={9} r={1.5} fill={color} />
+    </Svg>
   );
 }
 
-function FilterChip({ active, onPress, glyph, children }: {
-  active: boolean; onPress: () => void; glyph?: string; children: string;
+/** An open book, for scripture. */
+function BookIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 6.5 C10.2 5.2 7.4 4.8 4 5.2 V18.4 C7.4 18 10.2 18.4 12 19.7 C13.8 18.4 16.6 18 20 18.4 V5.2 C16.6 4.8 13.8 5.2 12 6.5 Z" />
+      <Path d="M12 6.5 V19.6" />
+    </Svg>
+  );
+}
+
+function FilterChip({ active, onPress, color, children }: {
+  active: boolean; onPress: () => void; color?: string; children: string;
 }) {
   const { theme: THEME } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.chip, {
-      borderColor: active ? THEME.accent : THEME.line,
-      backgroundColor: active ? THEME.accent + '18' : 'transparent',
-    }]}>
-      {glyph ? <Text style={[styles.chipGlyph, { color: active ? THEME.accent : THEME.muted }]}>{glyph}</Text> : null}
-      <Text style={[styles.chipLabel, { color: active ? THEME.accent : THEME.muted }]}>{children}</Text>
+    <Pressable
+      onPress={() => { if (!active) authHaptic('select'); onPress(); }}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={[styles.chip, {
+        backgroundColor: active ? THEME.ink : THEME.surface,
+        borderColor: active ? THEME.ink : THEME.line,
+      }]}>
+      {color ? <View style={[styles.chipDot, { backgroundColor: color }]} /> : null}
+      <Text style={[styles.chipLabel, { color: active ? THEME.bg : THEME.inkSoft }]}>{children}</Text>
     </Pressable>
   );
 }
@@ -175,78 +210,81 @@ function FilterChip({ active, onPress, glyph, children }: {
 function BibleVersionPicker({ version, onSelect }: { version: BibleVersion; onSelect: (v: BibleVersion) => void }) {
   const { theme: THEME } = useTheme();
   return (
-    <View style={styles.versionRow}>
-      {(['KJV', 'CPVD'] as BibleVersion[]).map(v => (
-        <Pressable key={v} onPress={() => onSelect(v)} style={[styles.versionChip, {
-          borderColor: version === v ? THEME.accent : THEME.line,
-          backgroundColor: version === v ? THEME.accent + '18' : 'transparent',
-        }]}>
-          <Text style={[styles.versionChipText, { color: version === v ? THEME.accent : THEME.muted }]}>
-            {v === 'CPVD' ? 'Catholic' : 'KJV'}
-          </Text>
-        </Pressable>
-      ))}
-      <Text style={[styles.versionNote, { color: THEME.muted }]}>More versions coming soon</Text>
+    <View style={styles.versionBlock}>
+      <Text style={[styles.versionLabel, { color: THEME.ink }]}>Bible for verses</Text>
+      <SlidingSegments
+        theme={THEME}
+        value={version}
+        onChange={onSelect}
+        segments={[
+          { key: 'KJV', label: 'King James' },
+          { key: 'CPVD', label: 'Catholic' },
+        ]}
+      />
     </View>
   );
 }
 
-// ── Prompt card ───────────────────────────────────────────────────────────────
-function PromptCard({ onNew }: { onNew: () => void }) {
+// ── Compose card: the way in to a new entry ───────────────────────────────────
+function ComposeCard({ onNew }: { onNew: () => void }) {
   const { theme: THEME } = useTheme();
+  const onAccent = useOnAccent();
   return (
-    <View style={[styles.promptCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
-      <View style={[styles.promptIconWrap, { borderColor: THEME.accent + '77', backgroundColor: THEME.pillBg }]}>
-        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth={1.6}>
-          <Path d="M14 4l6 6-10 10H4v-6L14 4z" />
-          <Path d="M13 5l6 6" />
-        </Svg>
-      </View>
+    <PressScale
+      onPress={onNew}
+      scaleTo={0.98}
+      accessibilityRole="button"
+      accessibilityLabel="Write a new journal entry"
+      style={[styles.composeCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.promptTitle, { color: THEME.ink }]}>What is God teaching you today?</Text>
-        <Text style={[styles.promptBody, { color: THEME.muted }]}>
-          Write a reflection — your journal builds here alongside your prayers.
-        </Text>
+        <Text style={[styles.composePrompt, { color: THEME.ink }]}>What is God teaching you today?</Text>
+        <Text style={[styles.composeHint, { color: THEME.inkSoft }]}>Tap to write. Private to you.</Text>
       </View>
-      <Pressable onPress={onNew} style={[styles.promptButton, {
-        backgroundColor: THEME.accent,
-        shadowColor: THEME.accent,
-      }]}>
-        <Text style={[styles.promptPlus, { color: THEME.cardDarkInk }]}>+</Text>
-      </Pressable>
-    </View>
+      <View style={[styles.composeBtn, { backgroundColor: THEME.accent, shadowColor: THEME.accent }]}>
+        <PenIcon size={19} color={onAccent} />
+      </View>
+    </PressScale>
   );
 }
 
 // ── Entry card (list) ─────────────────────────────────────────────────────────
-function EntryCard({ entry, onOpen }: { entry: Entry; onOpen: (e: Entry) => void }) {
+function EntryCard({ entry, onOpen, index }: { entry: Entry; onOpen: (e: Entry) => void; index: number }) {
   const { theme: THEME } = useTheme();
-  const entryTheme = ENTRY_THEMES.find(t => t.id === entry.theme);
+  const t = themeOf(entry.theme);
+  const d = entry.createdAt ? new Date(entry.createdAt) : null;
 
   return (
-    <Pressable onPress={() => onOpen(entry)}
-      style={[styles.entryCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
-
-      <View style={styles.entryCardTop}>
-        <Text style={[styles.entryCardDate, { color: THEME.muted }]}>{entry.dateLong}</Text>
-        <View style={[styles.entryCardBadge, { borderColor: THEME.accent + '66' }]}>
-          <ThemeDot themeId={entry.theme} size={6} />
-          <Text style={[styles.entryCardBadgeText, { color: THEME.accent }]}>{entryTheme?.label}</Text>
+    <Animated.View entering={FadeInDown.duration(300).delay(Math.min(index, 6) * 40)}>
+      <PressScale
+        onPress={() => onOpen(entry)}
+        haptic={null}
+        scaleTo={0.98}
+        accessibilityRole="button"
+        accessibilityLabel={`${entry.title}, ${entry.dateLong}`}
+        style={[styles.entryCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+        <View style={styles.entryDate}>
+          <Text style={[styles.entryDay, { color: THEME.ink }]}>{d ? d.getDate() : ''}</Text>
+          <Text style={[styles.entryMonth, { color: THEME.inkSoft }]}>{d ? MONTHS_SHORT[d.getMonth()] : ''}</Text>
         </View>
-      </View>
-
-      <Text style={[styles.entryCardTitle, { color: THEME.ink }]}>{entry.title}</Text>
-
-      <Text style={[styles.entryCardBody, { color: THEME.inkSoft }]} numberOfLines={2}>
-        {entry.body}
-      </Text>
-
-      <View style={styles.entryCardFooter}>
-        <Text style={[styles.entryCardRef, { color: THEME.accent }]}>
-          {entry.verse ? entry.verse.ref : 'Journal entry'}
-        </Text>
-      </View>
-    </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.entryCardTitle, { color: THEME.ink }]} numberOfLines={2}>{entry.title}</Text>
+          <Text style={[styles.entryCardBody, { color: THEME.inkSoft }]} numberOfLines={2}>{entry.body}</Text>
+          <View style={styles.entryMeta}>
+            <ThemeDot themeId={entry.theme} size={7} />
+            <Text style={[styles.entryMetaText, { color: THEME.inkSoft }]}>{t.label}</Text>
+            {entry.verse ? (
+              <>
+                <View style={[styles.entryMetaSep, { backgroundColor: THEME.line }]} />
+                <BookIcon size={13} color={THEME.inkSoft} />
+                <Text style={[styles.entryMetaText, { color: THEME.inkSoft, flexShrink: 1 }]} numberOfLines={1}>
+                  {entry.verse.ref}
+                </Text>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </PressScale>
+    </Animated.View>
   );
 }
 
@@ -293,7 +331,7 @@ function EntryDetail({
 
   if (!entry || (simple && !visible)) return null;
 
-  const entryTheme = ENTRY_THEMES.find(t => t.id === entry.theme);
+  const entryTheme = themeOf(entry.theme);
   const displayVerseText = fetchedVerseText ?? entry.verse?.text ?? '';
 
   return (
@@ -302,15 +340,17 @@ function EntryDetail({
       zIndex: 10,
     }, detailAnimStyle]}>
       <ScrollView
-        contentContainerStyle={[{ paddingTop: insets.top + 16, paddingBottom: 40 }, simple && styles.simpleColumn]}
+        contentContainerStyle={[{ paddingTop: insets.top + 8, paddingBottom: 48 }, simple && styles.simpleColumn]}
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.detailNav}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to journal" onPress={onBack} style={[styles.detailNavBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
-            <Text style={[styles.detailNavBtnText, { color: THEME.ink }]}>‹</Text>
-          </Pressable>
-          <Text style={[styles.detailNavDate, { color: THEME.muted }]}>{entry.date.toUpperCase()}</Text>
-          <Pressable
+          <PressScale onPress={onBack} haptic={null} accessibilityRole="button" accessibilityLabel="Back"
+            style={[styles.roundBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+            <BackIcon size={16} color={THEME.ink} />
+          </PressScale>
+          <Text style={[styles.detailNavDate, { color: THEME.inkSoft }]}>{entry.dateLong}</Text>
+          <PressScale
+            haptic={null}
             accessibilityRole="button"
             accessibilityLabel="Entry options"
             onPress={() => Alert.alert('', '', [
@@ -323,47 +363,45 @@ function EntryDetail({
               },
               { text: 'Cancel', style: 'cancel' },
             ])}
-            style={[styles.detailNavBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
-            <Text style={[styles.detailNavBtnText, { color: THEME.ink, fontSize: 18 }]}>⋯</Text>
-          </Pressable>
+            style={[styles.roundBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+            <DotsIcon color={THEME.ink} />
+          </PressScale>
         </View>
 
-        <View style={{ paddingHorizontal: 26 }}>
-          <View style={[styles.detailBadge, { borderColor: THEME.accent + '55' }]}>
-            <ThemeDot themeId={entry.theme} size={7} />
-            <Text style={[styles.detailBadgeText, { color: THEME.accent }]}>
-              {entryTheme?.label.toUpperCase()}
-            </Text>
+        <View style={{ paddingHorizontal: 26, paddingTop: 12 }}>
+          <View style={[styles.detailBadge, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+            <ThemeDot themeId={entry.theme} size={8} />
+            <Text style={[styles.detailBadgeText, { color: THEME.ink }]}>{entryTheme.label}</Text>
           </View>
 
           <Text style={[styles.detailTitle, { color: THEME.ink }]}>
             {entry.title}
-            {!simple && <Text style={[styles.detailTitleDot, { color: THEME.accent }]}>.</Text>}
+            {!simple && <Text style={{ color: THEME.accent }}>.</Text>}
           </Text>
 
           <Text style={[styles.detailBody, { color: THEME.inkSoft }]}>{entry.body}</Text>
 
           {entry.verse && (
-            <View style={[styles.detailVerseCard, {
-              backgroundColor: THEME.surface, borderColor: THEME.line,
-            }]}>
-              <View style={[styles.detailVerseBar, { backgroundColor: THEME.accent }]} />
-              <View style={styles.detailVerseLabelRow}>
-                <Text style={[styles.detailVerseLabel, { color: THEME.accent }]}>SCRIPTURE</Text>
-                <Text style={[styles.detailVersionBadge, { color: THEME.muted }]}>
-                  {bibleVersion === 'KJV' ? 'King James' : 'Catholic Bible'}
-                </Text>
-              </View>
+            <View style={[styles.detailVerseCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+              <BookIcon size={20} color={THEME.accent} />
               {verseLoading ? (
-                <ActivityIndicator size="small" color={THEME.accent} style={{ marginVertical: 10 }} />
+                <ActivityIndicator size="small" color={THEME.accent} style={{ marginVertical: 14, alignSelf: 'flex-start' }} />
               ) : (
-                <Text style={[styles.detailVerseText, { color: THEME.ink }]}>"{displayVerseText}"</Text>
+                <Text style={[styles.detailVerseText, { color: THEME.ink }]}>{displayVerseText}</Text>
               )}
-              <Text style={[styles.detailVerseRef, { color: THEME.muted }]}>— {entry.verse.ref}</Text>
+              <Text style={[styles.detailVerseRef, { color: THEME.inkSoft }]}>
+                {entry.verse.ref}
+                {' · '}
+                {bibleVersion === 'KJV' ? 'King James' : 'Catholic Bible'}
+              </Text>
             </View>
           )}
 
-          {!simple && <Text style={[styles.detailDivider, { color: THEME.muted }]}>✥ ✥ ✥</Text>}
+          {!simple && (
+            <View style={{ alignItems: 'center', marginTop: 30 }}>
+              <JournalFlourish color={THEME.accent} />
+            </View>
+          )}
         </View>
       </ScrollView>
     </Animated.View>
@@ -586,15 +624,16 @@ function VersePicker({ version, onConfirm, onClose }: {
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: THEME.bg, zIndex: 30 }]}>
       {/* Header */}
-      <View style={[styles.vpHeader, { paddingTop: insets.top + 14, borderBottomColor: THEME.line }]}>
-        <Pressable onPress={onClose} style={{ padding: 6 }}>
-          <Text style={[styles.vpCancel, { color: THEME.muted }]}>Cancel</Text>
+      <View style={[styles.vpHeader, { paddingTop: insets.top + 8, borderBottomColor: THEME.line }]}>
+        <Pressable onPress={onClose} accessibilityRole="button" style={styles.textBtn}>
+          <Text style={[styles.vpCancel, { color: THEME.inkSoft }]}>Cancel</Text>
         </Pressable>
-        <Text style={[styles.vpTitle, { color: THEME.accent }]}>✥ PICK A VERSE</Text>
+        <Text style={[styles.vpTitle, { color: THEME.ink }]}>Pick a verse</Text>
         <Pressable
           onPress={() => verseRef && previewText && onConfirm(verseRef, previewText)}
           disabled={!verseRef || !previewText}
-          style={{ padding: 6 }}>
+          accessibilityRole="button"
+          style={styles.textBtn}>
           <Text style={[styles.vpDone, { color: verseRef && previewText ? THEME.accent : THEME.muted }]}>Done</Text>
         </Pressable>
       </View>
@@ -659,6 +698,7 @@ function NewEntryComposer({
   const [verseRef, setVerseRef] = useState('');
   const [versePreviewText, setVersePreviewText] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const onAccent = useOnAccent();
 
   const composerAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: interpolate(anim.get(), [0, 1], [800, 0], Extrapolation.CLAMP) }],
@@ -688,20 +728,21 @@ function NewEntryComposer({
       zIndex: 20,
     }, composerAnimStyle]}>
       <KeyboardAvoidingView style={[{ flex: 1 }, simple && styles.simpleColumn]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={[styles.composerHeader, { paddingTop: insets.top + 16, borderBottomColor: THEME.line }]}>
-          <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }}>
-            <Text style={[styles.composerCancel, { color: THEME.muted }]}>Cancel</Text>
+        <View style={[styles.composerHeader, { paddingTop: insets.top + 8, borderBottomColor: THEME.line }]}>
+          <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }} accessibilityRole="button" style={styles.textBtn}>
+            <Text style={[styles.composerCancel, { color: THEME.inkSoft }]}>Cancel</Text>
           </Pressable>
-          <Text style={[styles.composerTitle, { color: THEME.accent }]}>
-            {!simple && '✥ '}{isEdit ? 'EDIT ENTRY' : 'NEW JOURNAL ENTRY'}
-          </Text>
-          <Pressable
+          <Text style={[styles.composerTitle, { color: THEME.ink }]}>{isEdit ? 'Edit entry' : 'New entry'}</Text>
+          <PressScale
             onPress={() => { if (canSave) onSave({ title, body, theme, verseRef }, editEntry?.id); }}
-            style={[styles.composerSaveBtn, { backgroundColor: canSave ? THEME.accent : THEME.surface }]}>
-            <Text style={[styles.composerSaveText, { color: canSave ? (simple ? THEME.accentInk : THEME.cardDarkInk) : THEME.muted }]}>
+            disabled={!canSave}
+            haptic={canSave ? 'success' : null}
+            accessibilityRole="button"
+            style={[styles.composerSaveBtn, { backgroundColor: canSave ? THEME.accent : THEME.line }]}>
+            <Text style={[styles.composerSaveText, { color: canSave ? onAccent : THEME.inkSoft }]}>
               {isEdit ? 'Update' : 'Save'}
             </Text>
-          </Pressable>
+          </PressScale>
         </View>
 
         <ScrollView
@@ -710,76 +751,79 @@ function NewEntryComposer({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
 
-          <Text style={[styles.composerLabel, { color: THEME.muted }]}>TITLE</Text>
           <TextInput
-            accessibilityLabel="Title"
             value={title} onChangeText={setTitle}
-            placeholder="A line for today's page"
+            placeholder="Title"
             placeholderTextColor={THEME.muted}
+            selectionColor={THEME.accent}
+            accessibilityLabel="Title"
             keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
             editable={visible}
-            style={[styles.composerTitleInput, { color: THEME.ink, borderBottomColor: THEME.line }]}
+            style={[styles.composerTitleInput, { color: THEME.ink }]}
           />
 
-          {!simple && <>
-          <Text style={[styles.composerLabel, { color: THEME.muted }]}>CATEGORY</Text>
-          <View style={styles.composerChips}>
-            {ENTRY_THEMES.map(t => (
-              <FilterChip key={t.id} active={theme === t.id} glyph={t.glyph}
-                onPress={() => setTheme(t.id)}>{t.label}</FilterChip>
-            ))}
-          </View>
-          </>}
-
-          <Text style={[styles.composerLabel, { color: THEME.muted }]}>{simple ? 'ENTRY' : 'WHAT HAPPENED WITH GOD TODAY?'}</Text>
           <TextInput
-            accessibilityLabel="Journal entry"
             value={body} onChangeText={setBody}
-            placeholder={simple ? 'Write a private reflection…' : 'Write plainly. This is your journal — nobody sees it unless you choose to share.'}
+            placeholder={simple ? 'Write a private reflection…' : 'What happened with God today? Write plainly. Nobody sees it unless you choose to share.'}
             placeholderTextColor={THEME.muted}
+            selectionColor={THEME.accent}
+            accessibilityLabel="Journal entry"
             keyboardAppearance={simple && THEME.isDark ? 'dark' : 'default'}
             multiline
             editable={visible}
-            style={[styles.composerBodyInput, {
-              color: THEME.ink, backgroundColor: THEME.surface, borderColor: THEME.line,
-            }]}
+            style={[styles.composerBodyInput, { color: THEME.ink }]}
           />
 
           {!simple && <>
-          <Text style={[styles.composerLabel, { color: THEME.muted }]}>VERSE (OPTIONAL)</Text>
-          <Pressable
+          <Text style={[styles.composerLabel, { color: THEME.ink }]}>Category</Text>
+          <View style={styles.composerChips}>
+            {ENTRY_THEMES.map(t => (
+              <FilterChip key={t.id} active={theme === t.id} color={t.color}
+                onPress={() => setTheme(t.id)}>{t.label}</FilterChip>
+            ))}
+          </View>
+
+          <Text style={[styles.composerLabel, { color: THEME.ink }]}>Verse</Text>
+          <PressScale
             onPress={() => setPickerOpen(true)}
+            haptic={null}
+            scaleTo={0.98}
+            accessibilityRole="button"
+            accessibilityLabel={verseRef ? `Verse ${verseRef}. Change` : 'Pick a verse from scripture'}
             style={[styles.composerVersePick, {
               backgroundColor: THEME.surface,
-              borderColor: verseRef ? THEME.accent + '77' : THEME.line,
+              borderColor: verseRef ? THEME.accent : THEME.line,
             }]}>
-            <Text style={{ color: THEME.accent, fontSize: 16 }}>✥</Text>
+            <BookIcon size={20} color={verseRef ? THEME.accent : THEME.inkSoft} />
             {verseRef ? (
               <View style={{ flex: 1 }}>
-                <Text style={[styles.composerVerseRef, { color: THEME.accent }]}>{verseRef}</Text>
+                <Text style={[styles.composerVerseRef, { color: THEME.ink }]}>{verseRef}</Text>
                 {versePreviewText ? (
                   <Text style={[styles.composerVersePreview, { color: THEME.inkSoft }]} numberOfLines={2}>
-                    "{versePreviewText}"
+                    {versePreviewText}
                   </Text>
                 ) : null}
               </View>
             ) : (
-              <Text style={[styles.composerVersePlaceholder, { color: THEME.muted }]}>
-                Pick a verse from scripture
+              <Text style={[styles.composerVersePlaceholder, { color: THEME.inkSoft }]}>
+                Add a verse (optional)
               </Text>
             )}
             {verseRef ? (
-              <Pressable onPress={(e) => { e.stopPropagation(); setVerseRef(''); setVersePreviewText(''); }}
-                hitSlop={10}>
-                <Text style={{ color: THEME.muted, fontSize: 15, paddingLeft: 8 }}>✕</Text>
+              <Pressable
+                onPress={(e) => { e.stopPropagation(); setVerseRef(''); setVersePreviewText(''); }}
+                accessibilityRole="button"
+                accessibilityLabel="Remove verse"
+                style={styles.verseClear}>
+                <CloseIcon size={16} color={THEME.inkSoft} />
               </Pressable>
             ) : (
-              <Text style={{ color: THEME.muted, fontSize: 18 }}>›</Text>
+              <ArrowIcon size={16} color={THEME.inkSoft} />
             )}
-          </Pressable>
+          </PressScale>
 
-          <Text style={[styles.composerQuote, { color: THEME.muted }]}>
-            "Write the vision; make it plain on tablets." — Habakkuk 2:2
+          <Text style={[styles.composerQuote, { color: THEME.inkSoft }]}>
+            &ldquo;Write the vision; make it plain on tablets.&rdquo; Habakkuk 2:2
           </Text>
           </>}
         </ScrollView>
@@ -877,15 +921,17 @@ function CalendarView({
     <View style={[styles.calWrap, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
       {/* Month nav */}
       <View style={styles.calNavRow}>
-        <Pressable onPress={prevMonth} style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
-          <Text style={[styles.calNavArrow, { color: THEME.ink }]}>‹</Text>
+        <Pressable onPress={prevMonth} accessibilityRole="button" accessibilityLabel="Previous month"
+          style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
+          <BackIcon size={14} color={THEME.ink} />
         </Pressable>
         <Text style={[styles.calMonthLabel, { color: THEME.ink }]}>
           {CAL_MONTHS[calMonth.month]}{' '}
           <Text style={{ color: THEME.accent }}>{calMonth.year}</Text>
         </Text>
-        <Pressable onPress={nextMonth} style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
-          <Text style={[styles.calNavArrow, { color: THEME.ink }]}>›</Text>
+        <Pressable onPress={nextMonth} accessibilityRole="button" accessibilityLabel="Next month"
+          style={[styles.calNavBtn, { backgroundColor: THEME.bg, borderColor: THEME.line }]}>
+          <ArrowIcon size={14} color={THEME.ink} />
         </Pressable>
       </View>
 
@@ -898,19 +944,9 @@ function CalendarView({
 
       {/* Weeks */}
       {weeks.map((week, wi) => {
-        // Week dominant color for the side bar
-        const weekKeys = week
-          .filter((d): d is number => d !== null)
-          .map(d => `${monthPrefix}-${pad(d)}`);
-        const weekThemes = weekKeys.flatMap(k => dayMap[k]?.themes ?? []);
-        const wCounts: Record<string, number> = {};
-        weekThemes.forEach(t => { wCounts[t] = (wCounts[t] ?? 0) + 1; });
-        const wTopId = Object.entries(wCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-        const wColor = ENTRY_THEMES.find(t => t.id === wTopId)?.color;
 
         return (
           <View key={wi} style={styles.calWeekRow}>
-            <View style={[styles.calWeekBar, { backgroundColor: wColor ? wColor + '66' : 'transparent' }]} />
             {week.map((day, di) => {
               if (day === null) return <View key={di} style={styles.calCell} />;
               const dateKey = `${monthPrefix}-${pad(day)}`;
@@ -932,7 +968,7 @@ function CalendarView({
                   ]}>
                     <Text style={[
                       styles.calDayNum,
-                      { color: isSelected ? THEME.cardDarkInk : info ? THEME.ink : THEME.muted + '99' },
+                      { color: isSelected ? (THEME.isDark ? THEME.bg : THEME.accentInk) : info ? THEME.ink : THEME.muted },
                       isToday && !isSelected && { color: THEME.accent, fontFamily: FONTS.bodySemi },
                     ]}>
                       {day}
@@ -974,8 +1010,8 @@ function CalendarView({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BiographyScreen() {
-  const { simple } = useAppDisplay();
   const fontsLoaded = useSaintFonts();
+  const { simple } = useAppDisplay();
   const { theme: THEME } = useTheme();
   // Guests have a real (anonymous) account too, so their journal is saved like anyone's, and comes with them if they
   // create an account later.
@@ -1117,27 +1153,25 @@ export default function BiographyScreen() {
 
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
 
+  const selectedLabel = selectedDate
+    ? (() => { const d = new Date(selectedDate + 'T12:00:00'); return `${CAL_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; })()
+    : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: THEME.bg }}>
-      <StatusBar barStyle={simple && THEME.isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[{ paddingTop: insets.top + 8, paddingBottom: simple ? insets.bottom + 28 : 110 }, simple && styles.simpleColumn]}
         showsVerticalScrollIndicator={false}>
 
-        {/* Brand / nav row */}
-        <View style={styles.brandRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={[styles.backBtn, {
-            backgroundColor: THEME.surface,
-            borderColor: THEME.line,
-          }]}>
-            <Text style={[styles.backBtnText, { color: THEME.ink }]}>‹</Text>
-          </Pressable>
-          <Text style={[styles.brandText, { color: THEME.ink }]}>
-            Saint <Text style={{ fontFamily: FONTS.body }}>Central</Text>
-          </Text>
-          <View style={{ width: 38 }} />
+        {/* Top bar */}
+        <View style={styles.topBar}>
+          <PressScale onPress={() => router.back()} haptic={null} accessibilityRole="button" accessibilityLabel="Back"
+            style={[styles.roundBtn, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
+            <BackIcon size={16} color={THEME.ink} />
+          </PressScale>
         </View>
 
         {simple ? (
@@ -1146,71 +1180,61 @@ export default function BiographyScreen() {
             <PrimaryButton label="New entry" onPress={() => setView('new')} />
           </View>
         ) : <>
-        {/* Header with book icon */}
-        <View style={styles.heroRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.heroTitle, { color: THEME.ink }]}>My</Text>
-            <Text style={[styles.heroTitleItalic, { color: THEME.accent }]}>Biography</Text>
-            <Text style={[styles.heroSubtitle, { color: THEME.muted }]}>
-              A journal of your walk with God — prayers, reflections, answered moments.
-            </Text>
-            <BibleVersionPicker version={bibleVersion} onSelect={setBibleVersion} />
-          </View>
+        {/* Title */}
+        <View style={styles.titleBlock}>
+          <Text style={[styles.heroTitle, { color: THEME.ink }]}>
+            My <Text style={{ color: THEME.accent }}>Biography</Text>
+          </Text>
+          <Text style={[styles.heroSubtitle, { color: THEME.inkSoft }]}>
+            A journal of your walk with God: prayers, reflections, answered moments.
+          </Text>
         </View>
 
         {/* The study: your companion keeps you company at the desk while you write. */}
-        <View style={{ paddingHorizontal: 22, marginTop: 14 }}>
-          <JournalDesk width={screenW - 44} accent={THEME.accent} entryCount={allEntries.length} />
+        <View style={{ paddingHorizontal: 16 }}>
+          <View style={styles.deskShadow}>
+            <JournalDesk width={screenW - 32} accent={THEME.accent} entryCount={allEntries.length} />
+          </View>
         </View>
 
-        {/* Write new entry prompt */}
-        <View style={{ paddingHorizontal: 22, marginTop: 10 }}>
-          <PromptCard onNew={() => setView('new')} />
+        {/* Write a new entry */}
+        <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
+          <ComposeCard onNew={() => setView('new')} />
         </View>
 
-        {/* Journal section header */}
+        {/* Journal section */}
         <View style={styles.sectionHeader}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: THEME.ink }]}>Your journal</Text>
-            <Text style={[styles.sectionSubtitle, { color: THEME.muted }]}>
-              {selectedDate
-                ? (() => { const d = new Date(selectedDate + 'T12:00:00'); return `${CAL_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; })()
-                : 'Prayer reflections + your own entries'}
-            </Text>
-          </View>
-          <View style={styles.viewToggle}>
-            <Pressable
-              onPress={() => { setJournalView('list'); setSelectedDate(null); }}
-              style={[styles.viewToggleBtn, {
-                backgroundColor: journalView === 'list' ? THEME.accent : 'transparent',
-                borderColor: journalView === 'list' ? THEME.accent : THEME.line,
-              }]}>
-              <Text style={[styles.viewToggleText, {
-                color: journalView === 'list' ? THEME.cardDarkInk : THEME.muted,
-              }]}>List</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setJournalView('calendar')}
-              style={[styles.viewToggleBtn, {
-                backgroundColor: journalView === 'calendar' ? THEME.accent : 'transparent',
-                borderColor: journalView === 'calendar' ? THEME.accent : THEME.line,
-              }]}>
-              <Text style={[styles.viewToggleText, {
-                color: journalView === 'calendar' ? THEME.cardDarkInk : THEME.muted,
-              }]}>Calendar</Text>
-            </Pressable>
-          </View>
+          <Text style={[styles.sectionTitle, { color: THEME.ink }]}>Your journal</Text>
+          <Text style={[styles.sectionCount, { color: THEME.inkSoft }]}>
+            {allEntries.length} {allEntries.length === 1 ? 'entry' : 'entries'}
+          </Text>
+        </View>
+        <View style={{ paddingHorizontal: 16 }}>
+          <SlidingSegments
+            theme={THEME}
+            value={journalView}
+            onChange={v => { setJournalView(v); if (v === 'list') setSelectedDate(null); }}
+            segments={[
+              { key: 'list', label: 'List' },
+              { key: 'calendar', label: 'Calendar' },
+            ]}
+          />
         </View>
 
         {/* Calendar */}
         {journalView === 'calendar' && (
-          <CalendarView
-            entries={allEntries}
-            calMonth={calMonth}
-            setCalMonth={setCalMonth}
-            selectedDate={selectedDate}
-            onDayPress={setSelectedDate}
-          />
+          <Animated.View entering={FadeIn.duration(220)} style={{ marginTop: 14 }}>
+            <CalendarView
+              entries={allEntries}
+              calMonth={calMonth}
+              setCalMonth={setCalMonth}
+              selectedDate={selectedDate}
+              onDayPress={setSelectedDate}
+            />
+            {selectedLabel ? (
+              <Text style={[styles.selectedDay, { color: THEME.inkSoft }]}>{selectedLabel}</Text>
+            ) : null}
+          </Animated.View>
         )}
 
         {/* Filter chips — only in list mode */}
@@ -1221,7 +1245,7 @@ export default function BiographyScreen() {
             contentContainerStyle={styles.chipsRow}>
             <FilterChip active={activeTheme === 'all'} onPress={() => setActiveTheme('all')}>All</FilterChip>
             {ENTRY_THEMES.map(t => (
-              <FilterChip key={t.id} active={activeTheme === t.id} glyph={t.glyph}
+              <FilterChip key={t.id} active={activeTheme === t.id} color={t.color}
                 onPress={() => setActiveTheme(t.id)}>{t.label}</FilterChip>
             ))}
           </ScrollView>
@@ -1229,24 +1253,24 @@ export default function BiographyScreen() {
         </>}
 
         {/* Entry list */}
-        <View style={{ paddingHorizontal: 22, marginTop: journalView === 'calendar' ? 14 : 0 }}>
-          {loading ? (
+        <View key={`${journalView}-${activeTheme}-${selectedDate ?? ''}`} style={{ paddingHorizontal: 16, marginTop: journalView === 'calendar' ? 14 : 0, gap: 10 }}>
+          {loading && allEntries.length === 0 ? (
             <View style={{ paddingVertical: 48, alignItems: 'center' }}>
               <ActivityIndicator color={THEME.accent} />
             </View>
           ) : (
             <>
-              {filtered.map(e => (
-                <EntryCard key={e.id} entry={e}
+              {filtered.map((e, i) => (
+                <EntryCard key={e.id} entry={e} index={i}
                   onOpen={entry => { setOpenEntry(entry); setView('detail'); }} />
               ))}
-              {!simple && filtered.length === 0 && !loading && allEntries.length === 0 && (
+              {!simple && filtered.length === 0 && allEntries.length === 0 && (
                 <View style={{ alignItems: 'center', marginTop: 18 }}>
                   <JournalEmptyArt accent={THEME.accent} />
                 </View>
               )}
-              {filtered.length === 0 && !loading && (
-                <Text style={[styles.emptyState, { color: THEME.muted }]}>
+              {filtered.length === 0 && (
+                <Text style={[styles.emptyState, { color: THEME.inkSoft }]}>
                   {allEntries.length === 0
                     ? (simple ? 'Your journal is empty.' : 'Your journal is empty.\nShare a prayer or write your first entry.')
                     : selectedDate
@@ -1256,16 +1280,17 @@ export default function BiographyScreen() {
               )}
             </>
           )}
+        </View>
 
-          {!simple && <>
+        {!simple && <View style={{ paddingHorizontal: 16 }}>
+          <BibleVersionPicker version={bibleVersion} onSelect={setBibleVersion} />
           <View style={{ alignItems: 'center', marginTop: 28 }}>
             <JournalFlourish color={THEME.accent} />
           </View>
-          <Text style={[styles.footer, { color: THEME.muted, marginTop: 6 }]}>
+          <Text style={[styles.footer, { color: THEME.inkSoft }]}>
             The beginning is in here somewhere.
           </Text>
-          </>}
-        </View>
+        </View>}
       </ScrollView>
 
       <EntryDetail
@@ -1292,148 +1317,79 @@ const styles = StyleSheet.create({
   simpleColumn: { width: '100%', maxWidth: 548, alignSelf: 'center' },
   simpleHeading: { paddingHorizontal: 22, paddingVertical: 18, gap: 18 },
   simpleTitle: { fontFamily: FONTS.displaySemi, fontSize: 36, letterSpacing: -1 },
-  // Brand row
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 22,
-    paddingVertical: 6,
-  },
-  backBtn: {
-    width: 38, height: 38,
-    borderRadius: 19,
+  // Shared
+  roundBtn: {
+    width: 44, height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtnText: {
-    fontSize: 24,
-    lineHeight: 26,
-    fontFamily: FONTS.body,
-    marginTop: -2,
-  },
-  brandText: {
-    fontFamily: FONTS.bodySemi,
-    fontSize: 13,
-    letterSpacing: -0.2,
-  },
-  // Hero
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingTop: 10,
-    paddingBottom: 4,
-    gap: 16,
-  },
+  textBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 6 },
+
+  // Top
+  topBar: { paddingHorizontal: 22, paddingTop: 0 },
+  titleBlock: { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 18 },
   heroTitle: {
     fontFamily: FONTS.display,
-    fontSize: 48,
-    lineHeight: 50,
-    letterSpacing: -1.2,
+    fontSize: 36,
+    lineHeight: 42,
+    letterSpacing: -0.6,
   },
-  heroTitleItalic: {
-    fontFamily: FONTS.display,
-    fontSize: 48,
-    lineHeight: 50,
-    letterSpacing: -1.2,
-  },
-  heroSubtitle: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 8,
-    marginBottom: 2,
+  heroSubtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, marginTop: 6 },
+  deskShadow: {
+    borderRadius: 26,
+    shadowColor: '#2A1A10',
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
 
-  // Bible version picker
-  versionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    flexWrap: 'wrap',
-  },
-  versionChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 99,
-    borderWidth: 1,
-  },
-  versionChipText: { fontFamily: FONTS.bodySemi, fontSize: 11, letterSpacing: 0.6 },
-  versionNote: {
-    fontFamily: FONTS.body,
-    fontSize: 10,
-  },
-
-  // Prompt card
-  promptCard: {
+  // Compose card
+  composeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    padding: 16,
+    paddingVertical: 18,
+    paddingLeft: 20,
+    paddingRight: 16,
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
   },
-  promptIconWrap: {
-    width: 42, height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
+  composePrompt: { fontFamily: FONTS.display, fontSize: 18, lineHeight: 24 },
+  composeHint: { fontFamily: FONTS.body, fontSize: 13, marginTop: 4 },
+  composeBtn: {
+    width: 48, height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-  },
-  promptTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.2,
-  },
-  promptBody: { fontFamily: FONTS.body, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  promptButton: {
-    width: 44, height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 5 },
     elevation: 4,
   },
-  promptPlus: { fontSize: 24, lineHeight: 28, fontFamily: FONTS.body, marginTop: -2 },
 
-  // Section header
+  // Section
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 10,
+    paddingTop: 32,
+    paddingBottom: 12,
   },
-  sectionTitle: { fontFamily: FONTS.display, fontSize: 26, letterSpacing: -0.3 },
-  sectionSubtitle: { fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 },
-  sectionCount: { fontFamily: FONTS.body, fontSize: 12 },
+  sectionTitle: { fontFamily: FONTS.display, fontSize: 24, letterSpacing: -0.3 },
+  sectionCount: { fontFamily: FONTS.body, fontSize: 13, fontVariant: ['tabular-nums'] },
+  selectedDay: { fontFamily: FONTS.bodySemi, fontSize: 13, textAlign: 'center', marginTop: 12 },
 
-  // View toggle
-  viewToggle: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  viewToggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 13,
-    borderRadius: 99,
-    borderWidth: 1,
-  },
-  viewToggleText: { fontFamily: FONTS.bodySemi, fontSize: 12 },
+  // Bible version
+  versionBlock: { marginTop: 32, gap: 10 },
+  versionLabel: { fontFamily: FONTS.bodySemi, fontSize: 14, paddingHorizontal: 6 },
 
   // Calendar
   calWrap: {
-    marginHorizontal: 22,
+    marginHorizontal: 16,
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
@@ -1447,13 +1403,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   calNavBtn: {
-    width: 34, height: 34,
-    borderRadius: 17,
+    width: 44, height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calNavArrow: { fontSize: 20, lineHeight: 24, fontFamily: FONTS.body },
   calMonthLabel: { fontFamily: FONTS.display, fontSize: 20, letterSpacing: -0.4 },
   calDayLabels: {
     flexDirection: 'row',
@@ -1473,14 +1428,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 2,
     position: 'relative',
-  },
-  calWeekBar: {
-    position: 'absolute',
-    left: 4,
-    top: 6,
-    bottom: 6,
-    width: 3,
-    borderRadius: 2,
   },
   calCell: {
     flex: 1,
@@ -1526,197 +1473,154 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-
   // Filter chips
   chipsRow: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 14,
-    gap: 7,
+    gap: 8,
     flexDirection: 'row',
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    gap: 7,
+    minHeight: 36,
+    paddingHorizontal: 14,
     borderRadius: 99,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  chipGlyph: { fontSize: 10, opacity: 0.85 },
-  chipLabel: { fontFamily: FONTS.bodyMed, fontSize: 12.5, letterSpacing: 0.2 },
+  chipDot: { width: 8, height: 8, borderRadius: 4 },
+  chipLabel: { fontFamily: FONTS.bodySemi, fontSize: 13 },
 
   // Entry card
   entryCard: {
-    padding: 18,
-    marginBottom: 12,
+    flexDirection: 'row',
+    gap: 16,
+    paddingVertical: 16,
+    paddingLeft: 16,
+    paddingRight: 18,
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  entryCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  entryCardDate: { fontFamily: FONTS.body, fontSize: 12.5 },
-  entryCardBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 99,
-    borderWidth: 1,
-  },
-  entryCardBadgeText: { fontFamily: FONTS.bodyMed, fontSize: 11, letterSpacing: 0.2 },
+  entryDate: { width: 44, alignItems: 'center', paddingTop: 2 },
+  entryDay: { fontFamily: FONTS.display, fontSize: 28, lineHeight: 32, fontVariant: ['tabular-nums'] },
+  entryMonth: { fontFamily: FONTS.bodySemi, fontSize: 12, marginTop: 1 },
   entryCardTitle: {
     fontFamily: FONTS.display,
-    fontSize: 21,
-    lineHeight: 25,
+    fontSize: 19,
+    lineHeight: 24,
     letterSpacing: -0.2,
-    marginBottom: 8,
   },
-  entryCardBody: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  entryCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  entryCardRef: { fontFamily: FONTS.bodyMed, fontSize: 12.5 },
+  entryCardBody: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, marginTop: 4 },
+  entryMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  entryMetaText: { fontFamily: FONTS.bodySemi, fontSize: 12.5 },
+  entryMetaSep: { width: 1, height: 12, marginHorizontal: 4 },
 
   // Detail
   detailNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    paddingHorizontal: 22,
     paddingBottom: 12,
-    paddingTop: 8,
   },
-  detailNavBtn: {
-    width: 38, height: 38,
-    borderRadius: 19,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailNavBtnText: { fontSize: 22, lineHeight: 24, fontFamily: FONTS.body },
-  detailNavDate: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 2 },
+  detailNavDate: { fontFamily: FONTS.bodySemi, fontSize: 14 },
   detailBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     alignSelf: 'flex-start',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 99,
-    borderWidth: 1,
-    marginBottom: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 18,
   },
-  detailBadgeText: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 1.6 },
+  detailBadgeText: { fontFamily: FONTS.bodySemi, fontSize: 13 },
   detailTitle: {
     fontFamily: FONTS.display,
-    fontSize: 38,
+    fontSize: 36,
     lineHeight: 42,
     letterSpacing: -0.6,
     marginBottom: 18,
   },
-  detailTitleDot: { fontFamily: FONTS.display },
   detailBody: {
     fontFamily: FONTS.display,
     fontSize: 18,
-    lineHeight: 27,
-    letterSpacing: 0.1,
-    marginBottom: 22,
+    lineHeight: 28,
+    marginBottom: 12,
   },
   detailVerseCard: {
-    marginVertical: 16,
-    padding: 20,
+    marginTop: 18,
+    padding: 22,
+    gap: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 22,
-    overflow: 'hidden',
   },
-  detailVerseLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  detailVerseBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
-  detailVerseLabel: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 1.8 },
-  detailVersionBadge: { fontFamily: FONTS.body, fontSize: 10.5 },
-  detailVerseText: {
-    fontFamily: FONTS.display,
-    fontSize: 20,
-    lineHeight: 29,
-  },
-  detailVerseRef: { fontFamily: FONTS.body, fontSize: 13, marginTop: 10 },
-  detailCandleCard: {
-    padding: 16, borderRadius: 22, borderWidth: 1, marginTop: 6,
-  },
-  detailCandleCount: { fontFamily: FONTS.display, fontSize: 19, lineHeight: 23 },
-  detailCandleSub: { fontFamily: FONTS.body, fontSize: 12, marginTop: 4 },
-  detailDivider: {
-    textAlign: 'center',
-    marginTop: 28,
-    fontFamily: FONTS.display,
-    fontSize: 14,
-  },
+  detailVerseText: { fontFamily: FONTS.display, fontSize: 20, lineHeight: 30 },
+  detailVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 13 },
 
   // Composer
   composerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  composerCancel: { fontFamily: FONTS.body, fontSize: 14, padding: 6 },
-  composerTitle: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1.8 },
-  composerSaveBtn: { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 99 },
-  composerSaveText: { fontFamily: FONTS.bodySemi, fontSize: 13 },
-  composerBody: { padding: 22, paddingBottom: 100 },
-  composerLabel: { fontFamily: FONTS.bodySemi, fontSize: 10.5, letterSpacing: 2, marginBottom: 10 },
+  composerCancel: { fontFamily: FONTS.body, fontSize: 15 },
+  composerTitle: { fontFamily: FONTS.bodySemi, fontSize: 16 },
+  composerSaveBtn: {
+    minHeight: 38,
+    minWidth: 76,
+    paddingHorizontal: 18,
+    borderRadius: 99,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerSaveText: { fontFamily: FONTS.bodySemi, fontSize: 14 },
+  composerBody: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 100 },
+  composerLabel: { fontFamily: FONTS.bodySemi, fontSize: 14, marginBottom: 10, marginTop: 8 },
   composerTitleInput: {
     fontFamily: FONTS.display,
-    fontSize: 26,
-    borderBottomWidth: 1,
-    paddingVertical: 6,
+    fontSize: 30,
+    letterSpacing: -0.4,
+    paddingVertical: 4,
     paddingHorizontal: 0,
-    marginBottom: 22,
-    letterSpacing: -0.3,
   },
-  composerChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 22 },
   composerBodyInput: {
     fontFamily: FONTS.display,
-    fontSize: 16,
-    lineHeight: 25,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    padding: 16,
-    minHeight: 160,
+    fontSize: 18,
+    lineHeight: 28,
+    minHeight: 180,
     textAlignVertical: 'top',
+    paddingHorizontal: 0,
+    paddingTop: 10,
     marginBottom: 18,
   },
+  composerChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 22 },
   composerVersePick: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderRadius: 16,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
   },
-  composerVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 13, marginBottom: 4 },
-  composerVersePreview: { fontFamily: FONTS.display, fontSize: 13, lineHeight: 18 },
-  composerVersePlaceholder: { flex: 1, fontFamily: FONTS.body, fontSize: 14 },
+  composerVerseRef: { fontFamily: FONTS.bodySemi, fontSize: 14, marginBottom: 3 },
+  composerVersePreview: { fontFamily: FONTS.display, fontSize: 14, lineHeight: 20 },
+  composerVersePlaceholder: { flex: 1, fontFamily: FONTS.body, fontSize: 15 },
+  verseClear: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -12 },
+  composerQuote: {
+    textAlign: 'center',
+    fontFamily: FONTS.display,
+    fontSize: 13,
+  },
 
   // Verse picker
   vpHeader: {
@@ -1746,15 +1650,10 @@ const styles = StyleSheet.create({
   vpLabel: { fontFamily: FONTS.bodySemi, fontSize: 10, letterSpacing: 1, textAlign: 'center' },
   vpRef: { fontFamily: FONTS.display, fontSize: 22, letterSpacing: -0.3, marginBottom: 14 },
   vpPreview: { fontFamily: FONTS.display, fontSize: 18, lineHeight: 28 },
-  composerQuote: {
-    textAlign: 'center',
-    fontFamily: FONTS.display,
-    fontSize: 13,
-  },
 
   // Footer
   emptyState: {
-    paddingVertical: 36,
+    paddingVertical: 32,
     textAlign: 'center',
     fontFamily: FONTS.display,
     fontSize: 15,
@@ -1762,7 +1661,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     textAlign: 'center',
-    paddingVertical: 24,
+    paddingVertical: 12,
     fontFamily: FONTS.display,
     fontSize: 13,
     lineHeight: 22,

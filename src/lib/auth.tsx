@@ -168,7 +168,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let userId: string | null | undefined;
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      // A saved login the server no longer knows (expired, or signed out elsewhere): drop it on this phone so the
+      // app starts clean at sign-in instead of retrying a dead token.
+      if (error && /refresh token/i.test(error.message)) {
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
       setSession(data.session);
       setLoading(false);
       userId ??= data.session?.user.id ?? null;

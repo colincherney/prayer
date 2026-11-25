@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -10,14 +11,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+
 import { SafeAreaView } from '@/components/saint/SafeArea';
+import { authHaptic } from '@/components/saint/authHaptics';
+import { PressScale } from '@/components/saint/GroupKit';
 
 import { lyingFeetOffset } from '@/components/pets/LyingPets';
 import { PeekingPet } from '@/components/pets/ScreenPet';
-import { Pill, ScreenHeader, SectionLabel } from '@/components/saint/Common';
 import {
   ArrowIcon,
-  GlobeIcon,
+  BackIcon,
+  FlameIcon,
   LockIcon,
   ShieldIcon,
   UsersIcon,
@@ -52,6 +57,9 @@ export default function GroupsScreen() {
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState<string | null>(null); // group id or 'code'
   const [error, setError] = useState<string | null>(null);
+  const [publicError, setPublicError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [codeFocused, setCodeFocused] = useState(false);
 
   // People often paste the whole share message ("Join our prayer circle … use
   // code K7DM3P …") instead of just the code — pull the code out for them.
@@ -134,6 +142,7 @@ export default function GroupsScreen() {
     setJoining('code');
     const { data, error: e } = await supabase.rpc('join_group', { p_code: trimmed });
     setJoining(null);
+    authHaptic(e ? 'error' : 'success');
     if (e) {
       setError(
         e.message.includes('invalid_code')
@@ -148,156 +157,190 @@ export default function GroupsScreen() {
 
   const joinPublic = async (groupId: string) => {
     if (joining) return;
-    setError(null);
+    setPublicError(null);
     setJoining(groupId);
     const { error: e } = await supabase.rpc('join_group', { p_group_id: groupId });
     setJoining(null);
+    authHaptic(e ? 'error' : 'success');
     if (e) {
-      setError(e.message);
+      setPublicError('Couldn’t join that circle. Check your connection and try again.');
       return;
     }
     router.push({ pathname: '/group/[id]', params: { id: groupId } });
   };
 
-  const GroupCard = ({ group, mine }: { group: GroupRow; mine: boolean }) => (
+
+  // One row of an inset grouped list: your groups open, open circles join.
+  const GroupRowItem = ({ group, mine, last }: { group: GroupRow; mine: boolean; last: boolean }) => (
     <Pressable
       onPress={() =>
         mine
           ? router.push({ pathname: '/group/[id]', params: { id: group.id } })
           : joinPublic(group.id)
       }
-      style={({ pressed }) => [styles.groupCard, pressed && { opacity: 0.85 }]}>
-      <View style={styles.groupChip}>
+      accessibilityRole="button"
+      accessibilityLabel={mine ? `Open ${group.name}` : `Join ${group.name}`}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: THEME.bgSoft }]}>
+      <View style={styles.rowChip}>
         {group.is_public ? (
-          <GlobeIcon size={16} color={THEME.ink} />
+          <FlameIcon size={17} color={THEME.pillInk} />
         ) : (
-          <LockIcon size={16} color={THEME.ink} />
+          <LockIcon size={16} color={THEME.pillInk} />
         )}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.groupName} numberOfLines={1}>
-          {group.name}
-        </Text>
-        {group.description ? (
-          <Text style={styles.groupDesc} numberOfLines={2}>
-            {group.description}
+      <View style={[styles.rowBody, !last && styles.rowDivider]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.groupName} numberOfLines={1}>
+            {group.name}
           </Text>
-        ) : null}
-        <Text style={styles.groupMeta}>
-          {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
-          {' · '}
-          {group.is_public ? 'public' : 'private'}
-        </Text>
-      </View>
-      {mine ? (
-        <ArrowIcon size={16} color={THEME.muted} />
-      ) : joining === group.id ? (
-        <ActivityIndicator size="small" color={THEME.accent} />
-      ) : (
-        <View style={styles.joinBtn}>
-          <Text style={styles.joinBtnText}>Join</Text>
+          {group.description ? (
+            <Text style={styles.groupDesc} numberOfLines={2}>
+              {group.description}
+            </Text>
+          ) : null}
+          <Text style={styles.groupMeta}>
+            {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+            {' · '}
+            {group.is_public ? 'Public' : 'Private'}
+          </Text>
         </View>
-      )}
+        {mine ? (
+          <ArrowIcon size={16} color={THEME.muted} />
+        ) : joining === group.id ? (
+          <View style={styles.joinBtn}>
+            <ActivityIndicator size="small" color={THEME.pillInk} />
+          </View>
+        ) : (
+          <View style={styles.joinBtn}>
+            <Text style={styles.joinBtnText}>Join</Text>
+          </View>
+        )}
+      </View>
     </Pressable>
   );
 
+  const canJoin = code.length >= 4 && joining !== 'code';
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+  // Text on accent buttons: the dark themes' accent is a light tan, so it takes the dark ground.
+  const onAccent = THEME.isDark ? THEME.bg : THEME.accentInk;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        <ScreenHeader
-          title="Pray together"
-          subtitle="Your church, your circle — still fully anonymous."
-          onBack={() => router.back()}
-          theme={THEME}
-        />
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={THEME.accent} />}>
+        <View style={styles.topBar}>
+          <PressScale
+            onPress={() => router.back()}
+            haptic={null}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={styles.roundBtn}>
+            <BackIcon size={16} color={THEME.ink} />
+          </PressScale>
+        </View>
 
-        <View style={{ paddingHorizontal: 22 }}>
-          <Pill icon={<ShieldIcon size={11} color={THEME.pillInk} />}>
-            No names, ever
-          </Pill>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>Pray together</Text>
+          <View style={styles.anonLine}>
+            <ShieldIcon size={13} color={THEME.muted} />
+            <Text style={styles.subtitle}>Every circle is anonymous. No names, ever.</Text>
+          </View>
+        </View>
 
+        <View style={styles.body}>
           {/* Join with a code */}
-          <SectionLabel theme={THEME}>Have a group code?</SectionLabel>
-          <View style={styles.codeRow}>
-            <TextInput
-              value={code}
-              onChangeText={onCodeChange}
-              placeholder="e.g. K7DM3P"
-              placeholderTextColor={THEME.muted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              style={styles.codeInput}
-            />
-            <Pressable
-              onPress={joinWithCode}
-              disabled={!code.trim() || joining === 'code'}
-              style={[
-                styles.codeBtn,
-                { backgroundColor: code.trim() ? THEME.accent : THEME.line },
-              ]}>
-              {joining === 'code' ? (
-                <ActivityIndicator size="small" color={THEME.accentInk} />
-              ) : (
-                <Text
-                  style={[
-                    styles.codeBtnText,
-                    { color: code.trim() ? THEME.accentInk : THEME.muted },
-                  ]}>
-                  Join
-                </Text>
-              )}
-            </Pressable>
+          <View style={styles.codeCard}>
+            <Text style={styles.codeTitle}>Join with a code</Text>
+            <Text style={styles.codeHint}>From your church, a friend, or a group you were invited to.</Text>
+            <View style={styles.codeRow}>
+              <TextInput
+                value={code}
+                onChangeText={onCodeChange}
+                onSubmitEditing={joinWithCode}
+                returnKeyType="go"
+                placeholder="K7DM3P"
+                placeholderTextColor={THEME.muted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                accessibilityLabel="Group code"
+                selectionColor={THEME.accent}
+                onFocus={() => setCodeFocused(true)}
+                onBlur={() => setCodeFocused(false)}
+                style={[styles.codeInput, codeFocused && { borderColor: THEME.accent, borderWidth: 1.5 }]}
+              />
+              <PressScale
+                onPress={joinWithCode}
+                disabled={!canJoin}
+                haptic={null}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canJoin }}
+                style={[styles.codeBtn, { backgroundColor: canJoin ? THEME.accent : THEME.line }]}>
+                {joining === 'code' ? (
+                  <ActivityIndicator size="small" color={onAccent} />
+                ) : (
+                  <Text style={[styles.codeBtnText, { color: canJoin ? onAccent : THEME.inkSoft }]}>
+                    Join
+                  </Text>
+                )}
+              </PressScale>
+            </View>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          {/* My groups */}
-          <SectionLabel theme={THEME}>Your groups</SectionLabel>
-          {/* Your companion climbs up from behind this card, lies along its top, dozes, and slips back down. */}
+          {/* Your groups. Your companion climbs up from behind this list, lies along its top, dozes, and slips back down. */}
+          <Text style={styles.sectionTitle}>Your groups</Text>
           <View style={{ marginTop: 76 }}>
-          <View pointerEvents="none" style={{ position: 'absolute', right: 26, top: 3 - lyingFeetOffset(124) }}>
-            <PeekingPet size={124} />
-          </View>
-          {loading ? (
-            <ActivityIndicator color={THEME.accent} style={{ marginVertical: 20 }} />
-          ) : myGroups.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <UsersIcon size={26} color={THEME.muted} />
-              <Text style={styles.emptyText}>
-                You haven&apos;t joined a circle yet. Enter your church&apos;s code
-                above, browse below, or start your own.
-              </Text>
+            <View pointerEvents="none" style={{ position: 'absolute', right: 26, top: 3 - lyingFeetOffset(124) }}>
+              <PeekingPet size={124} />
             </View>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {myGroups.map(g => (
-                <GroupCard key={g.id} group={g} mine />
-              ))}
-            </View>
-          )}
+            {loading ? (
+              <View style={styles.list}>
+                <ActivityIndicator color={THEME.accent} style={{ marginVertical: 28 }} />
+              </View>
+            ) : myGroups.length === 0 ? (
+              <View style={[styles.list, styles.emptyBox]}>
+                <UsersIcon size={26} color={THEME.muted} />
+                <Text style={styles.emptyTitle}>No circles yet</Text>
+                <Text style={styles.emptyText}>
+                  Enter a code above, join an open circle below, or start your own.
+                </Text>
+              </View>
+            ) : (
+              <Animated.View entering={FadeInDown.duration(320)} style={styles.list}>
+                {myGroups.map((g, i) => (
+                  <GroupRowItem key={g.id} group={g} mine last={i === myGroups.length - 1} />
+                ))}
+              </Animated.View>
+            )}
           </View>
 
-          {/* Create */}
-          <Pressable
+          <PressScale
             onPress={() => router.push('/createGroup')}
-            style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }]}>
+            accessibilityRole="button"
+            style={styles.createBtn}>
             <UsersIcon size={18} color={THEME.cardDarkInk} />
             <Text style={styles.createBtnText}>Start a new group</Text>
-          </Pressable>
+          </PressScale>
 
           {/* Public groups */}
           {publicGroups.length > 0 && (
             <>
-              <SectionLabel theme={THEME}>Open circles</SectionLabel>
-              <View style={{ gap: 10 }}>
-                {publicGroups.map(g => (
-                  <GroupCard key={g.id} group={g} mine={false} />
+              <Text style={styles.sectionTitle}>Open circles</Text>
+              <Text style={styles.sectionHint}>Public groups anyone can join. Still no names.</Text>
+              {publicError ? <Text style={[styles.errorText, { marginTop: 0, marginBottom: 12 }]}>{publicError}</Text> : null}
+              <Animated.View entering={FadeInDown.duration(320).delay(90)} style={styles.list}>
+                {publicGroups.map((g, i) => (
+                  <GroupRowItem key={g.id} group={g} mine={false} last={i === publicGroups.length - 1} />
                 ))}
-              </View>
+              </Animated.View>
             </>
           )}
         </View>
@@ -308,17 +351,48 @@ export default function GroupsScreen() {
 
 const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
-  codeRow: { flexDirection: 'row', gap: 10 },
+  topBar: { paddingHorizontal: 22, paddingTop: 8 },
+  roundBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: THEME.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleBlock: { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 20 },
+  title: {
+    fontFamily: FONTS.display,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -0.4,
+    color: THEME.ink,
+  },
+  anonLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  subtitle: { fontFamily: FONTS.body, fontSize: 14, color: THEME.inkSoft },
+  body: { paddingHorizontal: 16 },
+  codeCard: {
+    backgroundColor: THEME.surface,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.line,
+    padding: 18,
+  },
+  codeTitle: { fontFamily: FONTS.bodySemi, fontSize: 16, color: THEME.ink },
+  codeHint: { fontFamily: FONTS.body, fontSize: 13, lineHeight: 18, color: THEME.muted, marginTop: 3 },
+  codeRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   codeInput: {
     flex: 1,
-    backgroundColor: THEME.surface,
+    minHeight: 50,
+    backgroundColor: THEME.bg,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.line,
     paddingHorizontal: 16,
-    paddingVertical: 14,
     fontFamily: FONTS.bodySemi,
-    fontSize: 16,
+    fontSize: 18,
     letterSpacing: 4,
     color: THEME.ink,
   },
@@ -327,75 +401,99 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     paddingHorizontal: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 76,
+    minWidth: 80,
+    minHeight: 50,
   },
-  codeBtnText: { fontFamily: FONTS.bodySemi, fontSize: 14 },
+  codeBtnText: { fontFamily: FONTS.bodySemi, fontSize: 15 },
   errorText: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: THEME.accent,
-    marginTop: 12,
+    fontFamily: FONTS.bodySemi,
+    fontSize: 13,
+    lineHeight: 18,
+    color: THEME.ink,
+    marginTop: 10,
   },
-  emptyBox: {
-    backgroundColor: THEME.surface,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.line,
-    padding: 22,
-    alignItems: 'center',
-    gap: 10,
+  sectionTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: THEME.ink,
+    marginTop: 32,
+    paddingHorizontal: 6,
   },
-  emptyText: {
+  sectionHint: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    lineHeight: 19,
-    color: THEME.inkSoft,
-    textAlign: 'center',
+    color: THEME.muted,
+    marginTop: 4,
+    marginBottom: 12,
+    paddingHorizontal: 6,
   },
-  groupCard: {
+  list: {
     backgroundColor: THEME.surface,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.line,
-    padding: 16,
+    overflow: 'hidden',
+  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16 },
+  rowChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.pillBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBody: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginLeft: 14,
+    paddingVertical: 15,
+    paddingRight: 16,
+    minHeight: 72,
   },
-  groupChip: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: THEME.bgSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: THEME.line },
+  emptyBox: { padding: 24, alignItems: 'center', gap: 8 },
+  emptyTitle: { fontFamily: FONTS.display, fontSize: 19, color: THEME.ink, marginTop: 4 },
+  emptyText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: THEME.inkSoft,
+    textAlign: 'center',
   },
   groupName: { fontFamily: FONTS.display, fontSize: 18, color: THEME.ink },
   groupDesc: {
     fontFamily: FONTS.body,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
     color: THEME.inkSoft,
     marginTop: 2,
   },
   groupMeta: {
     fontFamily: FONTS.body,
-    fontSize: 11,
+    fontSize: 12,
     color: THEME.muted,
     marginTop: 4,
   },
   joinBtn: {
+    minHeight: 36,
+    minWidth: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: THEME.pillBg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.pillInk,
     borderRadius: 9999,
     paddingHorizontal: 16,
-    paddingVertical: 8,
   },
-  joinBtnText: { fontFamily: FONTS.bodySemi, fontSize: 12.5, color: THEME.pillInk },
+  joinBtnText: { fontFamily: FONTS.bodySemi, fontSize: 14, color: THEME.pillInk },
   createBtn: {
     marginTop: 14,
+    minHeight: 54,
     backgroundColor: THEME.cardDark,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 9999,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -403,7 +501,7 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
   },
   createBtnText: {
     fontFamily: FONTS.bodySemi,
-    fontSize: 14,
+    fontSize: 15,
     color: THEME.cardDarkInk,
   },
 });

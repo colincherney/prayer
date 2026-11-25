@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { Appearance, AppState, Platform, useColorScheme } from 'react-native';
+import { Appearance, AppState, LogBox, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AccountTour } from '@/components/saint/AccountTour';
@@ -29,6 +29,9 @@ import { preloadWinter } from '@/lib/winterEvent';
 import { preloadWinterLook } from '@/components/saint/winterLord';
 import { WinterGate } from '@/components/winter/WinterGate';
 import { DropGate } from '@/components/drops/DropGate';
+
+// Supabase reports a stale saved login before it signs out on its own (handled in lib/auth); don't flash it in dev.
+LogBox.ignoreLogs(['Invalid Refresh Token']);
 
 const useNotificationResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
 
