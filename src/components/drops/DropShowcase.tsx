@@ -23,6 +23,7 @@ import { FONTS, mixColors } from '@/components/saint/theme';
 import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { BelovedScene } from '@/components/saint/BelovedScene';
 import { SwampKingScene } from '@/components/saint/SwampKingScene';
+import { SwordScene } from '@/components/saint/SwordScene';
 import { WinterLordScene } from '@/components/saint/WinterLordScene';
 import type { DropItem } from '@/lib/drops';
 import { shortDate } from '@/lib/winterEvent';
@@ -41,6 +42,7 @@ function RoomScene({ room }: { room: PrayerRoomName }) {
   if (room === 'winter') return <WinterLordScene />;
   if (room === 'swamp') return <SwampKingScene />;
   if (room === 'beloved') return <BelovedScene />;
+  if (room === 'sword') return <SwordScene />;
   if (room in MONTHLY_SCENES) return React.createElement(MONTHLY_SCENES[room as MonthlyRoomName]);
   return null;
 }
@@ -55,6 +57,9 @@ export function copyFor(item: DropItem): { label: string; title: string; body: s
     if (pet.id === 'beloved') {
       return { label: 'NEW COMPANION', title: 'The Cherub', body: 'Pray through February to grow her into the Muse, then awaken The Beloved, with her neon Seraph form to switch to.', hue };
     }
+    if (pet.id === 'gladi') {
+      return { label: 'NEW COMPANION', title: 'Shard', body: 'Pray through June to grow this little shard of light into Gladi, then forge Gladius, the sword of the Spirit.', hue };
+    }
     if (pet.id === 'vesper') {
       return { label: 'NEW COMPANION', title: 'Vesper', body: 'Pray through the spring to grow him into the Fen Warden, then crown the Old King of the fen.', hue };
     }
@@ -68,6 +73,8 @@ export function copyFor(item: DropItem): { label: string; title: string; body: s
       ? 'The whole app goes to the rose garden for the Beloved, through February.'
       : room === 'swamp'
       ? 'The whole app goes down to the fen for the Swamp King, through May 1.'
+      : room === 'sword'
+      ? 'The whole app goes to the lake of the sword for the Sword of the Spirit, through June.'
       : 'A new home screen to pray in. Pick it any time in Customize.';
     return { label: 'NEW HOME WALLPAPER', title: PRAYER_ROOM_LABELS[room], body, hue: '#1F2A44' };
   }

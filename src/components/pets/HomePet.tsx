@@ -43,6 +43,8 @@ const SPOTS: Record<HomePetVariant, Spot> = {
   swamp: { size: 96, x: 0.744, feetY: 184 },
   // The Beloved: on top of the marble column, at the same spot.
   beloved: { size: 96, x: 0.744, feetY: 184 },
+  // The Sword of the Spirit: on the lake's far shore, at the same spot.
+  sword: { size: 96, x: 0.744, feetY: 184 },
   // 2027 monthly rooms: every design stands its companion on a perch at the same spot (a 150-wide box at 226, 196).
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(n => [n, { size: 116, x: 0.772, feetY: 202 }])) as Record<MonthlyRoomName, Spot>),
   theme: { size: 72, x: 0.644, feetY: 192 },
@@ -60,6 +62,7 @@ const SCENE_FEET: Record<HomePetVariant, number> = {
   winter: 318,
   swamp: 318,
   beloved: 318,
+  sword: 318,
   ...(Object.fromEntries(MONTHLY_ROOM_NAMES.map(name => [name, 330])) as Record<MonthlyRoomName, number>),
   theme: 195,
 };
@@ -105,6 +108,14 @@ function Perch({ variant, width, accent }: { variant: HomePetVariant; width: num
           />
           <Path d={`M${cx - rx} 22 H${cx + rx}`} stroke="#1d5448" strokeWidth={2} />
           <Path d={`M${cx - rx * 0.4} 22 l-8 -9 M${cx + rx * 0.1} 22 l-8 10 M${cx + rx * 0.5} 22 l-6 -8`} stroke="#1d5448" strokeWidth={1.4} />
+        </Svg>
+      );
+    case 'sword':
+      // Floating by the sword's wings: a ring of light under the feet, like the ripples round the blade.
+      return (
+        <Svg width={width} height={h} viewBox={`0 0 ${width} ${h}`}>
+          <Ellipse cx={cx} cy={20} rx={rx * 0.62} ry={5} fill="#7FDDF2" opacity={0.18} />
+          <Ellipse cx={cx} cy={20} rx={rx * 0.62} ry={5} fill="none" stroke="#BFEAF6" strokeWidth={1.2} opacity={0.6} />
         </Svg>
       );
     case 'theme':

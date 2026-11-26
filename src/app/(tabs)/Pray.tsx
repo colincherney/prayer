@@ -672,6 +672,9 @@ function PrayLauncherContent() {
                 ) : liveEvent.skin.palLine === 'beloved' ? (
                   // a heart for the Beloved
                   <Path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill={liveEvent.skin.palette.gold} />
+                ) : liveEvent.skin.palLine === 'gladi' ? (
+                  // a sword for the Sword of the Spirit
+                  <Path d="M12 2v14 M7 15h10 M12 15v6 M10 21h4" stroke={liveEvent.skin.palette.gold} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                 ) : (
                   // a crown for the Swamp King
                   <Path d="M4 18h16 M4 18L3 7l5 4 4-6 4 6 5-4-1 11" stroke={liveEvent.skin.palette.gold} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />

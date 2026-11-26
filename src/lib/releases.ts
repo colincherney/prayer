@@ -88,6 +88,8 @@ const BUNDLED_WINDOWS: Record<string, [string, string][]> = {
   'event:beloved': [['2027-02-01T05:00:00Z', '2027-03-01T05:00:00Z']],
   // The Swamp King look: midnight US Eastern Mar 1, 2027 through the end of May 1.
   'event:swampKing': [['2027-03-01T05:00:00Z', '2027-05-02T04:00:00Z']],
+  // The Sword of the Spirit look: midnight US Eastern Jun 1, 2027 through the end of Jun 30.
+  'event:sword': [['2027-06-01T04:00:00Z', '2027-07-01T04:00:00Z']],
 };
 
 const inWindow = (list: [string, string][] | undefined, now = Date.now()) =>

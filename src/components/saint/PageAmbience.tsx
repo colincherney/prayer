@@ -93,6 +93,12 @@ const AMBIENCE: Record<PrayerRoomName | ThemeName, Layer[]> = {
     layer('glow', 'rise', ['#C9B8D8'], 3, [10, 16], [14, 20], 0.25),
   ],
 
+  sword: [ // The Sword of the Spirit: ice-blue light rising off the lake, white sparkles and a few gold glints.
+    layer('glow', 'rise', ['#7FDDF2'], 4, [10, 16], [12, 18], 0.4),
+    layer('star', 'twinkle', ['#FFFFFF', '#BFEAF6'], 6, [6, 9], [4, 7], 0.85),
+    layer('star', 'twinkle', ['#D8B45A'], 2, [6, 9], [5, 8], 0.7),
+  ],
+
   // Monthly rooms, 2027
   m2027jan: [ // New year, new mercies: fresh snow and clear winter light.
     layer('flake', 'fall', ['#FFFFFF', '#8EC9F0'], 12, [8, 12], [13, 20], 0.75),

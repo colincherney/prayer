@@ -34,6 +34,7 @@ export const COMPANION_INFO: Record<PetId, CompanionInfo> = {
   frostLord: { habitat: 'Under the aurora', loves: 'Snowy vigils', verse: { text: 'He giveth snow like wool: he scattereth the hoarfrost like ashes.', ref: 'Psalm 147:16' }, hue: '#22306A' },
   beloved: { habitat: 'The rose garden', loves: 'Love letters to God', verse: { text: 'Many waters cannot quench love, neither can the floods drown it.', ref: 'Song of Solomon 8:7' }, hue: '#8A3A52' },
   vesper: { habitat: 'The fen at dawn', loves: 'Patient prayers', verse: { text: 'He brought me up also out of an horrible pit, out of the miry clay, and set my feet upon a rock.', ref: 'Psalm 40:2' }, hue: '#2E4A3A' },
+  gladi: { habitat: 'The still lake', loves: 'The Word of God', verse: { text: 'Take the helmet of salvation, and the sword of the Spirit, which is the word of God.', ref: 'Ephesians 6:17' }, hue: '#1E4A6A' },
   pig: { habitat: 'Blossom farms', loves: 'Full hearts', verse: { text: 'My cup overflows.', ref: 'Psalm 23:5' }, hue: '#8A4A6A' },
 };
 

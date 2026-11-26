@@ -356,6 +356,17 @@ export const SWAMP_VERSES = [
   { text: 'I will make a way in the wilderness, and rivers in the desert', ref: 'Isaiah 43:19' },
 ];
 
+/** Verses for the Sword of the Spirit room (KJV, Ephesians 6 and the Word of God), laid out the same way. */
+export const SWORD_VERSES = [
+  { text: 'Take the helmet of salvation, and the sword of the Spirit, which is the word of God', ref: 'Ephesians 6:17' },
+  { text: 'Put on the whole armour of God', ref: 'Ephesians 6:11' },
+  { text: 'Be strong in the Lord, and in the power of his might', ref: 'Ephesians 6:10' },
+  { text: 'For the word of God is quick, and powerful, and sharper than any twoedged sword', ref: 'Hebrews 4:12' },
+  { text: 'Above all, taking the shield of faith', ref: 'Ephesians 6:16' },
+  { text: 'Praying always with all prayer and supplication in the Spirit', ref: 'Ephesians 6:18' },
+  { text: 'Having done all, to stand', ref: 'Ephesians 6:13' },
+];
+
 export const VERSES = [
   { text: 'Pray without ceasing', ref: '1 Thessalonians 5:17' },
   { text: 'Be still, and know that I am God', ref: 'Psalm 46:10' },

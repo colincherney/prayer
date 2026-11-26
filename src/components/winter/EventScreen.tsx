@@ -76,7 +76,7 @@ export function EventScreen() {
   const allDone = stage >= 3;
   const STAGE_NAMES = [1, 2, 3].map(n => c.evolutions.find(e => e.stage === n)?.name ?? '');
   const Season = skin.season.charAt(0).toUpperCase() + skin.season.slice(1);
-  const pronoun = skin.palLine === 'beloved' ? 'her' : 'his';
+  const pronoun = skin.palLine === 'beloved' ? 'her' : skin.palLine === 'gladi' ? 'its' : 'his';
   const countWord = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] ?? String(n);
   // As big as fits under the top row: the whole picture, including the Frost Mage's and Frost Lord's tall hats.
   const heroFrame = skin.palLine === 'beloved' && stage >= 3 && belovedForm === 'spirit' ? SERAPH_FRAME : skin.frames[(Math.min(3, Math.max(1, stage)) as 1 | 2 | 3)];
@@ -99,7 +99,7 @@ export function EventScreen() {
               <Text style={styles.backText}>‹</Text>
             </Pressable>
             <Text numberOfLines={1} style={styles.caption}>{caption}</Text>
-            {phase === 'live' ? (
+            {phase === 'live' && skin.clip ? (
               <Pressable onPress={() => setReplay(true)} accessibilityRole="button" accessibilityLabel="Play the intro clip" style={styles.clipPill}>
                 <Text style={styles.clipText}>▶ Play clip</Text>
               </Pressable>

@@ -95,7 +95,7 @@ export function realStart(event: Pick<WinterEventRow, 'starts_on' | 'config'>): 
 
 /** What an event's prayers are called: "winter prayers", "Valentine prayers", "spring prayers". */
 export function seasonNoun(palLine: string): string {
-  return palLine === 'frostLord' ? 'winter' : palLine === 'beloved' ? 'Valentine' : 'spring';
+  return palLine === 'frostLord' ? 'winter' : palLine === 'beloved' ? 'Valentine' : palLine === 'gladi' ? 'June' : 'spring';
 }
 
 /** The line under the challenge bar: what to do next for the Frost Lord. */

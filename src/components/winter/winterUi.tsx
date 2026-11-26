@@ -15,6 +15,8 @@ import {
   BELOVED_FRAMES,
   FROST_LORD_ART,
   FROST_LORD_FRAMES,
+  GLADI_ART,
+  GLADI_FRAMES,
   PalFrame,
   SERAPH_ART,
   SERAPH_FRAME,
@@ -24,7 +26,7 @@ import {
 import { DriftLayer, Flake, SnowFall, Star, Twinkles } from '@/components/saint/SceneParticles';
 import { BelovedForm, useBelovedForm } from '@/lib/belovedForm';
 import { supabase } from '@/lib/supabase';
-import { BELOVED_EVENT_ID, EventId, realStart, shortDate, SWAMP_EVENT_ID, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
+import { BELOVED_EVENT_ID, EventId, realStart, shortDate, SWAMP_EVENT_ID, SWORD_EVENT_ID, useEvents, WINTER_EVENT_ID } from '@/lib/winterEvent';
 
 // The look of each seasonal event ("skin"): its colours, backdrop, companion art, intro clip and wording. Every event
 // screen, the intro clip, the celebrations and the home banner draw from the skin of the event they belong to, so a
@@ -108,6 +110,23 @@ export const BELOVED_PALETTE: Palette = {
   line: 'rgba(74,34,50,0.08)',
   track: 'rgba(194,84,111,0.14)',
   light: true,
+};
+
+/** The Sword of the Spirit: deep lake teal, ice white, sky blue and the hilt's gold (from the sword wallpaper). */
+export const SWORD_PALETTE: Palette = {
+  navy: '#0E2A3A',
+  navyDeep: '#0A1F2C',
+  sheet: '#0E2A3A',
+  card: '#163A4C',
+  cardOn: '#1A4A5E',
+  gold: '#D8B45A',
+  teal: '#7FDDF2',
+  cream: '#E6F8FF',
+  ice: '#BFEAF6',
+  muted: 'rgba(230,248,255,0.66)',
+  faint: 'rgba(230,248,255,0.38)',
+  line: 'rgba(230,248,255,0.10)',
+  track: 'rgba(230,248,255,0.12)',
 };
 
 export const WF = {
@@ -257,6 +276,21 @@ export function FenBackdrop({ hills = false, animated = true }: BackdropProps) {
   );
 }
 
+const SWORD_WALLPAPER = require('../../../assets/images/gladi/sword-wallpaper.jpg');
+const SWORD_STARS: Star[] = [
+  [30, 40, 1.2, 0], [90, 110, 1, 0.35], [150, 30, 1.3, 0.7], [250, 70, 1, 0.1], [330, 40, 1.2, 0.45], [360, 160, 1.1, 0.8],
+].map(([x, y, r, phase]) => [x / 390, y / 420, r, phase] as Star);
+
+/** The lake of the sword: the sword wallpaper (its wings and blade in the middle of any crop) and twinkling stars. */
+export function SwordBackdrop({ animated = true }: BackdropProps) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', backgroundColor: SWORD_PALETTE.navy }]} pointerEvents="none">
+      <Image source={SWORD_WALLPAPER} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      <Twinkles stars={SWORD_STARS} color="#E6F8FF" animated={animated} />
+    </View>
+  );
+}
+
 /** A small heart, centred on x with its notch at y, `s` wide each side. */
 export function heartPath(x: number, y: number, s: number): string {
   return `M${x} ${y + s * 0.3} C${x} ${y - s * 0.25} ${x - s} ${y - s * 0.25} ${x - s} ${y + s * 0.3} C${x - s} ${y + s * 0.75} ${x - s * 0.2} ${y + s} ${x} ${y + s * 1.3} C${x + s * 0.2} ${y + s} ${x + s} ${y + s * 0.75} ${x + s} ${y + s * 0.3} C${x + s} ${y - s * 0.25} ${x} ${y - s * 0.25} ${x} ${y + s * 0.3} Z`;
@@ -332,20 +366,21 @@ type Moment = { kicker: string; title: string; body: string; verse: string };
 
 export type EventSkin = {
   id: EventId;
-  route: '/winter' | '/beloved' | '/swamp';
+  route: '/winter' | '/beloved' | '/swamp' | '/sword';
   /** "winter prayers", "spring prayers" */
   season: string;
   /** "WINTER EVENT" */
   kicker: string;
-  palLine: 'frostLord' | 'beloved' | 'vesper';
+  palLine: 'frostLord' | 'beloved' | 'vesper' | 'gladi';
   palette: Palette;
   art: Record<1 | 2 | 3, number>;
   frames: Record<1 | 2 | 3, PalFrame>;
   /** Tint for a stage not reached yet. */
   silhouette: string;
   Backdrop: React.ComponentType<BackdropProps>;
-  /** The intro clip's file in the public `event-clips` storage bucket (streamed, then cached; see clipSource). */
-  clip: string;
+  /** The intro clip's file in the public `event-clips` storage bucket (streamed, then cached; see clipSource). An event
+   *  without one goes straight to the end page (the title card and the Begin button). */
+  clip?: string;
   /** When the clip reaches its own title card and the app's end page takes over, in seconds (26.9 by default). */
   clipEndAt?: number;
   clipTitle: string;
@@ -435,14 +470,40 @@ export const BELOVED_SKIN: EventSkin = {
   devDates: ['2027-02-01', '2027-02-10', '2027-02-14', '2027-02-21', '2027-02-28', '2027-03-01'],
 };
 
-export const SKINS: Record<EventId, EventSkin> = { [WINTER_EVENT_ID]: WINTER_SKIN, [BELOVED_EVENT_ID]: BELOVED_SKIN, [SWAMP_EVENT_ID]: SWAMP_SKIN };
+export const SWORD_SKIN: EventSkin = {
+  id: SWORD_EVENT_ID,
+  route: '/sword',
+  season: 'June',
+  kicker: 'JUNE EVENT',
+  palLine: 'gladi',
+  palette: SWORD_PALETTE,
+  art: GLADI_ART,
+  frames: GLADI_FRAMES,
+  silhouette: 'rgba(191,234,246,0.26)',
+  Backdrop: SwordBackdrop,
+  // no intro clip yet: the end page (title, Shard and Gladius, Begin) shows on its own
+  clipTitle: 'The Sword of\nthe Spirit',
+  clipSubtitle: 'Complete the June challenges\nto forge Gladius.',
+  beginLabel: 'Take up the sword',
+  heroHint: 'Pray to meet Shard',
+  moments: {
+    1: { kicker: 'THE SWORD OF THE SPIRIT', title: 'Shard has arrived', body: 'A little shard of light floats in to walk with you. Finish the June challenges and it will grow.', verse: 'Be strong in the Lord, and in the power of his might. Ephesians 6:10' },
+    2: { kicker: 'THREE CHALLENGES DONE', title: 'Gladi is ready', body: 'Shard has grown into Gladi, wings spread and haloed. Finish all six challenges to forge Gladius.', verse: 'Above all, taking the shield of faith. Ephesians 6:16' },
+    3: { kicker: 'ALL SIX CHALLENGES DONE', title: 'Gladius is forged', body: 'The sword of the Spirit stands ready. Gladius is yours to keep, and the whole armour of God is on your shelf.', verse: 'The sword of the Spirit, which is the word of God. Ephesians 6:17' },
+  },
+  summaryTitle: 'Your June with the sword',
+  devDates: ['2027-06-01', '2027-06-10', '2027-06-11', '2027-06-21', '2027-06-30', '2027-07-01'],
+};
+
+export const SKINS: Record<EventId, EventSkin> = { [WINTER_EVENT_ID]: WINTER_SKIN, [BELOVED_EVENT_ID]: BELOVED_SKIN, [SWAMP_EVENT_ID]: SWAMP_SKIN, [SWORD_EVENT_ID]: SWORD_SKIN };
 
 /**
  * Where an intro clip plays from. The clips live in Supabase Storage (bucket `event-clips`) instead of the app, which
  * keeps about 21 MB out of the download. They're saved for streaming (the index is at the front), and the player
  * keeps a copy on the phone after the first play, so replays don't download again.
  */
-export function clipSource(file: string) {
+export function clipSource(file: string | undefined) {
+  if (!file) return null;
   return { uri: supabase.storage.from('event-clips').getPublicUrl(file).data.publicUrl, useCaching: true };
 }
 

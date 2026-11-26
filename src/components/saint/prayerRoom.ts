@@ -30,6 +30,7 @@ export type PrayerRoomName =
   | 'winter'
   | 'beloved'
   | 'swamp'
+  | 'sword'
   | MonthlyRoomName;
 
 const monthly = <T,>(pick: (name: MonthlyRoomName) => T) =>
@@ -302,6 +303,30 @@ const SWAMP: PrayerRoomPalette = {
   statusBar: 'light-content',
 };
 
+// The Sword of the Spirit — the angel sword standing in a still lake under lightning: deep teal night, ice-white
+// text and a sky-blue accent, from the sword wallpaper. The lake along the bottom is dark, so the ticker stays light.
+const SWORD: PrayerRoomPalette = {
+  bg: '#0E2A3A',
+  bgSoft: '#163A4C',
+  surface: '#14303F',
+  ink: '#E6F8FF',
+  inkSoft: 'rgba(230,248,255,0.84)',
+  muted: 'rgba(230,248,255,0.6)',
+  divider: 'rgba(230,248,255,0.18)',
+  accent: '#7FDDF2',
+  accentSoft: '#D8B45A',
+  pillBg: 'rgba(127,221,242,0.16)',
+  pillInk: '#E6F8FF',
+  cardDark: 'rgba(10,30,42,0.9)',
+  cardDarkInk: '#E6F8FF',
+  cardLight: 'rgba(230,248,255,0.95)',
+  cardLightInk: '#0E2A3A',
+  cardLightInkSoft: 'rgba(14,42,58,0.72)',
+  cardLightPillBg: 'rgba(63,169,201,0.2)',
+  cardLightPillInk: '#1E5F7A',
+  statusBar: 'light-content',
+};
+
 export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   lamp: LAMP,
   window: WINDOW,
@@ -313,6 +338,7 @@ export const PRAYER_ROOMS: Record<PrayerRoomName, PrayerRoomPalette> = {
   winter: WINTER,
   beloved: BELOVED,
   swamp: SWAMP,
+  sword: SWORD,
   ...monthly(n => MONTHLY_ROOMS[n].palette),
 };
 
@@ -327,6 +353,7 @@ export const PRAYER_ROOM_ORDER: PrayerRoomName[] = [
   'winter',
   'beloved',
   'swamp',
+  'sword',
   ...MONTHLY_ROOM_NAMES,
 ];
 
@@ -341,6 +368,7 @@ export const PRAYER_ROOM_LABELS: Record<PrayerRoomName, string> = {
   winter: 'The Long Winter',
   beloved: 'The Beloved',
   swamp: 'The Swamp King',
+  sword: 'The Sword of the Spirit',
   ...monthly(n => MONTHLY_ROOMS[n].label),
 };
 

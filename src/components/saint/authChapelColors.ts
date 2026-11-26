@@ -59,6 +59,15 @@ const ROOM_CHAPELS: Partial<Record<PrayerRoomName, Partial<ChapelColors>>> = {
     leaves0: '#2E4A3A', leaves1: '#3E6B4A', leaves2: '#253024', bark: '#36291F', boulder: '#4A5A4A', flame: '#6FC3FF',
     ring: '#6FC3FF', motes: '#F2D27A', sky: '#C9B8D8', ground: '#2A3644', key: '#E8B97A', edge: '#6FC3FF',
   },
+  // The Sword of the Spirit: ice-white walls, navy door and roof, sky-blue glass, gold trim, teal night light
+  sword: {
+    rock0: '#163A4C', rock1: '#1E4A5E', rock2: '#0E2A3A', rock3: '#22566A', earth: '#3FA9C9',
+    path0: '#BFEAF6', path1: '#8FC8DA', path2: '#E6F8FF',
+    wall: '#E6F8FF', pale: '#FFFFFF', door: '#2A3A4E', roof: '#2A3A4E', roof2: '#3B4E66', trim: '#D8B45A',
+    glass: '#7FDDF2', glass2: '#D8B45A', gold: '#D8B45A',
+    leaves0: '#3FA9C9', leaves1: '#7FDDF2', leaves2: '#1E5F7A', bark: '#2A3A4E', boulder: '#5A8AA0', flame: '#BFEAF6',
+    ring: '#7FDDF2', motes: '#FFFFFF', sky: '#BFEAF6', ground: '#163A4C', key: '#E6F8FF', edge: '#7FDDF2',
+  },
   // God With Us: a white chapel in the snow, red trim, warm candlelit glass
   christmas: {
     rock0: '#1C2B4C', rock1: '#2C3E64', rock2: '#122040', rock3: '#24365A', earth: '#F2F4F8',

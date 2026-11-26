@@ -18,6 +18,7 @@ export const FullSizePals = createContext(false);
 //   * The Long Winter: Snowcap the apprentice cub, the Frost Mage, and the Frost Lord.
 //   * The Beloved: the Cherub, the Muse, and The Beloved, whose final stage has a second look, the Seraph.
 //   * The Swamp King: Vesper the wanderer, the Fen Warden, and the Old King.
+//   * The Sword of the Spirit: Shard, Gladi, and Gladius, the angel sword.
 
 export type PalFrame = {
   /** Image size in pixels. */
@@ -98,6 +99,25 @@ export const VESPER_STAGE_LABELS: Stages<string> = {
   3: 'the Old King, a crowned guardian of the fen with a sword and a dove',
 };
 
+export const GLADI_ART: Stages<number> = {
+  1: require('../../../assets/images/gladi/gladi-1-shard.png'),
+  2: require('../../../assets/images/gladi/gladi-2-gladi.png'),
+  3: require('../../../assets/images/gladi/gladi-3-gladius.png'),
+};
+
+/** Cut from the evolution sheet at one scale, so the three stages keep their sizes; the sword's tip is the feet. */
+export const GLADI_FRAMES: Stages<PalFrame> = {
+  1: { w: 880, h: 1120, body: 1120, top: 732, feet: 1062, solid: [740, 298, 589] },
+  2: { w: 880, h: 1120, body: 1120, top: 455, feet: 1062, solid: [457, 218, 662] },
+  3: { w: 880, h: 1120, body: 1120, top: 225, feet: 1062, solid: [228, 140, 745] },
+};
+
+export const GLADI_STAGE_LABELS: Stages<string> = {
+  1: 'Shard, a little round spirit of light on a tiny crystal sword',
+  2: 'Gladi, a winged spirit with a halo on a crystal sword',
+  3: 'Gladius, a fierce winged spirit with a crowned halo on a great crystal sword',
+};
+
 const FEET_Y = 239; // where every companion's feet are on the 240x260 artboard
 const CENTER_X = 120;
 const FIGURE_CX = 440; // the figure's middle, in image pixels (the same in every stage of both lines)
@@ -157,6 +177,7 @@ function makeEventPal(art: Stages<number>, frames: Stages<PalFrame>, labels: Sta
 
 export const FrostLordBear = makeEventPal(FROST_LORD_ART, FROST_LORD_FRAMES, FROST_LORD_STAGE_LABELS);
 export const VesperPal = makeEventPal(VESPER_ART, VESPER_FRAMES, VESPER_STAGE_LABELS);
+export const GladiPal = makeEventPal(GLADI_ART, GLADI_FRAMES, GLADI_STAGE_LABELS);
 
 /** The Beloved's line. Her final stage wears whichever form was picked (src/lib/belovedForm.ts): marble or the Seraph. */
 export function BelovedPal({ stage, size = 220, animated = true }: PetProps) {

@@ -29,6 +29,7 @@ import { ThanksgivingScene } from '@/components/saint/ThanksgivingScene';
 import { WindowSeatScene } from '@/components/saint/WindowSeatScene';
 import { BelovedScene } from '@/components/saint/BelovedScene';
 import { SwampKingScene } from '@/components/saint/SwampKingScene';
+import { SwordScene } from '@/components/saint/SwordScene';
 import { WinterLordScene } from '@/components/saint/WinterLordScene';
 import { WinterBanner } from '@/components/winter/winterUi';
 import {
@@ -47,6 +48,7 @@ import {
   THANKSGIVING_VERSES,
   BELOVED_VERSES,
   SWAMP_VERSES,
+  SWORD_VERSES,
   VERSES,
   WINTER_VERSES,
 } from '@/components/saint/theme';
@@ -337,6 +339,8 @@ function RoomHomeScreen() {
                   ? BelovedScene
                   : roomName === 'swamp'
                   ? SwampKingScene
+                  : roomName === 'sword'
+                  ? SwordScene
                   : roomName in MONTHLY_SCENES
                   ? MONTHLY_SCENES[roomName as MonthlyRoomName]
                   : LamplitScene;
@@ -350,7 +354,7 @@ function RoomHomeScreen() {
     <View style={[styles.root, { backgroundColor: ROOM.bg }]}>
       <SceneComponent />
       {/* The event scenes have their own snow, mist and wisps, so they skip the warm dust (less to animate). */}
-      {roomName === 'winter' || roomName === 'swamp' || roomName === 'beloved' ? null : <DustMotes count={26} />}
+      {roomName === 'winter' || roomName === 'swamp' || roomName === 'beloved' || roomName === 'sword' ? null : <DustMotes count={26} />}
 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <StatusBar barStyle={ROOM.statusBar} />
@@ -510,6 +514,7 @@ const SEASONAL_COPY: Partial<Record<PrayerRoomName, SeasonalCopy>> = {
   winter: { ...split(WINTER_VERSES), pill: 'The Long Winter', word: 'light' },
   beloved: { ...split(BELOVED_VERSES), pill: 'The Beloved', word: 'love' },
   swamp: { ...split(SWAMP_VERSES), pill: 'The Swamp King', word: 'hope' },
+  sword: { ...split(SWORD_VERSES), pill: 'The Sword of the Spirit', word: 'strength' },
 };
 
 function seasonalCopy(room: PrayerRoomName): SeasonalCopy | undefined {

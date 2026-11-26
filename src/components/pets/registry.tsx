@@ -3,7 +3,7 @@ import React from 'react';
 import { useReleases } from '@/lib/releases';
 import { usePalStages } from '@/lib/winterEvent';
 
-import { BelovedPal, FrostLordBear, VesperPal } from './FrostLordPet';
+import { BelovedPal, FrostLordBear, GladiPal, VesperPal } from './FrostLordPet';
 
 import { OliveDove } from './Dove';
 import { SelahDragon } from './Dragon';
@@ -39,7 +39,8 @@ export type PetId =
   | 'pig'
   | 'frostLord'
   | 'vesper'
-  | 'beloved';
+  | 'beloved'
+  | 'gladi';
 
 export type PetDef = {
   id: PetId;
@@ -287,6 +288,18 @@ export const PETS: PetDef[] = [
     season: 'The Swamp King',
     eventLine: true,
     Art: VesperPal,
+  },
+  // The Sword of the Spirit (the June event): Shard arrives with the first June prayer, Gladi with three challenges,
+  // and Gladius when all six are done (src/lib/winterEvent.ts).
+  {
+    id: 'gladi',
+    name: 'Shard',
+    species: 'Angel sword spirit',
+    tagline: 'From a little shard of light to Gladius, the sword of the Spirit.',
+    stages: ['Shard', 'Gladi', 'Gladius'],
+    season: 'The Sword of the Spirit',
+    eventLine: true,
+    Art: GladiPal,
   },
 ];
 

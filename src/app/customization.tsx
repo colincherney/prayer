@@ -431,6 +431,21 @@ const PrayerRoomPreview: React.FC<{ room: PrayerRoomName }> = ({ room }) => {
       </View>
     );
   }
+  if (room === 'sword') {
+    // The Sword of the Spirit — teal night, a glowing blade standing in the lake, wings of light and the lake below.
+    return (
+      <View style={{ width: '100%', height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: '#163A4C' }}>
+        <View style={{ position: 'absolute', left: '50%', top: 6, marginLeft: -22, width: 44, height: 44, borderRadius: 22, backgroundColor: '#7FDDF2', opacity: 0.28 }} />
+        <View style={{ position: 'absolute', left: '50%', top: 18, marginLeft: -30, width: 60, height: 4, borderRadius: 2, backgroundColor: '#2A3A4E' }} />
+        <View style={{ position: 'absolute', left: '50%', top: 6, marginLeft: -2, width: 4, height: 12, backgroundColor: '#2A3A4E' }} />
+        <View style={{ position: 'absolute', left: '50%', top: 22, marginLeft: -4, width: 8, height: 30, backgroundColor: '#E6F8FF' }} />
+        <View style={{ position: 'absolute', left: -20, right: -20, bottom: -14, height: 26, borderRadius: 26, backgroundColor: '#0E2A3A' }} />
+        <View style={{ position: 'absolute', left: '50%', bottom: 8, marginLeft: -16, width: 32, height: 4, borderRadius: 2, backgroundColor: '#BFEAF6', opacity: 0.6 }} />
+        <View style={{ position: 'absolute', left: 22, top: 10, width: 3, height: 3, borderRadius: 2, backgroundColor: '#FFFFFF' }} />
+        <View style={{ position: 'absolute', right: 26, top: 16, width: 3, height: 3, borderRadius: 2, backgroundColor: '#D8B45A' }} />
+      </View>
+    );
+  }
   if (room === 'swamp') {
     // The Swamp King — dusk violet sky, a low sun, dark water, a mossy stump and a blue wisp.
     return (

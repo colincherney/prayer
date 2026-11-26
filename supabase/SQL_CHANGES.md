@@ -1074,3 +1074,34 @@ $function$;
 revoke all on function public.account_xp(uuid) from public, anon, authenticated;
 drop table if exists public.bible_highlights;
 ```
+
+---
+
+## The Sword of the Spirit June event, in testing mode (2026-11-25)
+
+**Why:** the June event (Jun 1–30, 2027): Shard → Gladi → Gladius, the angel-sword wallpaper, 6 anytime challenges,
+the armour-of-God keepsakes and the Sea of Galilee nook as the community reward. Testing mode is on so it can be tried
+now.
+
+**What:**
+- New row `sword-2027` in `public.events`, the `swords_raised` community counter, and the `event:sword` content
+  window (Jun 1 00:00 ET to Jul 1 00:00 ET).
+- `'gladi'` added to the pet-id checks on `group_members`, `pet_xp`, `pet_state` and to `switch_pet()`.
+- **Testing mode ON:** `starts_on` and the window open Nov 25, 2026, `allow_test_dates` true, `test_today` 2027-06-01.
+
+**Applied as:** `supabase/migrations/20261125_sword_event.sql` then `20261125_sword_testing_mode_on.sql`, through the
+Supabase connector on 2026-11-25. Checked afterwards: the event row, window and counter are there, and `gladi` is in the
+checks.
+
+**Leave testing mode (before release):** run `supabase/migrations/20261125_sword_testing_mode_off.sql`.
+
+**Revert completely:**
+
+```sql
+delete from public.user_event_progress where event_id = 'sword-2027';
+delete from public.community_counters where event_id = 'sword-2027';
+delete from public.events where id = 'sword-2027';
+delete from public.content_windows where id = 'event:sword';
+-- then re-run the pet-id checks and switch_pet() from supabase/migrations/20261119_beloved_event.sql (without 'gladi'),
+-- after moving anyone whose active pet is 'gladi' to another pet.
+```

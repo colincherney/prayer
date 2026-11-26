@@ -7,6 +7,7 @@ import { COLLECTION_KEEPSAKE_INFO } from './collectionData';
 import { COLLECTION_KEEPSAKE_ART } from './collectionKeepsakes';
 import { BELOVED_KEEPSAKE_ART, BELOVED_KEEPSAKE_INFO } from './belovedKeepsakes';
 import { SWAMP_KEEPSAKE_ART, SWAMP_KEEPSAKE_INFO } from './swampKeepsakes';
+import { SWORD_KEEPSAKE_ART, SWORD_KEEPSAKE_INFO } from './swordKeepsakes';
 import { WINTER_KEEPSAKE_ART, WINTER_KEEPSAKE_INFO } from './winterKeepsakes';
 
 // The 24 prayer nook trinkets' artwork, converted from design/Trinkets.dc.html (Prayer nook trinkets). Each piece
@@ -921,6 +922,7 @@ export const TRINKET_ART = {
   ...WINTER_KEEPSAKE_ART,
   ...BELOVED_KEEPSAKE_ART,
   ...SWAMP_KEEPSAKE_ART,
+  ...SWORD_KEEPSAKE_ART,
 } as const;
 
 export type TrinketId = keyof typeof TRINKET_ART;
@@ -955,4 +957,5 @@ export const TRINKET_INFO: Record<TrinketId, { name: string; rarity: 'common' | 
   ...WINTER_KEEPSAKE_INFO,
   ...BELOVED_KEEPSAKE_INFO,
   ...SWAMP_KEEPSAKE_INFO,
+  ...SWORD_KEEPSAKE_INFO,
 };

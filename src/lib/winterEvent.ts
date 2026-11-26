@@ -17,11 +17,12 @@ export * from './winterDates';
 export const WINTER_EVENT_ID = 'long-winter-2026';
 export const BELOVED_EVENT_ID = 'beloved-2027';
 export const SWAMP_EVENT_ID = 'swamp-king-2027';
+export const SWORD_EVENT_ID = 'sword-2027';
 /** Every event the app knows how to show, oldest first. */
-export const EVENT_IDS = [WINTER_EVENT_ID, BELOVED_EVENT_ID, SWAMP_EVENT_ID] as const;
+export const EVENT_IDS = [WINTER_EVENT_ID, BELOVED_EVENT_ID, SWAMP_EVENT_ID, SWORD_EVENT_ID] as const;
 export type EventId = (typeof EVENT_IDS)[number];
 /** Which event each event-only companion belongs to. */
-export const PAL_EVENTS: Record<string, EventId> = { frostLord: WINTER_EVENT_ID, beloved: BELOVED_EVENT_ID, vesper: SWAMP_EVENT_ID };
+export const PAL_EVENTS: Record<string, EventId> = { frostLord: WINTER_EVENT_ID, beloved: BELOVED_EVENT_ID, vesper: SWAMP_EVENT_ID, gladi: SWORD_EVENT_ID };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types (the shapes public.winter_event_state returns)

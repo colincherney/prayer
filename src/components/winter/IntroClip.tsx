@@ -46,7 +46,8 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
   const styles = useMemo(() => makeStyles(skin.palette), [skin.palette]);
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
   /** Load failed, too slow, or skipped: show the end page. */
-  const [forcedStill, setStill] = useState(false);
+  // An event with no clip goes straight to the end page.
+  const [forcedStill, setStill] = useState(!skin.clip);
   // With Reduce Motion on, the clip never plays by itself; replaying it from the event screen is asking for it.
   const still = forcedStill || (reduceMotion === true && mode === 'auto');
   const [ended, setEnded] = useState(false);
@@ -71,7 +72,7 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
   }, []);
 
   useEffect(() => {
-    if (reduceMotion === null || (reduceMotion && mode === 'auto')) return;
+    if (!skin.clip || reduceMotion === null || (reduceMotion && mode === 'auto')) return;
     const subs = [
       player.addListener('statusChange', ({ status }) => {
         if (status === 'readyToPlay') setReady(true);

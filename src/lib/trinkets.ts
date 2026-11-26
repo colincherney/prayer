@@ -10,6 +10,7 @@ import { COLLECTION_KEEPSAKE_GOALS, COLLECTION_KEEPSAKE_ORDER } from '@/componen
 import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { BELOVED_KEEPSAKE_IDS } from '@/components/pets/belovedKeepsakes';
 import { SWAMP_KEEPSAKE_IDS } from '@/components/pets/swampKeepsakes';
+import { SWORD_KEEPSAKE_IDS } from '@/components/pets/swordKeepsakes';
 import { WINTER_KEEPSAKE_IDS } from '@/components/pets/winterKeepsakes';
 import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
@@ -21,7 +22,7 @@ import { afterLaunch } from '@/lib/launch';
 import { supabase } from '@/lib/supabase';
 
 /** Keepsakes only an event can give (claimed on the event screen), never on the honor system. */
-const EVENT_TRINKETS = new Set<TrinketId>([...WINTER_KEEPSAKE_IDS, ...BELOVED_KEEPSAKE_IDS, ...SWAMP_KEEPSAKE_IDS]);
+const EVENT_TRINKETS = new Set<TrinketId>([...WINTER_KEEPSAKE_IDS, ...BELOVED_KEEPSAKE_IDS, ...SWAMP_KEEPSAKE_IDS, ...SWORD_KEEPSAKE_IDS]);
 
 /** Display order, two per month of the original schedule, matched to the season where one fits. */
 export const TRINKET_ORDER: TrinketId[] = [
