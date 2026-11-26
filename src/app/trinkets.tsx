@@ -1,30 +1,46 @@
 import { router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useCallback, useRef, useState } from 'react';
+import { FlatList, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { RARITY_COLOR, TapTrinket, TrinketArt } from '@/components/pets/Trinket';
-import { TRINKET_INFO } from '@/components/pets/trinketArt';
+import { TRINKET_INFO, TrinketId } from '@/components/pets/trinketArt';
 import { BackIcon } from '@/components/saint/Icons';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { TrinketStatus, useTrinkets } from '@/lib/trinkets';
 
-function TrinketCard({ t, onClaim }: { t: TrinketStatus; onClaim: () => void }) {
+// The keepsake gallery. Every trinket is an SVG with its own looping animations, and each animated frame redraws its
+// whole canvas, so with every keepsake earned (90+) a plain ScrollView ran ~190 loops at once, off-screen ones included,
+// and dropped to under 20fps. Now the grid is a virtualized list (cards far off-screen aren't mounted), and only the
+// cards actually on screen animate; the rest hold their resting pose. Cards are memoized, so scrolling only re-renders
+// the few whose on-screen state changed.
+
+const ART_SIZE = 104;
+
+type CardProps = { t: TrinketStatus; animated: boolean; onClaim: (id: TrinketId) => void };
+
+function TrinketCardBase({ t, animated, onClaim }: CardProps) {
   const styles = useThemedStyles(makeStyles);
   const info = TRINKET_INFO[t.id];
   const color = RARITY_COLOR[info.rarity];
   return (
     <View style={[styles.card, info.rarity === 'legendary' && t.earned && { borderColor: color }]}>
       <Text style={[styles.rarity, { color }]}>{info.rarity.toUpperCase()}</Text>
-      {t.earned ? <TapTrinket id={t.id} size={104} /> : <TrinketArt id={t.id} size={104} dim />}
+      {t.earned ? (
+        <TapTrinket id={t.id} size={ART_SIZE}>
+          <TrinketArt id={t.id} size={ART_SIZE} animated={animated} />
+        </TapTrinket>
+      ) : (
+        <TrinketArt id={t.id} size={ART_SIZE} dim />
+      )}
       <Text style={styles.name}>{info.name}</Text>
       <Text style={styles.goal}>{info.goal}</Text>
       {t.earned ? (
         <Text style={[styles.status, { color }]}>On your shelf</Text>
       ) : t.honor ? (
-        <Pressable onPress={onClaim} accessibilityRole="button" style={({ pressed }) => [styles.claim, pressed && { opacity: 0.8 }]}>
+        <Pressable onPress={() => onClaim(t.id)} accessibilityRole="button" style={({ pressed }) => [styles.claim, pressed && { opacity: 0.8 }]}>
           <Text style={styles.claimText}>I did this</Text>
         </Pressable>
       ) : t.progress ? (
@@ -44,48 +60,92 @@ function TrinketCard({ t, onClaim }: { t: TrinketStatus; onClaim: () => void }) 
   );
 }
 
+// useTrinkets builds fresh status objects on every render, so compare what the card shows rather than identity.
+const TrinketCard = memo(TrinketCardBase, (a, b) =>
+  a.animated === b.animated &&
+  a.onClaim === b.onClaim &&
+  a.t.id === b.t.id &&
+  a.t.earned === b.t.earned &&
+  a.t.honor === b.t.honor &&
+  a.t.quest === b.t.quest &&
+  a.t.progress?.[0] === b.t.progress?.[0] &&
+  a.t.progress?.[1] === b.t.progress?.[1],
+);
+
+const VIEWABILITY = { itemVisiblePercentThreshold: 15, minimumViewTime: 0 };
+const keyOf = (t: TrinketStatus) => t.id;
+
 export default function TrinketsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { trinkets, claim } = useTrinkets();
+  // The cards on screen right now: the only ones whose loops run.
+  const [onScreen, setOnScreen] = useState<ReadonlySet<TrinketId>>(() => new Set());
+  // Must be the same function for the list's whole life (FlatList refuses a new one).
+  const onViewable = useRef(({ viewableItems }: { viewableItems: { item: TrinketStatus }[] }) => {
+    const next = new Set(viewableItems.map(v => v.item.id));
+    setOnScreen(prev => (prev.size === next.size && [...next].every(id => prev.has(id)) ? prev : next));
+  }).current;
+  const onClaim = useCallback((id: TrinketId) => {
+    claim(id);
+  }, [claim]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: TrinketStatus }) => <TrinketCard t={item} animated={onScreen.has(item.id)} onClaim={onClaim} />,
+    [onScreen, onClaim],
+  );
+
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: THEME.bg }} />;
   const earned = trinkets.filter(t => t.earned).length;
+
+  const header = (
+    <>
+      <View style={styles.brandRow}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">
+          <BackIcon size={15} color={THEME.ink} />
+        </Pressable>
+      </View>
+      <View style={styles.intro}>
+        <Text style={styles.title}>
+          Nook <Text style={styles.titleItalic}>trinkets</Text>
+        </Text>
+        <Text style={styles.subtitle}>
+          Keepsakes earned through prayer and quests, set on the shelf beside your companion.
+          {trinkets.length ? ` You have ${earned} of ${trinkets.length}.` : ''}
+        </Text>
+      </View>
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">
-            <BackIcon size={15} color={THEME.ink} />
-          </Pressable>
-        </View>
-        <View style={{ paddingHorizontal: 22 }}>
-          <Text style={styles.title}>
-            Nook <Text style={styles.titleItalic}>trinkets</Text>
-          </Text>
-          <Text style={styles.subtitle}>
-            Keepsakes earned through prayer and quests, set on the shelf beside your companion.
-            {trinkets.length ? ` You have ${earned} of ${trinkets.length}.` : ''}
-          </Text>
-        </View>
-        {trinkets.length === 0 ? (
-          <Text style={[styles.subtitle, { paddingHorizontal: 22, marginTop: 24 }]}>The first trinkets arrive with the Thanksgiving update.</Text>
-        ) : (
-          <View style={styles.grid}>
-            {trinkets.map(t => (
-              <TrinketCard key={t.id} t={t} onClaim={() => claim(t.id)} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+      <FlatList
+        data={trinkets}
+        keyExtractor={keyOf}
+        renderItem={renderItem}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        ListHeaderComponent={header}
+        ListEmptyComponent={<Text style={[styles.subtitle, styles.empty]}>The first trinkets arrive with the Thanksgiving update.</Text>}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewable}
+        viewabilityConfig={VIEWABILITY}
+        // A screen and a bit: mount little ahead, keep little behind.
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={5}
+        removeClippedSubviews
+      />
     </SafeAreaView>
   );
 }
 
 const makeStyles = (THEME: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: THEME.bg },
+  content: { paddingBottom: 60 },
   brandRow: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 6 },
   backBtn: {
     width: 36,
@@ -97,10 +157,12 @@ const makeStyles = (THEME: Theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  intro: { paddingHorizontal: 22, marginBottom: 18 },
   title: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 44, color: THEME.ink, marginTop: 14 },
   titleItalic: { fontFamily: FONTS.display, color: THEME.accent },
   subtitle: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 20, color: THEME.muted, marginTop: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 18, gap: 12, justifyContent: 'center' },
+  empty: { paddingHorizontal: 22, marginTop: 6 },
+  row: { paddingHorizontal: 16, gap: 12, marginBottom: 12, justifyContent: 'center' },
   card: {
     width: '46%',
     alignItems: 'center',
