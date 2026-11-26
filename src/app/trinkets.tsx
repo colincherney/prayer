@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { memo, useCallback, useRef, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
 import { SafeAreaView } from '@/components/saint/SafeArea';
@@ -72,6 +72,9 @@ const TrinketCard = memo(TrinketCardBase, (a, b) =>
   a.t.progress?.[1] === b.t.progress?.[1],
 );
 
+/** Rarest first; within a rank, the usual order. */
+const RANK = { legendary: 0, epic: 1, rare: 2, common: 3 } as const;
+
 const VIEWABILITY = { itemVisiblePercentThreshold: 15, minimumViewTime: 0 };
 const keyOf = (t: TrinketStatus) => t.id;
 
@@ -79,7 +82,11 @@ export default function TrinketsScreen() {
   const fontsLoaded = useSaintFonts();
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { trinkets, claim } = useTrinkets();
+  const { trinkets: unsorted, claim } = useTrinkets();
+  const trinkets = useMemo(
+    () => [...unsorted].sort((a, b) => RANK[TRINKET_INFO[a.id].rarity] - RANK[TRINKET_INFO[b.id].rarity]),
+    [unsorted],
+  );
   // The cards on screen right now: the only ones whose loops run.
   const [onScreen, setOnScreen] = useState<ReadonlySet<TrinketId>>(() => new Set());
   // Must be the same function for the list's whole life (FlatList refuses a new one).

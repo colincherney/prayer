@@ -8,10 +8,10 @@ import { Appearance, AppState, LogBox, Platform, useColorScheme } from 'react-na
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AccountTour } from '@/components/saint/AccountTour';
-import { AppearanceModeProvider } from '@/components/saint/appearanceMode';
+import { AppearanceModeProvider, preloadAppearanceMode } from '@/components/saint/appearanceMode';
 import { AppDisplayProvider, useAppDisplay } from '@/components/saint/appDisplay';
-import { PrayerRoomProvider } from '@/components/saint/prayerRoom';
-import { SaintThemeProvider, THEMES, useTheme } from '@/components/saint/theme';
+import { preloadPrayerRoom, PrayerRoomProvider } from '@/components/saint/prayerRoom';
+import { preloadSaintTheme, SaintThemeProvider, THEMES, useTheme } from '@/components/saint/theme';
 import { saintWidgetFontDesign, useSaintFonts } from '@/components/saint/useFonts';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { syncCloudProgress } from '@/lib/cloudProgress';
@@ -207,7 +207,7 @@ export default function RootLayout() {
   // The splash stays up during these quick reads, so no screen ever draws the default pet first.
   const [preloaded, setPreloaded] = useState(false);
   useEffect(() => {
-    Promise.all([preloadPet(), preloadReleases(), preloadLocal(), preloadWinter(), preloadWinterLook()]).finally(() => setPreloaded(true));
+    Promise.all([preloadPet(), preloadReleases(), preloadLocal(), preloadWinter(), preloadWinterLook(), preloadPrayerRoom(), preloadAppearanceMode(), preloadSaintTheme()]).finally(() => setPreloaded(true));
   }, []);
   if (!preloaded) return null;
 

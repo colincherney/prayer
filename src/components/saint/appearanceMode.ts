@@ -22,6 +22,15 @@ export type AppearanceMode = 'room' | 'theme';
 
 const STORAGE_KEY = 'saint.appearanceMode';
 
+// The saved mode, read behind the splash screen so a theme pick doesn't flash the room first on launch.
+let savedMode: AppearanceMode | null = null;
+export async function preloadAppearanceMode(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    if (stored === 'room' || stored === 'theme') savedMode = stored;
+  } catch {}
+}
+
 type AppearanceModeCtx = {
   mode: AppearanceMode;
   setMode: (mode: AppearanceMode) => void;
@@ -35,7 +44,7 @@ const AppearanceModeContext = createContext<AppearanceModeCtx>({
 export const AppearanceModeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [mode, setModeState] = useState<AppearanceMode>('room');
+  const [mode, setModeState] = useState<AppearanceMode>(() => savedMode ?? 'room');
 
   const cloudVersion = useCloudVersion();
   useEffect(() => {

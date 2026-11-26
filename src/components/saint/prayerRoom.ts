@@ -403,6 +403,16 @@ function useSeasonalDefault(): PrayerRoomName {
   return newest ?? SEASONAL_FALLBACK;
 }
 
+// The saved pick, read behind the splash screen so the first frame already shows it (not the seasonal default for a
+// moment before switching).
+let savedRoom: PrayerRoomName | null = null;
+export async function preloadPrayerRoom(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    if (stored && stored in PRAYER_ROOMS) savedRoom = stored as PrayerRoomName;
+  } catch {}
+}
+
 type PrayerRoomCtx = {
   name: PrayerRoomName;
   palette: PrayerRoomPalette;
@@ -421,7 +431,7 @@ export const PrayerRoomProvider: React.FC<{ children: React.ReactNode }> = ({
   const seasonal = useSeasonalDefault();
   const available = useAvailableRooms();
   // The room the person picked, if any; until then the seasonal default shows.
-  const [chosen, setChosen] = useState<PrayerRoomName | null>(null);
+  const [chosen, setChosen] = useState<PrayerRoomName | null>(() => savedRoom);
 
   const cloudVersion = useCloudVersion();
   useEffect(() => {

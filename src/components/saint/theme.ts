@@ -184,10 +184,22 @@ const ThemeContext = createContext<ThemeCtx>({
   setTheme: () => {},
 });
 
+// The saved theme, read behind the splash screen so the first frame is already in it.
+let savedTheme: ThemeName | null = null;
+export async function preloadSaintTheme(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    if (stored && stored in THEMES) {
+      savedTheme = stored as ThemeName;
+      Object.assign(THEME, THEMES[savedTheme]);
+    }
+  } catch {}
+}
+
 export const SaintThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [name, setName] = useState<ThemeName>('cream');
+  const [name, setName] = useState<ThemeName>(() => savedTheme ?? 'cream');
 
   const cloudVersion = useCloudVersion();
   useEffect(() => {
