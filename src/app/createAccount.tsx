@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import { useState } from 'react';
 
 import { AuthButton } from '@/components/saint/AuthControls';

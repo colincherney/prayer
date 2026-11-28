@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';

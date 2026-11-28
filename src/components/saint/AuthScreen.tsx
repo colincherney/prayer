@@ -3,7 +3,7 @@ import { CormorantGaramond_600SemiBold_Italic } from '@expo-google-fonts/cormora
 import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import { useContext, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,

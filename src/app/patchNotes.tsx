@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
 
 import { copyFor, DecorArt } from '@/components/drops/DropShowcase';
@@ -16,6 +16,7 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import { useSaintFonts } from '@/components/saint/useFonts';
 import { DropItem, loadDropHistory, markPatchNotesSeen, mondayOf } from '@/lib/drops';
 import { shortDate, useEvents } from '@/lib/winterEvent';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 // Patch notes: everything that has dropped, week by week, newest first, so people can see the app keeps growing.
 // It reads the same release schedule as "What's new" (public.content_releases), so it's always up to date.
@@ -108,7 +109,7 @@ export default function PatchNotesScreen() {
       <Text style={styles.intro}>Something new arrives almost every week. Here&apos;s everything that has dropped, newest first.</Text>
 
       {weeks === null ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={theme.accent} />
+        <PageLoader style={{ marginTop: 40 }} color={theme.accent} />
       ) : !latest ? (
         <Text style={styles.empty}>Nothing has dropped yet. Check back soon.</Text>
       ) : (

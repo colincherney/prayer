@@ -1,4 +1,3 @@
-import { useIsFocused } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   GestureResponderEvent,
@@ -21,6 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { FONTS, THEME, Theme } from './theme';
+import { useMotionEnabled } from '@/components/pets/anim';
+
 import { PressScale } from './GroupKit';
 import { BackIcon } from './Icons';
 
@@ -127,7 +128,8 @@ export const ScriptureTicker: React.FC<{
   const text = verses.map(v => `${v.text}  •  ${v.ref}`).join('   •   ');
   const translateX = useSharedValue(0);
   const [textWidth, setTextWidth] = useState(0);
-  const focused = useIsFocused();
+  // Paused off-screen; under Reduce Motion the verses stand still rather than scroll.
+  const focused = useMotionEnabled(true);
 
   useEffect(() => {
     if (textWidth <= 0 || !focused) return;

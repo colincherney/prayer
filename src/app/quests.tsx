@@ -1,9 +1,11 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
 import { authHaptic } from '@/components/saint/authHaptics';
-import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+
+import { EASE_OUT } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 
@@ -20,6 +22,7 @@ import { usePetProgress, XP_PER_LEVEL } from '@/lib/pet';
 import { QuestCategory } from '@/lib/questPool';
 import { CATEGORIES, CATEGORY_INFO, DailyQuest, MAX_REROLLS, QUEST_XP, QuestStatus, useQuests } from '@/lib/quests';
 import { BONUS_TRINKETS, QUEST_TRINKETS, useTrinkets } from '@/lib/trinkets';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 const ACircle = Animated.createAnimatedComponent(Circle);
 const RING_R = 23;
@@ -71,7 +74,7 @@ function CategoryIcon({ cat, color }: { cat: QuestCategory; color: string }) {
 function RhythmRing({ value, color, track, ink, label }: { value: number; color: string; track: string; ink: string; label: string }) {
   const v = useSharedValue(0);
   useEffect(() => {
-    v.set(withTiming(Math.min(value, 7) / 7, { duration: 700, easing: Easing.out(Easing.cubic) }));
+    v.set(withTiming(Math.min(value, 7) / 7, { duration: 700, easing: EASE_OUT }));
   }, [value, v]);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: RING_LEN * (1 - v.get()) }));
   return (
@@ -118,7 +121,7 @@ export default function QuestsScreen() {
 
   const xpW = useSharedValue(0);
   useEffect(() => {
-    xpW.set(withTiming(progress.xpInLevel / XP_PER_LEVEL, { duration: 600, easing: Easing.out(Easing.cubic) }));
+    xpW.set(withTiming(progress.xpInLevel / XP_PER_LEVEL, { duration: 600, easing: EASE_OUT }));
   }, [progress.xpInLevel, xpW]);
   const xpStyle = useAnimatedStyle(() => ({ width: `${Math.round(xpW.get() * 100)}%` }));
 
@@ -278,7 +281,7 @@ export default function QuestsScreen() {
 
         <Text style={[styles.section, { marginTop: 28 }]}>TODAY&apos;S QUESTS</Text>
         {!q.loaded ? (
-          <ActivityIndicator color={THEME.accent} style={{ marginTop: 20 }} />
+          <PageLoader color={THEME.accent} style={{ marginTop: 20 }} />
         ) : (
           <View style={{ marginTop: 14, gap: 12 }}>
             {regular.map(quest => (

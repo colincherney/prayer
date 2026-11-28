@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,11 +19,13 @@ import Animated, {
   Easing,
   interpolate,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import { EASE_OUT } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { lyingFeetOffset } from '@/components/pets/LyingPets';
@@ -290,13 +292,14 @@ const IntentPhase: React.FC<{
 /* -------------------- Phase 2: searching -------------------- */
 // One expanding ring; each starts 800ms after the previous so they stagger.
 const SearchRipple: React.FC<{ index: number; style: StyleProp<ViewStyle> }> = ({ index, style }) => {
+  const reduce = useReducedMotion();
   const v = useSharedValue(0);
 
   useEffect(() => {
     v.set(
       withDelay(
         index * 800,
-        withRepeat(withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }), -1),
+        withRepeat(withTiming(1, { duration: 2400, easing: EASE_OUT }), -1),
       ),
     );
     return () => cancelAnimation(v);
@@ -304,7 +307,8 @@ const SearchRipple: React.FC<{ index: number; style: StyleProp<ViewStyle> }> = (
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(v.get(), [0, 1], [0.6, 0]),
-    transform: [{ scale: interpolate(v.get(), [0, 1], [0.6, 1.4]) }],
+    // Reduce Motion: the rings pulse in place instead of spreading outwards.
+    transform: [{ scale: reduce ? 1 : interpolate(v.get(), [0, 1], [0.6, 1.4]) }],
   }));
 
   return <Animated.View style={[style, animatedStyle]} />;
@@ -406,6 +410,7 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 }) => {
   const { theme: THEME } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const reduce = useReducedMotion();
   const breathe = useSharedValue(0);
 
   useEffect(() => {
@@ -417,7 +422,8 @@ const PrayingPhase: React.FC<{ timer: number; partner: Partner; onEnd: () => voi
 
   const breatheStyle = useAnimatedStyle(() => ({
     opacity: interpolate(breathe.get(), [0, 1], [0.6, 1]),
-    transform: [{ scale: interpolate(breathe.get(), [0, 1], [0.85, 1.1]) }],
+    // Reduce Motion: the glow still brightens and dims with each breath, without swelling.
+    transform: [{ scale: reduce ? 1 : interpolate(breathe.get(), [0, 1], [0.85, 1.1]) }],
   }));
 
   const mm = String(Math.floor(timer / 60));

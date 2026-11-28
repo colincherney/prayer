@@ -1,4 +1,5 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -46,6 +47,7 @@ import { usePetProgress } from '@/lib/pet';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 type GroupInfo = {
   id: string;
@@ -469,7 +471,7 @@ export default function GroupScreen() {
       <StatusBar barStyle={THEME.isDark ? 'light-content' : 'dark-content'} />
       {loading ? (
         <View style={styles.centerFill}>
-          <ActivityIndicator color={THEME.accent} />
+          <PageLoader color={THEME.accent} />
         </View>
       ) : !group ? (
         <View style={styles.centerFill}>

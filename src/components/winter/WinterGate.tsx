@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router, useSegments } from 'expo-router';
+import { useSegments } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useState } from 'react';
 
 import { useAuth } from '@/lib/auth';

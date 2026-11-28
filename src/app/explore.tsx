@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import type { Session } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -22,6 +22,7 @@ import Animated, {
   interpolate,
   type SharedValue,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -46,6 +47,7 @@ import { refreshPrayerStreakActivity } from '@/lib/prayerStreakActivity';
 import { refreshPrayerStreakWidget } from '@/lib/prayerStreakWidget';
 import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 type NightPalette = {
   bg: string;
@@ -248,6 +250,7 @@ export default function PrayForOthersScreen() {
 function PrayForOthersFeed({ session }: { session: Session | null }) {
   const fontsLoaded = useSaintFonts();
   const { simple } = useAppDisplay();
+  const reduce = useReducedMotion();
   const { theme: THEME } = useTheme();
   const NIGHT = useMemo(() => nightPaletteFromTheme(THEME), [THEME]);
   const styles = useMemo(() => makeStyles(NIGHT), [NIGHT]);
@@ -341,9 +344,13 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
   const req = requests[index];
   const lit = req ? prayedIds.has(req.id) : false;
 
-  // Flicker loop — runs always, but only visible when flame is lit
+  // Flicker loop — runs always, but only visible when flame is lit. Reduce Motion: a steady flame instead.
   useEffect(() => {
     if (simple) return;
+    if (reduce) {
+      flicker.set(0.85);
+      return;
+    }
     const easing = Easing.inOut(Easing.quad);
     flicker.set(
       withRepeat(
@@ -357,7 +364,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
       ),
     );
     return () => cancelAnimation(flicker);
-  }, [flicker, simple]);
+  }, [flicker, simple, reduce]);
 
   // When the current request becomes lit/unlit, animate the ignite reveal + glow
   useEffect(() => {
@@ -369,7 +376,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
       }),
     );
     glowIntensity.set(
-      withTiming(lit ? 1 : 0.5, { duration: 700, easing: Easing.out(Easing.cubic) }),
+      withTiming(lit ? 1 : 0.5, { duration: 700, easing: EASE_OUT }),
     );
   }, [lit, lightUp, glowIntensity, simple]);
 
@@ -571,7 +578,7 @@ function PrayForOthersFeed({ session }: { session: Session | null }) {
 
         {loadingFeed ? (
           <View style={styles.centerFill}>
-            <ActivityIndicator color={NIGHT.flame} />
+            <PageLoader color={NIGHT.flame} />
           </View>
         ) : !req ? (
           <View style={styles.centerFill}>

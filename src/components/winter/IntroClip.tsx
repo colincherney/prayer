@@ -1,6 +1,6 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Modal, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Modal, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { pauseBackgroundMotion } from '@/components/pets/anim';
 import { realStart, shortDate, useEvent } from '@/lib/winterEvent';
 
 import { clipSource, glass, Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 // An event's ~30-second intro clip, streamed from the event-clips storage bucket ("Face the Winter Lord", "Face the Swamp King"), from the skin of the event it's
 // shown for (no audio track, so it never stops someone's music). Full screen, Skip after 1.5 s, and the moment the clip
@@ -137,7 +138,7 @@ function ClipBody({ mode, onStarted, onBegin, onClose }: { mode: IntroMode; onSt
     <View style={styles.root}>
       <StatusBar hidden />
       {!showEndPage ? <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} /> : null}
-      {!showEndPage && !ready ? <ActivityIndicator style={styles.spinner} color={skin.palette.cream} /> : null}
+      {!showEndPage && !ready ? <PageLoader style={styles.spinner} color={skin.palette.cream} /> : null}
 
       {fontsLoaded && showSkip && !showEndPage ? (
         <Animated.View entering={FadeIn.duration(400)} style={[styles.skipWrap, { top: insets.top + 12 }]}>

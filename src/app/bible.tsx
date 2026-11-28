@@ -1,4 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
@@ -12,7 +13,8 @@ import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/them
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BIBLE_BOOKS } from '@/lib/bibleBooks';
-import { type BibleTotals, fetchBibleTotals, fetchReadChapters } from '@/lib/bibleProgress';
+import { type BibleTotals, fetchBibleTotals, fetchLastBiblePlace, fetchReadChapters } from '@/lib/bibleProgress';
+import { placeOf } from '@/components/saint/useBibleReader';
 import { BIBLE_VERSIONS, useBibleVersion } from '@/lib/bibleVersion';
 import { LOCAL_KEYS, readLocal, writeLocal } from '@/lib/localCache';
 import { useAccountLevel, XP } from '@/lib/pet';
@@ -56,6 +58,13 @@ export default function BibleScreen() {
   const refresh = useCallback(() => {
     const controller = new AbortController();
     fetchBibleTotals(controller.signal).then(t => { if (!controller.signal.aborted) setTotals(t); }, () => {});
+    // Nothing saved on this phone (new phone, reinstall): pick up from the account's latest chapter instead.
+    if (!readLocal<Place>(LOCAL_KEYS.bibleLastRead)) {
+      fetchLastBiblePlace(controller.signal).then(last => {
+        const place = last && placeOf(last.book, last.chapter);
+        if (place && !controller.signal.aborted) setLastRead(prev => prev ?? place);
+      }, () => {});
+    }
     if (openName) {
       fetchReadChapters(openName, controller.signal).then(r => { if (!controller.signal.aborted) setReadInBook(r); }, () => {});
     }

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -15,6 +15,7 @@ import Animated, {
   SharedValue,
   useAnimatedProps,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withSequence,
@@ -208,15 +209,17 @@ function Ring({ v, color, width, size }: { v: SharedValue<number>; color: string
 /** Two expanding rings centered on the pet's box when it levels up. */
 function LevelUpRings({ trigger, box }: { trigger: boolean; box: { top: number; left: number; w: number; h: number } }) {
   const { theme: THEME } = useTheme();
+  const reduce = useReducedMotion();
   const a = useSharedValue(0);
   const b = useSharedValue(0);
   useEffect(() => {
-    if (!trigger) return;
+    // Reduce Motion: no rings bursting out; the haptic and the level number still mark the moment.
+    if (!trigger || reduce) return;
     a.set(0);
     b.set(0);
-    a.set(withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }));
-    b.set(withDelay(180, withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) })));
-  }, [trigger, a, b]);
+    a.set(withTiming(1, { duration: 1100, easing: EASE_OUT }));
+    b.set(withDelay(180, withTiming(1, { duration: 1100, easing: EASE_OUT })));
+  }, [trigger, reduce, a, b]);
   return (
     <View
       pointerEvents="none"
@@ -341,11 +344,13 @@ function PrayLauncherContent() {
   const [actions, setActions] = useState<Size | null>(null);
 
   // Level-up hop: rises 40pt and swells, slowing at the top; falls back under gravity, squashes, and springs to rest.
+  const reduce = useReducedMotion();
   const hopY = useSharedValue(0);
   const hopScale = useSharedValue(1);
   useEffect(() => {
     if (!leveledUp) return;
     authHaptic('success');
+    if (reduce) return;
     hopY.set(withSequence(
       withTiming(-40, { duration: 260, easing: Easing.out(Easing.quad) }),
       withTiming(0, { duration: 220, easing: Easing.in(Easing.quad) }),
@@ -355,7 +360,7 @@ function PrayLauncherContent() {
       withTiming(0.94, { duration: 220, easing: Easing.in(Easing.quad) }),
       withSpring(1, SPRING_LAND),
     ));
-  }, [leveledUp, hopY, hopScale]);
+  }, [leveledUp, reduce, hopY, hopScale]);
   const hopStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: hopY.get() }, { scale: hopScale.get() }],
   }));
@@ -364,8 +369,8 @@ function PrayLauncherContent() {
   const petScale = 1 + Math.min((progress.level - 1) * 0.02, 0.08);
   const growth = useSharedValue(petScale);
   useEffect(() => {
-    growth.set(withSpring(petScale, { damping: 12, stiffness: 150 }));
-  }, [petScale, growth]);
+    growth.set(reduce ? petScale : withSpring(petScale, { damping: 12, stiffness: 150 }));
+  }, [petScale, reduce, growth]);
   const growthStyle = useAnimatedStyle(() => ({ transform: [{ scale: growth.get() }] }));
 
   // Level-up toast: slides in over the first ~12% of 2.2s, holds, fades out by the end.

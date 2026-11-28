@@ -1,4 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import { useCallback, useState } from 'react';
 import { BackHandler, Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

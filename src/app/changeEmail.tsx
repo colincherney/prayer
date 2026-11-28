@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,

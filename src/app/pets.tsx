@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { memo, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';

@@ -4,7 +4,7 @@ import { PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display
 import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700Bold';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';
@@ -481,7 +481,8 @@ export const SWORD_SKIN: EventSkin = {
   frames: GLADI_FRAMES,
   silhouette: 'rgba(191,234,246,0.26)',
   Backdrop: SwordBackdrop,
-  // no intro clip yet: the end page (title, Shard and Gladius, Begin) shows on its own
+  // Rendered by scripts/render-sword-clip.py; lives in the event-clips bucket like the others.
+  clip: 'take-up-the-sword.mp4',
   clipTitle: 'The Sword of\nthe Spirit',
   clipSubtitle: 'Complete the June challenges\nto forge Gladius.',
   beginLabel: 'Take up the sword',

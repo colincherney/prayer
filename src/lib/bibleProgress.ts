@@ -150,3 +150,17 @@ export async function fetchAllHighlights(signal: AbortSignal, limit = 300): Prom
   if (error) throw error;
   return data as BibleHighlight[];
 }
+
+/**
+ * The chapter you last touched on any device: the newest chapter you finished, took a note in, or highlighted. The
+ * phone remembers the exact chapter you last opened; this is the account's copy for a new phone or a reinstall.
+ */
+export async function fetchLastBiblePlace(signal: AbortSignal): Promise<{ book: string; chapter: number } | null> {
+  const newest = (table: 'bible_reads' | 'bible_notes' | 'bible_highlights') =>
+    supabase.from(table).select('book, chapter, created_at').order('created_at', { ascending: false }).limit(1).abortSignal(signal);
+  const results = await Promise.all([newest('bible_reads'), newest('bible_notes'), newest('bible_highlights')]);
+  const rows = results.flatMap(r => (r.error || !r.data ? [] : (r.data as { book: string; chapter: number; created_at: string }[])));
+  if (!rows.length) return null;
+  rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return { book: rows[0].book, chapter: rows[0].chapter };
+}

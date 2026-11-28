@@ -1,8 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo } from 'react';
 import { Modal, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { EASE_OUT } from '@/components/saint/motion';
 
 import { Palette, StageImage, useSkin, WF, useWinterFonts } from './winterUi';
 
@@ -30,16 +32,19 @@ function MomentBody({ stage, onDone }: { stage: 1 | 2 | 3; onDone: () => void })
   const glow = useSharedValue(0);
   const text = useSharedValue(0);
 
+  const reduce = useReducedMotion();
   useEffect(() => {
-    rise.set(withDelay(250, withSpring(1, { damping: 11, stiffness: 90 })));
-    glow.set(withDelay(150, withRepeat(withSequence(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.quad) }), withTiming(0.55, { duration: 1600 })), -1)));
-    text.set(withDelay(700, withTiming(1, { duration: 600 })));
+    // Reduce Motion: the companion and the words fade in where they stand, and the glow holds steady.
+    rise.set(withDelay(250, reduce ? withTiming(1, { duration: 400, easing: EASE_OUT }) : withSpring(1, { damping: 11, stiffness: 90 })));
+    if (reduce) glow.set(withDelay(150, withTiming(0.8, { duration: 600, easing: EASE_OUT })));
+    else glow.set(withDelay(150, withRepeat(withSequence(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.sin) }), withTiming(0.55, { duration: 1600, easing: Easing.inOut(Easing.sin) })), -1)));
+    text.set(withDelay(700, withTiming(1, { duration: 600, easing: EASE_OUT })));
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [rise, glow, text]);
+  }, [rise, glow, text, reduce]);
 
-  const artStyle = useAnimatedStyle(() => ({ opacity: rise.get(), transform: [{ translateY: (1 - rise.get()) * 60 }, { scale: 0.7 + 0.3 * rise.get() }] }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.25 + 0.45 * glow.get(), transform: [{ scale: 0.9 + 0.15 * glow.get() }] }));
-  const textStyle = useAnimatedStyle(() => ({ opacity: text.get(), transform: [{ translateY: (1 - text.get()) * 12 }] }));
+  const artStyle = useAnimatedStyle(() => ({ opacity: Math.min(rise.get(), 1), transform: reduce ? [] : [{ translateY: (1 - rise.get()) * 60 }, { scale: 0.7 + 0.3 * rise.get() }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.25 + 0.45 * glow.get(), transform: reduce ? [] : [{ scale: 0.9 + 0.15 * glow.get() }] }));
+  const textStyle = useAnimatedStyle(() => ({ opacity: text.get(), transform: reduce ? [] : [{ translateY: (1 - text.get()) * 12 }] }));
   const m = skin.moments[stage];
   // As big as fits: the whole picture (including an extended hat) stays inside the art space.
   const f = skin.frames[stage];

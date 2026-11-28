@@ -1,6 +1,7 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { PressScale, SlidingSegments } from '@/components/saint/GroupKit';
@@ -8,7 +9,7 @@ import { ArrowIcon, BackIcon, PenIcon } from '@/components/saint/Icons';
 import { enterFade, enterUp } from '@/components/saint/motion';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 import { FONTS, Theme, useTheme, useThemedStyles } from '@/components/saint/theme';
-import { placeOf, shownBibleRef, useBibleReader } from '@/components/saint/useBibleReader';
+import { type BiblePlace, placeOf, shownBibleRef, useBibleReader } from '@/components/saint/useBibleReader';
 import {
   type BibleHighlight,
   type BibleNote,
@@ -16,11 +17,15 @@ import {
   deleteNote,
   fetchAllHighlights,
   fetchAllNotes,
+  fetchLastBiblePlace,
   fetchReadHistory,
   HIGHLIGHT_SWATCH,
   HIGHLIGHT_WASH,
 } from '@/lib/bibleProgress';
 import { XP } from '@/lib/pet';
+import { LOCAL_KEYS, readLocal } from '@/lib/localCache';
+import { BIBLE_BOOKS } from '@/lib/bibleBooks';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 type Tab = 'history' | 'notes' | 'highlights';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -50,9 +55,19 @@ export default function BibleHistoryScreen() {
   const [reads, setReads] = useState<BibleRead[] | null>();
   const [notes, setNotes] = useState<BibleNote[] | null>();
   const [marks, setMarks] = useState<BibleHighlight[] | null>();
+  /** Where you left off: the chapter this phone last opened, or the account's latest one on a new phone. */
+  const [lastPlace, setLastPlace] = useState<BiblePlace | null>(null);
 
   const load = useCallback(() => {
     const controller = new AbortController();
+    const saved = readLocal<BiblePlace>(LOCAL_KEYS.bibleLastRead);
+    if (saved && BIBLE_BOOKS[saved.book] && saved.chapter >= 1 && saved.chapter <= BIBLE_BOOKS[saved.book].chapters) setLastPlace(saved);
+    else {
+      fetchLastBiblePlace(controller.signal).then(
+        last => { if (!controller.signal.aborted) setLastPlace(last ? placeOf(last.book, last.chapter) : null); },
+        () => {},
+      );
+    }
     fetchReadHistory(controller.signal).then(
       r => { if (!controller.signal.aborted) setReads(r); },
       () => { if (!controller.signal.aborted) setReads(null); },
@@ -113,6 +128,21 @@ export default function BibleHistoryScreen() {
         </Text>
         <Text style={styles.subtitle}>What you’ve read and what you wrote along the way. Only you can see it.</Text>
 
+        {lastPlace ? (
+          <Animated.View entering={enterUp(0)}>
+            <PressScale onPress={() => open(lastPlace)} haptic="press" scaleTo={0.98} accessibilityRole="button"
+              accessibilityLabel={`Continue reading ${shownBibleRef(lastPlace)}`} style={styles.continueCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.continueLabel}>Pick up where you left off</Text>
+                <Text style={styles.continueRef}>{shownBibleRef(lastPlace)}</Text>
+              </View>
+              <View style={[styles.continueGo, { backgroundColor: theme.accent }]}>
+                <ArrowIcon size={16} color={theme.isDark ? theme.bg : theme.accentInk} />
+              </View>
+            </PressScale>
+          </Animated.View>
+        ) : null}
+
         <SlidingSegments
           theme={theme}
           value={tab}
@@ -127,7 +157,7 @@ export default function BibleHistoryScreen() {
 
         <Animated.View key={tab} entering={enterFade(220)}>
           {list === undefined ? (
-            <ActivityIndicator style={styles.loading} color={theme.accent} />
+            <PageLoader style={styles.loading} color={theme.accent} />
           ) : list === null ? (
             <Text style={styles.empty}>Couldn’t load this right now. Pull back in a moment.</Text>
           ) : list.length === 0 ? (
@@ -212,6 +242,14 @@ export default function BibleHistoryScreen() {
 }
 
 const makeStyles = (theme: Theme) => StyleSheet.create({
+  continueCard: {
+    marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 22,
+    backgroundColor: theme.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.line,
+    shadowColor: '#000', shadowOpacity: theme.isDark ? 0.3 : 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+  },
+  continueLabel: { fontFamily: FONTS.body, fontSize: 13, color: theme.inkSoft },
+  continueRef: { fontFamily: FONTS.display, fontSize: 26, color: theme.ink, marginTop: 2 },
+  continueGo: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   safe: { flex: 1, backgroundColor: theme.bg },
   content: { paddingHorizontal: 16, paddingBottom: 56, width: '100%', maxWidth: 680, alignSelf: 'center' },
   topBar: { paddingTop: 8, paddingBottom: 6 },

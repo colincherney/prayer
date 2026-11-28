@@ -1,4 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +34,7 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { LOCAL_KEYS, readForUser, writeForUser } from '@/lib/localCache';
 import { supabase } from '@/lib/supabase';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 type GroupRow = {
   id: string;
@@ -304,7 +306,7 @@ export default function GroupsScreen() {
             </View>
             {loading ? (
               <View style={styles.list}>
-                <ActivityIndicator color={THEME.accent} style={{ marginVertical: 28 }} />
+                <PageLoader color={THEME.accent} style={{ marginVertical: 28 }} />
               </View>
             ) : myGroups.length === 0 ? (
               <View style={[styles.list, styles.emptyBox]}>

@@ -1,4 +1,5 @@
-import { type Href, router } from 'expo-router';
+import { type Href } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { type ReactNode } from 'react';
 import { Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';

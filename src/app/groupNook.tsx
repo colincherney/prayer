@@ -1,6 +1,7 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from '@/components/saint/SafeArea';
 
 import { Hearth, HEARTH_DECOR, HearthIcon, HearthMember } from '@/components/pets/Hearth';
@@ -12,6 +13,7 @@ import { useSaintFonts } from '@/components/saint/useFonts';
 import { useAuth } from '@/lib/auth';
 import { usePetProgress } from '@/lib/pet';
 import { supabase } from '@/lib/supabase';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 /** Decorating a group's hearth. Lives on its own page so the group's prayers stay uncluttered. */
 export default function GroupNookScreen() {
@@ -96,7 +98,7 @@ export default function GroupNookScreen() {
           theme={THEME}
         />
         {loading ? (
-          <ActivityIndicator color={THEME.accent} style={{ marginTop: 40 }} />
+          <PageLoader color={THEME.accent} style={{ marginTop: 40 }} />
         ) : (
           <View style={{ paddingHorizontal: 22 }}>
             <Hearth width={screenW - 44} members={members} decor={decor} flare={flare} toastText="Looking cozy" />

@@ -1,4 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +34,7 @@ import {
   fetchPrayerHistory, fetchPrayerStats, MyPrayer, PrayerFilter, PrayerStats, UpdateKind, UpdateVisibility,
 } from '@/lib/prayerHistory';
 import { supabase } from '@/lib/supabase';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 const KIND_LABEL: Record<UpdateKind, string> = {
   progress: 'Progress', answered: 'Answered', setback: 'Setback', note: 'Reflection',
@@ -314,7 +316,7 @@ export default function MyPrayersScreen() {
           </>
         )}
         ListEmptyComponent={historyLoading ? (
-          <View style={styles.emptyCard}><ActivityIndicator color={theme.accent} accessibilityLabel="Loading prayer history" /></View>
+          <View style={styles.emptyCard}><PageLoader color={theme.accent} accessibilityLabel="Loading prayer history" /></View>
         ) : historyError ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Couldn’t load your prayers</Text>

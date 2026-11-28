@@ -1,5 +1,6 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -34,6 +35,7 @@ import {
   updateGroupPrayerNotificationPref,
   updatePrefs,
 } from '@/lib/notifications';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 const REMINDER_HOURS = [6, 7, 8, 9, 12, 17, 19, 21];
 
@@ -193,7 +195,7 @@ export default function NotificationSettingsScreen() {
 
         {loading ? (
           <View style={{ paddingTop: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={THEME.accent} />
+            <PageLoader color={THEME.accent} />
           </View>
         ) : loadError ? (
           <View style={{ padding: 22, gap: 12 }}>

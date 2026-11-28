@@ -52,6 +52,7 @@ import {
 } from '@/lib/bibleProgress';
 import { BIBLE_VERSIONS, bibleVersionName, useBibleVersion } from '@/lib/bibleVersion';
 import { XP } from '@/lib/pet';
+import { PageLoader } from './PageLoader';
 
 type Props = {
   references: readonly string[];
@@ -363,7 +364,7 @@ export function BiblePassageReader({ references, onClose, backLabel = 'Back to Q
         </View>
 
         {chapters === undefined ? (
-          <ActivityIndicator style={styles.loading} color={theme.accent} accessibilityLabel="Loading Bible passage" />
+          <PageLoader style={styles.loading} color={theme.accent} accessibilityLabel="Loading Bible passage" />
         ) : chapters === null ? (
           <View style={styles.message}>
             <Text style={styles.error} accessibilityLiveRegion="polite">Couldn’t load this passage.</Text>

@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from '@/components/saint/HapticPressable';

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router } from '@/lib/nav';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,

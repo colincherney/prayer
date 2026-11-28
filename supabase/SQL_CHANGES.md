@@ -1105,3 +1105,14 @@ delete from public.content_windows where id = 'event:sword';
 -- then re-run the pet-id checks and switch_pet() from supabase/migrations/20261119_beloved_event.sql (without 'gladi'),
 -- after moving anyone whose active pet is 'gladi' to another pet.
 ```
+
+## The Sword of the Spirit leaves testing mode (2026-11-27)
+
+**Why:** testing done; the June event now runs on its real schedule.
+
+**Applied as:** `supabase/migrations/20261125_sword_testing_mode_off.sql`, through the Supabase connector on 2026-11-27.
+`sword-2027` starts 2027-06-01 (ends 2027-06-30), `allow_test_dates` false, `test_today` removed, the `event:sword`
+window opens Jun 1 00:00 ET, and the `swords_raised` community count was reset to 0. Test progress was kept (earned is
+forever).
+
+**Revert (back to testing mode):** run `supabase/migrations/20261125_sword_testing_mode_on.sql`.

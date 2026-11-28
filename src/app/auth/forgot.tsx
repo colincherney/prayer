@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '@/lib/nav';
 import { useEffect, useState } from 'react';
 
 import { AuthButton } from '@/components/saint/AuthControls';

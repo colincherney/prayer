@@ -1,4 +1,3 @@
-import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -12,6 +11,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+
+import { useMotionEnabled } from '@/components/pets/anim';
 import Svg, {
   Circle,
   Defs,
@@ -82,7 +83,8 @@ const FLARE_STARS: Array<[number, number]> = [
 const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
   const drift = useSharedValue(0);
   const pulse = useSharedValue(0);
-  const focused = useIsFocused();
+  // Rests off-screen, under Reduce Motion, and behind a full-screen moment.
+  const focused = useMotionEnabled(true);
 
   useEffect(() => {
     if (!focused) return;
@@ -150,7 +152,8 @@ const FireflyDot: React.FC<{ f: Firefly }> = ({ f }) => {
 // Pulsing warm window of the hut in the canopy.
 const HutWindowGlow: React.FC = () => {
   const t = useSharedValue(0);
-  const focused = useIsFocused();
+  // Rests off-screen, under Reduce Motion, and behind a full-screen moment.
+  const focused = useMotionEnabled(true);
   useEffect(() => {
     if (!focused) return;
     t.set(

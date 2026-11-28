@@ -1,4 +1,3 @@
-import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, {
@@ -10,6 +9,8 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+
+import { useMotionEnabled } from '@/components/pets/anim';
 import Svg, {
   Circle,
   Defs,
@@ -67,7 +68,8 @@ const LAMPPOSTS: Array<{ x: number; h: number; pulse: number }> = [
 // scene a sense of life without the perf cost of animating every star.
 const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
   const t = useSharedValue(0);
-  const focused = useIsFocused();
+  // Rests off-screen, under Reduce Motion, and behind a full-screen moment.
+  const focused = useMotionEnabled(true);
   useEffect(() => {
     if (!focused) return;
     t.set(
@@ -92,7 +94,8 @@ const LamppostGlow: React.FC<{ pulse: number }> = ({ pulse }) => {
 // Pulsing chapel window — focal warm point on the distant hill.
 const ChapelWindowGlow: React.FC = () => {
   const t = useSharedValue(0);
-  const focused = useIsFocused();
+  // Rests off-screen, under Reduce Motion, and behind a full-screen moment.
+  const focused = useMotionEnabled(true);
   useEffect(() => {
     if (!focused) return;
     t.set(

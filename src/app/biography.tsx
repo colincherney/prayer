@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  ActivityIndicator,
   Alert,
   Keyboard,
   useWindowDimensions,
@@ -24,7 +23,8 @@ import Animated, {
   SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { router } from '@/lib/nav';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { JournalDesk, JournalEmptyArt, JournalFlourish } from '@/components/pets/JournalArt';
 import { useAppDisplay } from '@/components/saint/appDisplay';
@@ -39,6 +39,7 @@ import { supabase } from '@/lib/supabase';
 import { refreshAllEvents } from '@/lib/winterEvent';
 import { useAuth } from '@/lib/auth';
 import { type BibleVersion, useBibleVersion } from '@/lib/bibleVersion';
+import { PageLoader } from '@/components/saint/PageLoader';
 
 
 
@@ -387,7 +388,7 @@ function EntryDetail({
             <View style={[styles.detailVerseCard, { backgroundColor: THEME.surface, borderColor: THEME.line }]}>
               <BookIcon size={20} color={THEME.accent} />
               {verseLoading ? (
-                <ActivityIndicator size="small" color={THEME.accent} style={{ marginVertical: 14, alignSelf: 'flex-start' }} />
+                <PageLoader size="small" color={THEME.accent} style={{ marginVertical: 14, alignSelf: 'flex-start' }} />
               ) : (
                 <Text style={[styles.detailVerseText, { color: THEME.ink }]}>{displayVerseText}</Text>
               )}
@@ -667,7 +668,7 @@ function VersePicker({ version, onConfirm, onClose }: {
           <Text style={[styles.vpRef, { color: THEME.accent }]}>{verseRef}</Text>
         ) : null}
         {previewLoading ? (
-          <ActivityIndicator color={THEME.accent} style={{ marginTop: 16 }} />
+          <PageLoader color={THEME.accent} style={{ marginTop: 16 }} />
         ) : previewText ? (
           <Text style={[styles.vpPreview, { color: THEME.ink }]}>"{previewText}"</Text>
         ) : (
@@ -1260,7 +1261,7 @@ export default function BiographyScreen() {
         <View key={`${journalView}-${activeTheme}-${selectedDate ?? ''}`} style={{ paddingHorizontal: 16, marginTop: journalView === 'calendar' ? 14 : 0, gap: 10 }}>
           {loading && allEntries.length === 0 ? (
             <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-              <ActivityIndicator color={THEME.accent} />
+              <PageLoader color={THEME.accent} />
             </View>
           ) : (
             <>
